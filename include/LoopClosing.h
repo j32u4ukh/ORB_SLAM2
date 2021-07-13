@@ -31,6 +31,7 @@
 
 #include <thread>
 #include <mutex>
+
 #include "Thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
 
 namespace ORB_SLAM2
@@ -45,9 +46,22 @@ class LoopClosing
 {
 public:
 
-    typedef pair<set<KeyFrame*>,int> ConsistentGroup;    
-    typedef map<KeyFrame*,g2o::Sim3,std::less<KeyFrame*>,
-        Eigen::aligned_allocator<std::pair<const KeyFrame*, g2o::Sim3> > > KeyFrameAndPose;
+    typedef pair<set<KeyFrame*>,int> ConsistentGroup;
+    
+    // typedef map<KeyFrame*,g2o::Sim3,std::less<KeyFrame*>,
+    //     Eigen::aligned_allocator<std::pair<const KeyFrame*, g2o::Sim3> > > KeyFrameAndPose;
+    typedef map<KeyFrame*,g2o::Sim3,std::less<KeyFrame*>, 
+            Eigen::aligned_allocator<std::pair<KeyFrame *const, g2o::Sim3> > > KeyFrameAndPose;
+    // 參考：https://blog.csdn.net/lixujie666/article/details/90023059
+
+    /* const KeyFrame* V.S. const KeyFrame *const
+    之前的 const KeyFrame* 表示的指針意義為：此指針指向的 KeyFame 是一個 const 值，
+    改後的 const KeyFrame *const表示的指針意義為：此指針為一個 const 指針，而 KeyFrame 亦為 const 值。
+    這樣便能符合分配器必須為為 std::pair<const Key, 值> 的類型的要求。
+
+    註：上方改法和這裡的說明略有不同
+    參考：https://zhuanlan.zhihu.com/p/218019316
+    */
 
 public:
 

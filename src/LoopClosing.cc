@@ -30,6 +30,7 @@
 
 #include<mutex>
 #include<thread>
+#include <unistd.h>
 
 
 namespace ORB_SLAM2
@@ -435,6 +436,8 @@ void LoopClosing::CorrectLoop()
     mvpCurrentConnectedKFs = mpCurrentKF->GetVectorCovisibleKeyFrames();
     mvpCurrentConnectedKFs.push_back(mpCurrentKF);
 
+    // typedef map<KeyFrame*,g2o::Sim3,std::less<KeyFrame*>, 
+    //         Eigen::aligned_allocator<std::pair<KeyFrame *const, g2o::Sim3> > > KeyFrameAndPose;
     KeyFrameAndPose CorrectedSim3, NonCorrectedSim3;
     CorrectedSim3[mpCurrentKF]=mg2oScw;
     cv::Mat Twc = mpCurrentKF->GetPoseInverse();
