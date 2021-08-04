@@ -96,7 +96,10 @@ protected:
     bool CheckFinish();
     void SetFinish();
     bool mbFinishRequested;
+
+    // 『執行續 LocalMapping』是否已結束
     bool mbFinished;
+    
     std::mutex mMutexFinish;
 
     Map* mpMap;
@@ -104,6 +107,7 @@ protected:
     LoopClosing* mpLoopCloser;
     Tracking* mpTracker;
 
+    // 新關鍵幀容器
     std::list<KeyFrame*> mlNewKeyFrames;
 
     KeyFrame* mpCurrentKeyFrame;
@@ -114,12 +118,20 @@ protected:
 
     bool mbAbortBA;
 
+    // 是否中止『執行續 LocalMapping』
     bool mbStopped;
+
+    // 請求中止『執行續 LocalMapping』（不會光 mbStopRequested 被改為 true 就中止）
     bool mbStopRequested;
+
+    // 請求不要中止『執行續 LocalMapping』
     bool mbNotStop;
+
     std::mutex mMutexStop;
 
+    // 設置『是否接受關鍵幀（此時 LOCAL MAPPING 線程是否處於空閑的狀態）』
     bool mbAcceptKeyFrames;
+    
     std::mutex mMutexAccept;
 };
 

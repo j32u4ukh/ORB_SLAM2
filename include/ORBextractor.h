@@ -38,8 +38,12 @@ public:
 
     void DivideNode(ExtractorNode &n1, ExtractorNode &n2, ExtractorNode &n3, ExtractorNode &n4);
 
+    // 特徵點們
     std::vector<cv::KeyPoint> vKeys;
+
+    // 區域邊界點
     cv::Point2i UL, UR, BL, BR;
+
     std::list<ExtractorNode>::iterator lit;
     bool bNoMore;
 };
@@ -63,10 +67,12 @@ public:
       cv::OutputArray descriptors);
 
     int inline GetLevels(){
-        return nlevels;}
+        return nlevels;
+    }
 
     float inline GetScaleFactor(){
-        return scaleFactor;}
+        return scaleFactor;
+    }
 
     std::vector<float> inline GetScaleFactors(){
         return mvScaleFactor;

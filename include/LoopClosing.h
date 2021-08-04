@@ -50,8 +50,10 @@ public:
     
     // typedef map<KeyFrame*,g2o::Sim3,std::less<KeyFrame*>,
     //     Eigen::aligned_allocator<std::pair<const KeyFrame*, g2o::Sim3> > > KeyFrameAndPose;
-    typedef map<KeyFrame*,g2o::Sim3,std::less<KeyFrame*>, 
-            Eigen::aligned_allocator<std::pair<KeyFrame *const, g2o::Sim3> > > KeyFrameAndPose;
+    typedef map<KeyFrame*, 
+                g2o::Sim3, 
+                std::less<KeyFrame*>, 
+                Eigen::aligned_allocator<std::pair<KeyFrame *const, g2o::Sim3> > > KeyFrameAndPose;
     // 參考：https://blog.csdn.net/lixujie666/article/details/90023059
 
     /* const KeyFrame* V.S. const KeyFrame *const
@@ -61,6 +63,30 @@ public:
 
     註：上方改法和這裡的說明略有不同
     參考：https://zhuanlan.zhihu.com/p/218019316
+
+    template < class Key,                                 // multimap::key_type
+           class T,                                       // multimap::mapped_type
+           class Compare = less<Key>,                     // multimap::key_compare
+           class Alloc = allocator<pair<const Key,T> >    // multimap::allocator_type
+           > class multimap;
+
+    * Key: 鍵的類型。地圖中的每個元素都由其鍵值標識。別名為成員類型 multimap::key_type。
+    
+    * T: 映射值的類型。多重映射中的每個元素都存儲一些數據作為其映射值。別名為成員類型 multimap::mapped_type。
+    
+    * Compare: 
+    一個二元謂詞，將兩個元素鍵作為參數並返回一個布爾值。表達式 comp(a,b)，其中 comp 是這種類型的對象，a 和 b 是元素鍵，
+    如果在函數定義的嚴格弱排序中 a 被認為在 b 之前，則應返回 true。
+    multimap 對象使用此表達式來確定元素在容器中遵循的順序以及兩個元素鍵是否等效（通過反射性比較它們：
+    如果 !comp(a,b) && !comp(b,a)，它們是等效的）。
+    這可以是函數指針或函數對象（參見構造函數示例）。這默認為 less<T>，它返回與應用小於運算符 (a<b) 相同的值。
+    別名為成員類型 multimap::key_compare。
+    
+    * Alloc: 
+    用於定義存儲分配模型的分配器對象的類型。默認情況下使用分配器類模板，它定義了最簡單的內存分配模型，並且與值無關。
+    別名為成員類型 multimap::allocator_type。
+
+    參考：https://www.cplusplus.com/reference/map/multimap/
     */
 
 public:
@@ -81,6 +107,7 @@ public:
     // This function will run in a separate thread
     void RunGlobalBundleAdjustment(unsigned long nLoopKF);
 
+    // 『執行續 RunGlobalBundleAdjustment』是否正在執行
     bool isRunningGBA(){
         unique_lock<std::mutex> lock(mMutexGBA);
         return mbRunningGBA;
@@ -115,7 +142,10 @@ protected:
     bool CheckFinish();
     void SetFinish();
     bool mbFinishRequested;
+
+    // LoopClosing 執行續是否已有效停止
     bool mbFinished;
+
     std::mutex mMutexFinish;
 
     Map* mpMap;
@@ -136,10 +166,16 @@ protected:
     // Loop detector variables
     KeyFrame* mpCurrentKF;
     KeyFrame* mpMatchedKF;
+
+    // ConsistentGroup: pair<set<KeyFrame*>,int>
     std::vector<ConsistentGroup> mvConsistentGroups;
+
     std::vector<KeyFrame*> mvpEnoughConsistentCandidates;
     std::vector<KeyFrame*> mvpCurrentConnectedKFs;
+
+    // mvpCurrentMatchedPoints：根據已配對的地圖點與關鍵幀，再次匹配成功後找到的『地圖點』
     std::vector<MapPoint*> mvpCurrentMatchedPoints;
+    
     std::vector<MapPoint*> mvpLoopMapPoints;
     cv::Mat mScw;
     g2o::Sim3 mg2oScw;

@@ -20,114 +20,136 @@
 
 #include "Map.h"
 
-#include<mutex>
+#include <mutex>
 
 namespace ORB_SLAM2
 {
 
-Map::Map():mnMaxKFid(0),mnBigChangeIdx(0)
-{
-}
+    Map::Map() : mnMaxKFid(0), mnBigChangeIdx(0)
+    {
+    }
 
-void Map::AddKeyFrame(KeyFrame *pKF)
-{
-    unique_lock<mutex> lock(mMutexMap);
-    mspKeyFrames.insert(pKF);
-    if(pKF->mnId>mnMaxKFid)
-        mnMaxKFid=pKF->mnId;
-}
+    // 將『關鍵幀 pKF』加到地圖的『關鍵幀陣列』中
+    void Map::AddKeyFrame(KeyFrame *pKF)
+    {
+        unique_lock<mutex> lock(mMutexMap);
+        mspKeyFrames.insert(pKF);
 
-void Map::AddMapPoint(MapPoint *pMP)
-{
-    unique_lock<mutex> lock(mMutexMap);
-    mspMapPoints.insert(pMP);
-}
+        // 更新最新關鍵幀序號
+        if (pKF->mnId > mnMaxKFid)
+        {
+            mnMaxKFid = pKF->mnId;
+        }
+    }
 
-void Map::EraseMapPoint(MapPoint *pMP)
-{
-    unique_lock<mutex> lock(mMutexMap);
-    mspMapPoints.erase(pMP);
+    void Map::AddMapPoint(MapPoint *pMP)
+    {
+        unique_lock<mutex> lock(mMutexMap);
+        mspMapPoints.insert(pMP);
+    }
 
-    // TODO: This only erase the pointer.
-    // Delete the MapPoint
-}
+    // 清除『地圖點 pMP』
+    void Map::EraseMapPoint(MapPoint *pMP)
+    {
+        unique_lock<mutex> lock(mMutexMap);
+        mspMapPoints.erase(pMP);
 
-void Map::EraseKeyFrame(KeyFrame *pKF)
-{
-    unique_lock<mutex> lock(mMutexMap);
-    mspKeyFrames.erase(pKF);
+        /// TODO: This only erase the pointer. Delete the MapPoint
+    }
 
-    // TODO: This only erase the pointer.
-    // Delete the MapPoint
-}
+    void Map::EraseKeyFrame(KeyFrame *pKF)
+    {
+        unique_lock<mutex> lock(mMutexMap);
+        mspKeyFrames.erase(pKF);
 
-void Map::SetReferenceMapPoints(const vector<MapPoint *> &vpMPs)
-{
-    unique_lock<mutex> lock(mMutexMap);
-    mvpReferenceMapPoints = vpMPs;
-}
+        // TODO: This only erase the pointer.
+        // Delete the MapPoint
+    }
 
-void Map::InformNewBigChange()
-{
-    unique_lock<mutex> lock(mMutexMap);
-    mnBigChangeIdx++;
-}
+    void Map::SetReferenceMapPoints(const vector<MapPoint *> &vpMPs)
+    {
+        unique_lock<mutex> lock(mMutexMap);
+        mvpReferenceMapPoints = vpMPs;
+    }
 
-int Map::GetLastBigChangeIdx()
-{
-    unique_lock<mutex> lock(mMutexMap);
-    return mnBigChangeIdx;
-}
+    // 增加『重要變革的索引值』
+    void Map::InformNewBigChange()
+    {
+        unique_lock<mutex> lock(mMutexMap);
+        mnBigChangeIdx++;
+    }
 
-vector<KeyFrame*> Map::GetAllKeyFrames()
-{
-    unique_lock<mutex> lock(mMutexMap);
-    return vector<KeyFrame*>(mspKeyFrames.begin(),mspKeyFrames.end());
-}
+    // 回傳重要變革的索引值
+    int Map::GetLastBigChangeIdx()
+    {
+        unique_lock<mutex> lock(mMutexMap);
 
-vector<MapPoint*> Map::GetAllMapPoints()
-{
-    unique_lock<mutex> lock(mMutexMap);
-    return vector<MapPoint*>(mspMapPoints.begin(),mspMapPoints.end());
-}
+        // 重要變革的索引值
+        return mnBigChangeIdx;
+    }
 
-long unsigned int Map::MapPointsInMap()
-{
-    unique_lock<mutex> lock(mMutexMap);
-    return mspMapPoints.size();
-}
+    // 取出所有『關鍵幀』
+    vector<KeyFrame *> Map::GetAllKeyFrames()
+    {
+        unique_lock<mutex> lock(mMutexMap);
+        return vector<KeyFrame *>(mspKeyFrames.begin(), mspKeyFrames.end());
+    }
 
-long unsigned int Map::KeyFramesInMap()
-{
-    unique_lock<mutex> lock(mMutexMap);
-    return mspKeyFrames.size();
-}
+    // 取出所有『地圖點』
+    vector<MapPoint *> Map::GetAllMapPoints()
+    {
+        unique_lock<mutex> lock(mMutexMap);
+        return vector<MapPoint *>(mspMapPoints.begin(), mspMapPoints.end());
+    }
 
-vector<MapPoint*> Map::GetReferenceMapPoints()
-{
-    unique_lock<mutex> lock(mMutexMap);
-    return mvpReferenceMapPoints;
-}
+    long unsigned int Map::MapPointsInMap()
+    {
+        unique_lock<mutex> lock(mMutexMap);
+        return mspMapPoints.size();
+    }
 
-long unsigned int Map::GetMaxKFid()
-{
-    unique_lock<mutex> lock(mMutexMap);
-    return mnMaxKFid;
-}
+    // 返回地圖中的關鍵幀數量
+    long unsigned int Map::KeyFramesInMap()
+    {
+        unique_lock<mutex> lock(mMutexMap);
 
-void Map::clear()
-{
-    for(set<MapPoint*>::iterator sit=mspMapPoints.begin(), send=mspMapPoints.end(); sit!=send; sit++)
-        delete *sit;
+        // 地圖中的關鍵幀數量
+        return mspKeyFrames.size();
+    }
 
-    for(set<KeyFrame*>::iterator sit=mspKeyFrames.begin(), send=mspKeyFrames.end(); sit!=send; sit++)
-        delete *sit;
+    vector<MapPoint *> Map::GetReferenceMapPoints()
+    {
+        unique_lock<mutex> lock(mMutexMap);
+        return mvpReferenceMapPoints;
+    }
 
-    mspMapPoints.clear();
-    mspKeyFrames.clear();
-    mnMaxKFid = 0;
-    mvpReferenceMapPoints.clear();
-    mvpKeyFrameOrigins.clear();
-}
+    long unsigned int Map::GetMaxKFid()
+    {
+        unique_lock<mutex> lock(mMutexMap);
+        return mnMaxKFid;
+    }
+
+    void Map::clear()
+    {
+        set<MapPoint *>::iterator sit = mspMapPoints.begin();
+        set<MapPoint *>::iterator send = mspMapPoints.end();
+
+        for (; sit != send; sit++){
+            delete *sit;
+        }
+
+        set<KeyFrame *>::iterator sit = mspKeyFrames.begin();
+        set<KeyFrame *>::iterator send = mspKeyFrames.end();
+
+        for (; sit != send; sit++){
+            delete *sit;
+        }
+
+        mspMapPoints.clear();
+        mspKeyFrames.clear();
+        mnMaxKFid = 0;
+        mvpReferenceMapPoints.clear();
+        mvpKeyFrameOrigins.clear();
+    }
 
 } //namespace ORB_SLAM

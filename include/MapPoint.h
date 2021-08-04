@@ -86,6 +86,8 @@ public:
     static long unsigned int nNextId;
     long int mnFirstKFid;
     long int mnFirstFrame;
+
+    // 這個地圖點被幾個關鍵幀觀察到
     int nObs;
 
     // Variables used by the tracking
@@ -118,19 +120,24 @@ protected:
      cv::Mat mWorldPos;
 
      // Keyframes observing the point and associated index in keyframe
-     std::map<KeyFrame*,size_t> mObservations;
+     // 觀察到這個地圖點的『關鍵幀』，以及其『關鍵點』的索引值
+     std::map<KeyFrame*, size_t> mObservations;
 
      // Mean viewing direction
+     // 平均『相機指向地圖點』之正規化向量（地圖點之法向量），由觀察到這個地圖點的所有關鍵幀所共同構成的向量
      cv::Mat mNormalVector;
 
      // Best descriptor to fast matching
+     // 地圖點的描述子：『所有描述這個地圖點的描述子的集合』的中心描述子
      cv::Mat mDescriptor;
 
      // Reference KeyFrame
      KeyFrame* mpRefKF;
 
-     // Tracking counters
+     // 估計能夠看到地圖點的關鍵幀數量
      int mnVisible;
+
+     // 實際觀測到地圖點的關鍵幀數量
      int mnFound;
 
      // Bad flag (we do not currently erase MapPoint from memory)
@@ -138,7 +145,10 @@ protected:
      MapPoint* mpReplaced;
 
      // Scale invariance distances
+     // 『地圖點 pMP』最小可能深度
      float mfMinDistance;
+
+     // 『地圖點 pMP』最大可能深度
      float mfMaxDistance;
 
      Map* mpMap;

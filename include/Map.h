@@ -68,6 +68,8 @@ public:
 
 protected:
     std::set<MapPoint*> mspMapPoints;
+
+    // 地圖中的關鍵幀
     std::set<KeyFrame*> mspKeyFrames;
 
     std::vector<MapPoint*> mvpReferenceMapPoints;

@@ -75,6 +75,7 @@ public:
     }
 
     // Returns inverse of rotation
+    // 旋轉矩陣（相機座標 → 世界座標）
     inline cv::Mat GetRotationInverse(){
         return mRwc.clone();
     }
@@ -135,6 +136,8 @@ public:
     // In the stereo case, mvKeysUn is redundant as images must be rectified.
     // In the RGB-D case, RGB images can be distorted.
     std::vector<cv::KeyPoint> mvKeys, mvKeysRight;
+
+    // 存入校正後的關鍵點（推測是像素坐標）
     std::vector<cv::KeyPoint> mvKeysUn;
 
     // Corresponding stereo coordinate and depth for each keypoint.
@@ -142,11 +145,26 @@ public:
     std::vector<float> mvuRight;
     std::vector<float> mvDepth;
 
-    // Bag of Words Vector structures.
+    // ==================================================
+    // 詞典是一個事先訓練好的分類樹(System.cc 當中的 mpVocabulary), 而 BOW 特徵有兩種
+    // 在利用幀間所有特徵點比對初始化地圖點以後, 後面的幀間比對都採用 Feature vector 進行, 
+    // 而不再利用所有特徵點的 descriptor 兩兩比對
+    // 這裡只是利用 mpVocabulary 根據 Frame 的描述子，將它們分別劃分到這個分類樹的各個節點，
+    // 並將分類結果紀錄在 mBowVec 和 mFeatVec 當中
+    // ================================================== 
+    // 分類樹中 leaf 的數值與權重(葉) Bag of Words Vector structures.
+    // BowVector == std::map<WordId, WordValue>
     DBoW2::BowVector mBowVec;
+
+    // FeatureVector == std::map<NodeId, std::vector<unsigned int> >
+    // 以一張圖片的每個特徵點在詞典某一層節點下爲條件進行分組，用來加速圖形特徵匹配——
+    // 兩兩圖像特徵匹配只需要對相同 NodeId 下的特徵點進行匹配就好。
+    // 是分類樹中 leaf 的 id 值與對應輸入 ORB 特徵列表的特徵序號.
     DBoW2::FeatureVector mFeatVec;
+    // ==================================================
 
     // ORB descriptor, each row associated to a keypoint.
+    // 每一 row 代表一個關鍵點的描述子
     cv::Mat mDescriptors, mDescriptorsRight;
 
     // MapPoints associated to keypoints, NULL pointer if no association.
@@ -158,6 +176,11 @@ public:
     // Keypoints are assigned to cells in a grid to reduce matching complexity when projecting MapPoints.
     static float mfGridElementWidthInv;
     static float mfGridElementHeightInv;
+ 
+    /* 每個格子分配的特征點數，將圖像分成格子，保證提取的特征點比較均勻
+
+    目前看起來 mGrid[i][j] 會是一個 std::vector，紀錄網格 (i, j) 所包含的關鍵點的索引值
+    由 Frame::GetFeaturesInArea 當中 const vector<size_t> vCell = mGrid[ix][iy]; 可知 */
     std::vector<std::size_t> mGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS];
 
     // Camera pose.
@@ -201,11 +224,17 @@ private:
     // Assign keypoints to the grid for speed up feature matching (called in the constructor).
     void AssignFeaturesToGrid();
 
-    // Rotation, translation and camera center
+    // 旋轉矩陣（world to camera）
     cv::Mat mRcw;
-    cv::Mat mtcw;
+
+    // 旋轉矩陣（camera to world）
     cv::Mat mRwc;
-    cv::Mat mOw; //==mtwc
+
+    // 位姿中的平移（world to camera）
+    cv::Mat mtcw;
+
+    // 位姿中的平移（camera to world） == mtwc
+    cv::Mat mOw; 
 };
 
 }// namespace ORB_SLAM
