@@ -704,6 +704,7 @@ namespace ORB_SLAM2
             mpReferenceKF = pKFini;
             mCurrentFrame.mpReferenceKF = pKFini;
 
+            // 將 mvpLocalMapPoints 設置為參考用地圖點
             mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
 
             mpMap->mvpKeyFrameOrigins.push_back(pKFini);
@@ -973,6 +974,7 @@ namespace ORB_SLAM2
         /// NOTE: 推測『mvpLocalMapPoints 從 mpMap 取出，再傳入 mpMap』，是為了
         /// 將 mspMapPoints 複製一份給 mvpReferenceMapPoints 來繪製地圖，兩者於不同執行續的管理之下，
         /// 繪製地圖的同時，mspMapPoints 可以繼續新增、刪減地圖點，而不影響繪圖
+        // 將 mvpLocalMapPoints 設置為參考用地圖點
         mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
 
         mpMapDrawer->SetCurrentCameraPose(pKFcur->GetPose());
@@ -1664,7 +1666,7 @@ namespace ORB_SLAM2
         K2 則是 K1 的元素在共視圖中的臨接節點。
         可以通過遍歷共視圖的臨接表來計算局部地圖*/
 
-        // 設置參考用地圖點
+        // 將 mvpLocalMapPoints 設置為參考用地圖點
         mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
 
         // 計算關鍵幀集合K1、K2
@@ -2232,8 +2234,10 @@ namespace ORB_SLAM2
         Frame::mbInitialComputations = true;
     }
 
+    // 設置是否僅追蹤不建圖
     void Tracking::InformOnlyTracking(const bool &flag)
     {
+        // 是否僅追蹤不建圖
         mbOnlyTracking = flag;
     }
 

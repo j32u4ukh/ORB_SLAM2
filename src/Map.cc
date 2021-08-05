@@ -66,6 +66,7 @@ namespace ORB_SLAM2
         // Delete the MapPoint
     }
 
+    // 設置參考用地圖點
     void Map::SetReferenceMapPoints(const vector<MapPoint *> &vpMPs)
     {
         unique_lock<mutex> lock(mMutexMap);

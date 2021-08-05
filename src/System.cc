@@ -243,7 +243,7 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)
     {
         unique_lock<mutex> lock(mMutexMode);
 
-        // 定位模式
+        // 是否為定位模式
         if(mbActivateLocalizationMode)
         {
             // LocalMapping::Run & Tracking::NeedNewKeyFrame & Optimizer::LocalBundleAdjustment 將被暫時停止
@@ -256,13 +256,19 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)
             }
 
             mpTracker->InformOnlyTracking(true);
+
+            // 關閉定位模式
             mbActivateLocalizationMode = false;
         }
 
         if(mbDeactivateLocalizationMode)
         {
+            // 設置是否僅追蹤不建圖
             mpTracker->InformOnlyTracking(false);
+
+            // 清空『新關鍵幀容器』
             mpLocalMapper->Release();
+            
             mbDeactivateLocalizationMode = false;
         }
     }
@@ -288,15 +294,21 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)
     return Tcw;
 }
 
+// 啟用定位模式
 void System::ActivateLocalizationMode()
 {
     unique_lock<mutex> lock(mMutexMode);
+
+    // 使用定位模式
     mbActivateLocalizationMode = true;
 }
 
+// 不啟用定位模式
 void System::DeactivateLocalizationMode()
 {
     unique_lock<mutex> lock(mMutexMode);
+
+    // 不啟用定位模式
     mbDeactivateLocalizationMode = true;
 }
 

@@ -195,7 +195,7 @@ private:
     // 保護工作模式標志的信號量。
     std::mutex mMutexMode;
 
-    // 激活定位模式。
+    // 是否使用定位模式
     bool mbActivateLocalizationMode;
 
     // 未激活定位模式。(不是很理解為什麽要弄兩個這東西，是不是有什麽安全上的考慮？留待以後分析具體源碼時在探討吧)

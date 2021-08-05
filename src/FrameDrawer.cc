@@ -35,24 +35,38 @@ namespace ORB_SLAM2
         mIm = cv::Mat(480, 640, CV_8UC3, cv::Scalar(0, 0, 0));
     }
 
+    // 在灰階圖片上標注出特徵點的位置，並根據當前狀態，將文字寫在下方的黑色區域
     cv::Mat FrameDrawer::DrawFrame()
     {
         cv::Mat im;
-        vector<cv::KeyPoint> vIniKeys;     // Initialization: KeyPoints in reference frame
-        vector<int> vMatches;              // Initialization: correspondeces with reference keypoints
-        vector<cv::KeyPoint> vCurrentKeys; // KeyPoints in current frame
-        
-        // Tracked MapPoints in current frame
-        vector<bool> vbVO, vbMap;
-        
-        int state;                         // Tracking state
 
-        //Copy variables within scoped mutex
+        // Initialization: KeyPoints in reference frame
+        vector<cv::KeyPoint> vIniKeys;     
+
+        // Initialization: correspondeces with reference keypoints
+        vector<int> vMatches;             
+
+        // KeyPoints in current frame 
+        vector<cv::KeyPoint> vCurrentKeys; 
+        
+        // Tracked visual odometry in current frame
+        vector<bool> vbVO;
+
+        // Tracked MapPoints in current frame
+        vector<bool> vbMap;
+        
+        // Tracking state
+        int state;                         
+
+        // Copy variables within scoped mutex
+        // 暫停執行續 mMutex、取出繪圖用數值、恢復執行續 mMutex
         {
             unique_lock<mutex> lock(mMutex);
             state = mState;
-            if (mState == Tracking::SYSTEM_NOT_READY)
+
+            if (mState == Tracking::SYSTEM_NOT_READY){
                 mState = Tracking::NO_IMAGES_YET;
+            }
 
             mIm.copyTo(im);
 
@@ -74,27 +88,34 @@ namespace ORB_SLAM2
             }
         } // destroy scoped mutex -> release mutex
 
-        if (im.channels() < 3) //this should be always true
+        // this should be always true
+        if (im.channels() < 3) {
             cvtColor(im, im, CV_GRAY2BGR);
+        }
 
-        //Draw
-        if (state == Tracking::NOT_INITIALIZED) //INITIALIZING
+        // Draw
+        // INITIALIZING
+        if (state == Tracking::NOT_INITIALIZED) 
         {
             for (unsigned int i = 0; i < vMatches.size(); i++)
             {
                 if (vMatches[i] >= 0)
                 {
-                    cv::line(im, vIniKeys[i].pt, vCurrentKeys[vMatches[i]].pt,
+                    cv::line(im, 
+                             vIniKeys[i].pt, vCurrentKeys[vMatches[i]].pt,
                              cv::Scalar(0, 255, 0));
                 }
             }
         }
-        else if (state == Tracking::OK) //TRACKING
+
+        // TRACKING
+        else if (state == Tracking::OK) 
         {
             mnTracked = 0;
             mnTrackedVO = 0;
             const float r = 5;
             const int n = vCurrentKeys.size();
+
             for (int i = 0; i < n; i++)
             {
                 if (vbVO[i] || vbMap[i])
@@ -106,16 +127,28 @@ namespace ORB_SLAM2
                     pt2.y = vCurrentKeys[i].pt.y + r;
 
                     // This is a match to a MapPoint in the map
+                    // 若匹配到地圖點
                     if (vbMap[i])
                     {
+                        // 地圖點對應的特徵點的區域畫上綠色的矩形
                         cv::rectangle(im, pt1, pt2, cv::Scalar(0, 255, 0));
+
+                        // 特徵點的周圍則劃上半徑為 2 的綠色圓圈
                         cv::circle(im, vCurrentKeys[i].pt, 2, cv::Scalar(0, 255, 0), -1);
+
                         mnTracked++;
                     }
-                    else // This is match to a "visual odometry" MapPoint created in the last frame
+
+                    // This is match to a "visual odometry" MapPoint created in the last frame
+                    // 若為『視覺里程計』
+                    else 
                     {
+                        // 對應的特徵點的區域畫上紅色的矩形
                         cv::rectangle(im, pt1, pt2, cv::Scalar(255, 0, 0));
+
+                        // 特徵點的周圍則劃上半徑為 2 的紅色圓圈
                         cv::circle(im, vCurrentKeys[i].pt, 2, cv::Scalar(255, 0, 0), -1);
+
                         mnTrackedVO++;
                     }
                 }
@@ -123,29 +156,39 @@ namespace ORB_SLAM2
         }
 
         cv::Mat imWithInfo;
+
+        // 根據當前狀態，將文字寫在下方的黑色區域
         DrawTextInfo(im, state, imWithInfo);
 
         return imWithInfo;
     }
 
+    // 根據當前狀態，將文字寫在下方的黑色區域
     void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText)
     {
         stringstream s;
-        if (nState == Tracking::NO_IMAGES_YET)
+        if (nState == Tracking::NO_IMAGES_YET){
             s << " WAITING FOR IMAGES";
-        else if (nState == Tracking::NOT_INITIALIZED)
+        }
+        else if (nState == Tracking::NOT_INITIALIZED){
             s << " TRYING TO INITIALIZE ";
+        }
         else if (nState == Tracking::OK)
         {
-            if (!mbOnlyTracking)
+            if (!mbOnlyTracking){
                 s << "SLAM MODE |  ";
-            else
+            }
+            else{
                 s << "LOCALIZATION | ";
+            }
+
             int nKFs = mpMap->KeyFramesInMap();
             int nMPs = mpMap->MapPointsInMap();
             s << "KFs: " << nKFs << ", MPs: " << nMPs << ", Matches: " << mnTracked;
-            if (mnTrackedVO > 0)
+
+            if (mnTrackedVO > 0){
                 s << ", + VO matches: " << mnTrackedVO;
+            }
         }
         else if (nState == Tracking::LOST)
         {
@@ -159,10 +202,43 @@ namespace ORB_SLAM2
         int baseline = 0;
         cv::Size textSize = cv::getTextSize(s.str(), cv::FONT_HERSHEY_PLAIN, 1, 1, &baseline);
 
+        // 呈現文字的圖片，為追蹤中的圖片再加高數個像素，將文字寫在多出來的黑色區域
         imText = cv::Mat(im.rows + textSize.height + 10, im.cols, im.type());
         im.copyTo(imText.rowRange(0, im.rows).colRange(0, im.cols));
-        imText.rowRange(im.rows, imText.rows) = cv::Mat::zeros(textSize.height + 10, im.cols, im.type());
-        cv::putText(imText, s.str(), cv::Point(5, imText.rows - 5), cv::FONT_HERSHEY_PLAIN, 1, cv::Scalar(255, 255, 255), 1, 8);
+        imText.rowRange(im.rows, imText.rows) = 
+                                            cv::Mat::zeros(textSize.height + 10, im.cols, im.type());
+        
+        /* void cv::putText(
+            // 待繪制的圖像
+		    cv::Mat& img,
+
+            // 待繪制的文字 
+		    const string& text, 
+
+            // 文本框的左下角
+            cv::Point origin, 
+
+            // 字體 (如cv::FONT_HERSHEY_PLAIN)
+            int fontFace, 
+
+            // 尺寸因子，值越大文字越大
+            double fontScale, 
+
+            // 線條的顏色（RGB） cv::Scalar(255, 255, 255) 白色
+            cv::Scalar color, 
+
+            // 線條寬度
+            int thickness = 1, 
+
+            // 線型（4鄰域或8鄰域，默認8鄰域）
+            int lineType = 8, 
+
+            // true='origin at lower left'
+            bool bottomLeftOrigin = false 
+	    );*/
+        cv::putText(imText, s.str(), 
+                    cv::Point(5, imText.rows - 5), cv::FONT_HERSHEY_PLAIN, 1, 
+                    cv::Scalar(255, 255, 255), 1, 8);
     }
 
     // 初始化後，根據是否被關鍵幀觀察到，將當前幀的所有關鍵點區分為『地圖點』或『視覺里程計』

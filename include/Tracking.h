@@ -136,6 +136,7 @@ public:
 
     // True if local mapping is deactivated and we are performing only localization
     // 只用於定位的標志，此時局部建圖(local mapping)功能處於未激活(deactivated)狀態。
+    // 是否僅追蹤不建圖
     bool mbOnlyTracking;
 
     void Reset();
