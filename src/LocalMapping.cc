@@ -754,8 +754,8 @@ namespace ORB_SLAM2
         // 『關鍵幀 mpCurrentKeyFrame』觀察到的地圖點
         vector<MapPoint *> vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
 
-        vector<KeyFrame *>::iterator vit = vpTargetKFs.begin();
-        vector<KeyFrame *>::iterator vend = vpTargetKFs.end();
+        vit = vpTargetKFs.begin();
+        vend = vpTargetKFs.end();
 
         for (; vit != vend; vit++)
         {

@@ -203,7 +203,10 @@ namespace ORB_SLAM2
             /// TODO: nObs = 0
         }
 
-        for (map<KeyFrame *, size_t>::iterator mit = obs.begin(), mend = obs.end(); mit != mend; mit++)
+        map<KeyFrame *, size_t>::iterator mit = obs.begin();
+        map<KeyFrame *, size_t>::iterator mend = obs.end();
+
+        for (; mit != mend; mit++)
         {
             KeyFrame *pKF = mit->first;
 
@@ -251,7 +254,10 @@ namespace ORB_SLAM2
             mpReplaced = pMP;
         }
 
-        for (map<KeyFrame *, size_t>::iterator mit = obs.begin(), mend = obs.end(); mit != mend; mit++)
+        map<KeyFrame *, size_t>::iterator mit = obs.begin();
+        map<KeyFrame *, size_t>::iterator mend = obs.end();
+
+        for (; mit != mend; mit++)
         {
             // Replace measurement in keyframe
             KeyFrame *pKF = mit->first;
@@ -471,6 +477,7 @@ namespace ORB_SLAM2
         cv::Mat normal = cv::Mat::zeros(3, 1, CV_32F);
 
         int n = 0;
+        
         map<KeyFrame *, size_t>::iterator mit = observations.begin();
         map<KeyFrame *, size_t>::iterator mend = observations.end();
 

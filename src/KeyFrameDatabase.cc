@@ -39,8 +39,12 @@ namespace ORB_SLAM2
     {
         unique_lock<mutex> lock(mMutex);
 
-        for (DBoW2::BowVector::const_iterator vit = pKF->mBowVec.begin(), vend = pKF->mBowVec.end(); vit != vend; vit++)
+        DBoW2::BowVector::const_iterator vit = pKF->mBowVec.begin();
+        DBoW2::BowVector::const_iterator vend = pKF->mBowVec.end();
+
+        for (; vit != vend; vit++){
             mvInvertedFile[vit->first].push_back(pKF);
+        }
     }
 
     void KeyFrameDatabase::erase(KeyFrame *pKF)
@@ -48,12 +52,18 @@ namespace ORB_SLAM2
         unique_lock<mutex> lock(mMutex);
 
         // Erase elements in the Inverse File for the entry
-        for (DBoW2::BowVector::const_iterator vit = pKF->mBowVec.begin(), vend = pKF->mBowVec.end(); vit != vend; vit++)
+        DBoW2::BowVector::const_iterator vit = pKF->mBowVec.begin();
+        DBoW2::BowVector::const_iterator vend = pKF->mBowVec.end();
+
+        for (; vit != vend; vit++)
         {
             // List of keyframes that share the word
             list<KeyFrame *> &lKFs = mvInvertedFile[vit->first];
 
-            for (list<KeyFrame *>::iterator lit = lKFs.begin(), lend = lKFs.end(); lit != lend; lit++)
+            list<KeyFrame *>::iterator lit = lKFs.begin();
+            list<KeyFrame *>::iterator lend = lKFs.end();
+
+            for (; lit != lend; lit++)
             {
                 if (pKF == *lit)
                 {
@@ -153,8 +163,8 @@ namespace ORB_SLAM2
         int nscores = 0;
 
         // Compute similarity score. Retain the matches whose score is higher than minScore
-        list<KeyFrame *>::iterator lit = lKFsSharingWords.begin();
-        list<KeyFrame *>::iterator lend = lKFsSharingWords.end();
+        lit = lKFsSharingWords.begin();
+        lend = lKFsSharingWords.end();
 
         for (; lit != lend; lit++)
         {
@@ -244,8 +254,8 @@ namespace ORB_SLAM2
         vector<KeyFrame *> vpLoopCandidates;
         vpLoopCandidates.reserve(lAccScoreAndMatch.size());
 
-        list<pair<float, KeyFrame *>>::iterator it = lAccScoreAndMatch.begin();
-        list<pair<float, KeyFrame *>>::iterator itend = lAccScoreAndMatch.end();
+        it = lAccScoreAndMatch.begin();
+        itend = lAccScoreAndMatch.end();
 
         for (; it != itend; it++)
         {
@@ -286,6 +296,7 @@ namespace ORB_SLAM2
             for (; vit != vend; vit++)
             {
                 list<KeyFrame *> &lKFs = mvInvertedFile[vit->first];
+
                 list<KeyFrame *>::iterator lit = lKFs.begin();
                 list<KeyFrame *>::iterator lend = lKFs.end();
 
@@ -338,8 +349,8 @@ namespace ORB_SLAM2
         int nscores = 0;
 
         // Compute similarity score.
-        list<KeyFrame *>::iterator lit = lKFsSharingWords.begin();
-        list<KeyFrame *>::iterator lend = lKFsSharingWords.end();
+        lit = lKFsSharingWords.begin();
+        lend = lKFsSharingWords.end();
         
         for (; lit != lend; lit++)
         {
@@ -386,9 +397,9 @@ namespace ORB_SLAM2
             KeyFrame *pBestKF = pKFi;
 
             vector<KeyFrame *>::iterator vit = vpNeighs.begin();
-            vector<KeyFrame *>::iterator vend = vpNeighs.end(;
+            vector<KeyFrame *>::iterator vend = vpNeighs.end();
 
-            for (); vit != vend; vit++)
+            for (; vit != vend; vit++)
             {
                 KeyFrame *pKF2 = *vit;
 
@@ -427,8 +438,8 @@ namespace ORB_SLAM2
         // 協助 vpRelocCandidates 不要重複添加
         set<KeyFrame *> spAlreadyAddedKF;
 
-        list<pair<float, KeyFrame *>>::iterator it = lAccScoreAndMatch.begin();
-        list<pair<float, KeyFrame *>>::iterator itend = lAccScoreAndMatch.end();
+        it = lAccScoreAndMatch.begin();
+        itend = lAccScoreAndMatch.end();
 
         for (; it != itend; it++)
         {

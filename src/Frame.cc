@@ -615,8 +615,9 @@ namespace ORB_SLAM2
             const int maxr = ceil(kpY + r);
             const int minr = floor(kpY - r);
 
-            for (int yi = minr; yi <= maxr; yi++)
+            for (int yi = minr; yi <= maxr; yi++){
                 vRowIndices[yi].push_back(iR);
+            }
         }
 
         // Set limits for search
@@ -657,8 +658,9 @@ namespace ORB_SLAM2
                 const size_t iR = vCandidates[iC];
                 const cv::KeyPoint &kpR = mvKeysRight[iR];
 
-                if (kpR.octave < levelL - 1 || kpR.octave > levelL + 1)
+                if (kpR.octave < levelL - 1 || kpR.octave > levelL + 1){
                     continue;
+                }
 
                 const float &uR = kpR.pt.x;
 
@@ -756,8 +758,9 @@ namespace ORB_SLAM2
 
         for (int i = vDistIdx.size() - 1; i >= 0; i--)
         {
-            if (vDistIdx[i].first < thDist)
+            if (vDistIdx[i].first < thDist){
                 break;
+            }
             else
             {
                 mvuRight[vDistIdx[i].second] = -1;

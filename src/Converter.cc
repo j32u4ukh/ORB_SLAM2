@@ -35,8 +35,10 @@ namespace ORB_SLAM2
     {
         std::vector<cv::Mat> vDesc;
         vDesc.reserve(Descriptors.rows);
-        for (int j = 0; j < Descriptors.rows; j++)
+
+        for (int j = 0; j < Descriptors.rows; j++){
             vDesc.push_back(Descriptors.row(j));
+        }
 
         return vDesc;
     }
@@ -102,9 +104,12 @@ namespace ORB_SLAM2
     cv::Mat Converter::toCvMat(const Eigen::Matrix<double, 4, 4> &m)
     {
         cv::Mat cvMat(4, 4, CV_32F);
-        for (int i = 0; i < 4; i++)
-            for (int j = 0; j < 4; j++)
+
+        for (int i = 0; i < 4; i++){
+            for (int j = 0; j < 4; j++){
                 cvMat.at<float>(i, j) = m(i, j);
+            }
+        }
 
         return cvMat.clone();
     }
@@ -120,9 +125,12 @@ namespace ORB_SLAM2
     cv::Mat Converter::toCvMat(const Eigen::Matrix3d &m)
     {
         cv::Mat cvMat(3, 3, CV_32F);
-        for (int i = 0; i < 3; i++)
-            for (int j = 0; j < 3; j++)
+
+        for (int i = 0; i < 3; i++){
+            for (int j = 0; j < 3; j++){
                 cvMat.at<float>(i, j) = m(i, j);
+            }
+        }
 
         return cvMat.clone();
     }
@@ -138,8 +146,10 @@ namespace ORB_SLAM2
     cv::Mat Converter::toCvMat(const Eigen::Matrix<double, 3, 1> &m)
     {
         cv::Mat cvMat(3, 1, CV_32F);
-        for (int i = 0; i < 3; i++)
+
+        for (int i = 0; i < 3; i++){
             cvMat.at<float>(i) = m(i);
+        }
 
         return cvMat.clone();
     }
@@ -157,6 +167,7 @@ namespace ORB_SLAM2
                                const Eigen::Matrix<double, 3, 1> &t)
     {
         cv::Mat cvMat = cv::Mat::eye(4, 4, CV_32F);
+
         for (int i = 0; i < 3; i++)
         {
             for (int j = 0; j < 3; j++)
@@ -164,6 +175,7 @@ namespace ORB_SLAM2
                 cvMat.at<float>(i, j) = R(i, j);
             }
         }
+        
         for (int i = 0; i < 3; i++)
         {
             cvMat.at<float>(i, 3) = t(i);

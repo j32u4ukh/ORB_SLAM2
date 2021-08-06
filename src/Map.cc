@@ -139,11 +139,11 @@ namespace ORB_SLAM2
             delete *sit;
         }
 
-        set<KeyFrame *>::iterator sit = mspKeyFrames.begin();
-        set<KeyFrame *>::iterator send = mspKeyFrames.end();
+        set<KeyFrame*>::iterator s_kf_it = mspKeyFrames.begin();
+        set<KeyFrame*>::iterator s_kf_end = mspKeyFrames.end();
 
-        for (; sit != send; sit++){
-            delete *sit;
+        for (; s_kf_it != s_kf_end; sit++){
+            delete *s_kf_it;
         }
 
         mspMapPoints.clear();

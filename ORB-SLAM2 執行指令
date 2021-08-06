@@ -1,0 +1,14 @@
+$ /home/j32u4ukh/Documents/ORB_SLAM2> 
+
+
+./Examples/Monocular/mono_kitti Vocabulary/ORBvoc.txt Examples/Monocular/KITTI00-02.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/00"
+./Examples/Monocular/mono_kitti Vocabulary/ORBvoc.txt Examples/Monocular/KITTI00-02.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/01"
+./Examples/Monocular/mono_kitti Vocabulary/ORBvoc.txt Examples/Monocular/KITTI00-02.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/02"
+
+./Examples/Monocular/mono_kitti Vocabulary/ORBvoc.txt Examples/Monocular/KITTI03.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/03"
+
+./Examples/Monocular/mono_kitti Vocabulary/ORBvoc.txt Examples/Monocular/KITTI04-12.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/04"
+.
+.
+.
+./Examples/Monocular/mono_kitti Vocabulary/ORBvoc.txt Examples/Monocular/KITTI04-12.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/12"

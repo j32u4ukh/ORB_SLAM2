@@ -106,6 +106,65 @@ namespace ORB_SLAM2
     }
 
     const float factorPI = (float)(CV_PI / 180.f);
+
+    // 計算 KeyPoint &kpt 的 ORB 描述子，更新 descriptors[row_i] 的數值
+    // uchar *desc 為 Mat &descriptors row_i 的指標（參考 computeDescriptors）
+    static void computeOrbDescriptor(const KeyPoint &kpt, const Mat &img, const Point *pattern, 
+                                     uchar *desc)
+    {
+        // factorPI = math.pi / 180 = 0.01745
+        // 將 kpt.angle 轉換為弧度
+        float angle = (float)kpt.angle * factorPI;
+        float a = (float)cos(angle), b = (float)sin(angle);
+
+        const uchar *center = &img.at<uchar>(cvRound(kpt.pt.y), cvRound(kpt.pt.x));
+        const int step = (int)img.step;
+
+#define GET_VALUE(idx)                                               \
+    center[cvRound(pattern[idx].x * b + pattern[idx].y * a) * step + \
+           cvRound(pattern[idx].x * a - pattern[idx].y * b)]
+
+        for (int j = 0; j < 32; ++j, pattern += 16)
+        {
+            int t0, t1, val;
+            t0 = GET_VALUE(0);
+            t1 = GET_VALUE(1);
+            val = t0 < t1;
+
+            t0 = GET_VALUE(2);
+            t1 = GET_VALUE(3);
+            val |= (t0 < t1) << 1;
+
+            t0 = GET_VALUE(4);
+            t1 = GET_VALUE(5);
+            val |= (t0 < t1) << 2;
+
+            t0 = GET_VALUE(6);
+            t1 = GET_VALUE(7);
+            val |= (t0 < t1) << 3;
+
+            t0 = GET_VALUE(8);
+            t1 = GET_VALUE(9);
+            val |= (t0 < t1) << 4;
+
+            t0 = GET_VALUE(10);
+            t1 = GET_VALUE(11);
+            val |= (t0 < t1) << 5;
+
+            t0 = GET_VALUE(12);
+            t1 = GET_VALUE(13);
+            val |= (t0 < t1) << 6;
+
+            t0 = GET_VALUE(14);
+            t1 = GET_VALUE(15);
+            val |= (t0 < t1) << 7;
+
+            // 修改 Mat &descriptors (row_i, col_j) 的數值
+            desc[j] = (uchar)val;
+        }
+
+#undef GET_VALUE
+    }
     
     static int bit_pattern_31_[256 * 4] =
         {
@@ -367,10 +426,10 @@ namespace ORB_SLAM2
             -1, -6, 0, -11 /*mean (0.127148), correlation (0.547401)*/
     };
 
-    ORBextractor::ORBextractor(int _nfeatures, float _scaleFactor, int _nlevels, int _iniThFAST, 
-                               int _minThFAST) : 
-                               nfeatures(_nfeatures), scaleFactor(_scaleFactor), nlevels(_nlevels), 
-                               niThFAST(_iniThFAST), minThFAST(_minThFAST)
+    ORBextractor::ORBextractor(int _nfeatures, float _scaleFactor, int _nlevels,
+         int _iniThFAST, int _minThFAST):
+    nfeatures(_nfeatures), scaleFactor(_scaleFactor), nlevels(_nlevels),
+    iniThFAST(_iniThFAST), minThFAST(_minThFAST)
     {
         mvScaleFactor.resize(nlevels);
         mvLevelSigma2.resize(nlevels);
@@ -772,7 +831,7 @@ namespace ORB_SLAM2
         vector<cv::KeyPoint> vResultKeys;
         vResultKeys.reserve(nfeatures);
 
-        for (list<ExtractorNode>::iterator lit = lNodes.begin(); lit != lNodes.end(); lit++)
+        for (lit = lNodes.begin(); lit != lNodes.end(); lit++)
         {
             vector<cv::KeyPoint> &vNodeKeys = lit->vKeys;
             cv::KeyPoint *pKP = &vNodeKeys[0];
@@ -865,8 +924,9 @@ namespace ORB_SLAM2
                     // 若特徵點不為空
                     if (!vKeysCell.empty())
                     {
-                        vector<cv::KeyPoint>::iterator vit;
-                        for (vit = vKeysCell.begin(); vit != vKeysCell.end(); vit++)
+                        vector<cv::KeyPoint>::iterator vit = vKeysCell.begin();
+
+                        for (; vit != vKeysCell.end(); vit++)
                         {
                             // 將特徵點的位置，校正為各層級圖中的位置
                             (*vit).pt.x += j * wCell;
@@ -1053,8 +1113,10 @@ namespace ORB_SLAM2
                 {
                     vector<KeyPoint> &keysCell = cellKeyPoints[i][j];
                     KeyPointsFilter::retainBest(keysCell, nToRetain[i][j]);
-                    if ((int)keysCell.size() > nToRetain[i][j])
+
+                    if ((int)keysCell.size() > nToRetain[i][j]){
                         keysCell.resize(nToRetain[i][j]);
+                    }
 
                     for (size_t k = 0, kend = keysCell.size(); k < kend; k++)
                     {
@@ -1091,65 +1153,6 @@ namespace ORB_SLAM2
             // 計算 KeyPoint &kpt 的 ORB 描述子，更新 descriptors[row_i] 的數值
             computeOrbDescriptor(keypoints[i], image, &pattern[0], descriptors.ptr((int)i));
         }
-    }
-
-    // 計算 KeyPoint &kpt 的 ORB 描述子，更新 descriptors[row_i] 的數值
-    // uchar *desc 為 Mat &descriptors row_i 的指標（參考 computeDescriptors）
-    static void computeOrbDescriptor(const KeyPoint &kpt, const Mat &img, const Point *pattern, 
-                                     uchar *desc)
-    {
-        // factorPI = math.pi / 180 = 0.01745
-        // 將 kpt.angle 轉換為弧度
-        float angle = (float)kpt.angle * factorPI;
-        float a = (float)cos(angle), b = (float)sin(angle);
-
-        const uchar *center = &img.at<uchar>(cvRound(kpt.pt.y), cvRound(kpt.pt.x));
-        const int step = (int)img.step;
-
-#define GET_VALUE(idx)                                               \
-    center[cvRound(pattern[idx].x * b + pattern[idx].y * a) * step + \
-           cvRound(pattern[idx].x * a - pattern[idx].y * b)]
-
-        for (int j = 0; j < 32; ++j, pattern += 16)
-        {
-            int t0, t1, val;
-            t0 = GET_VALUE(0);
-            t1 = GET_VALUE(1);
-            val = t0 < t1;
-
-            t0 = GET_VALUE(2);
-            t1 = GET_VALUE(3);
-            val |= (t0 < t1) << 1;
-
-            t0 = GET_VALUE(4);
-            t1 = GET_VALUE(5);
-            val |= (t0 < t1) << 2;
-
-            t0 = GET_VALUE(6);
-            t1 = GET_VALUE(7);
-            val |= (t0 < t1) << 3;
-
-            t0 = GET_VALUE(8);
-            t1 = GET_VALUE(9);
-            val |= (t0 < t1) << 4;
-
-            t0 = GET_VALUE(10);
-            t1 = GET_VALUE(11);
-            val |= (t0 < t1) << 5;
-
-            t0 = GET_VALUE(12);
-            t1 = GET_VALUE(13);
-            val |= (t0 < t1) << 6;
-
-            t0 = GET_VALUE(14);
-            t1 = GET_VALUE(15);
-            val |= (t0 < t1) << 7;
-
-            // 修改 Mat &descriptors (row_i, col_j) 的數值
-            desc[j] = (uchar)val;
-        }
-
-#undef GET_VALUE
     }
 
     // 抽取 ORB 特徵，特徵點存於 _keypoints ，描述子存於 descriptors
@@ -1233,6 +1236,7 @@ namespace ORB_SLAM2
             {
                 // getScale(level, firstLevel, scaleFactor);
                 float scale = mvScaleFactor[level];
+                
                 vector<KeyPoint>::iterator keypoint = keypoints.begin();
                 vector<KeyPoint>::iterator keypointEnd = keypoints.end();
 

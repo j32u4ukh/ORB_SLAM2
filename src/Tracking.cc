@@ -1604,8 +1604,8 @@ namespace ORB_SLAM2
         int nToMatch = 0;
 
         // Project points in frame and check its visibility
-        vector<MapPoint *>::iterator vit = mvpLocalMapPoints.begin();
-        vector<MapPoint *>::iterator vend = mvpLocalMapPoints.end();
+        vit = mvpLocalMapPoints.begin();
+        vend = mvpLocalMapPoints.end();
 
         /* 接下來對局部地圖中的地圖點進行投影篩選。
         */
@@ -1743,10 +1743,11 @@ namespace ORB_SLAM2
                     // 取得觀察到『地圖點 pMP』的關鍵幀，以及是與該關鍵幀的哪個特徵點相對應
                     const map<KeyFrame *, size_t> observations = pMP->GetObservations();
 
-                    map<KeyFrame *, size_t>::const_iterator it;
+                    map<KeyFrame *, size_t>::const_iterator it = observations.begin();
+                    map<KeyFrame *, size_t>::const_iterator itend = observations.end();
 
                     // 遍歷這些關鍵幀，累積共視地圖點數量。
-                    for (it = observations.begin(), itend = observations.end(); it != itend; it++)
+                    for (; it != itend; it++)
                     {
                         keyframeCounter[it->first]++;
                     }
@@ -1775,9 +1776,10 @@ namespace ORB_SLAM2
         // All keyframes that observe a map point are included in the local map.
         // Also check which keyframe shares most points
         // 遍歷局部 map 容器 keyframeCounter 中的所有關鍵幀，將之保存到成員容器 mvpLocalKeyFrames 中
-        map<KeyFrame *, int>::const_iterator it;
+        map<KeyFrame *, int>::const_iterator it = keyframeCounter.begin();
+        map<KeyFrame *, int>::const_iterator itEnd = keyframeCounter.end();
 
-        for (it = keyframeCounter.begin(), itEnd = keyframeCounter.end(); it != itEnd; it++)
+        for (; it != itEnd; it++)
         {
             KeyFrame *pKF = it->first;
 

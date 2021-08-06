@@ -135,9 +135,9 @@ namespace ORB_SLAM2
             int nEdges = 0;
             
             // SET EDGES
-            map<KeyFrame *, size_t>::const_iterator mit;
+            map<KeyFrame *, size_t>::const_iterator mit = observations.begin();
 
-            for (mit = observations.begin(); mit != observations.end(); mit++)
+            for (; mit != observations.end(); mit++)
             {
 
                 KeyFrame *pKF = mit->first;
@@ -642,14 +642,14 @@ namespace ORB_SLAM2
         // 哪些關鍵幀同時也觀察到 lLocalMapPoints 當中的地圖點
         list<KeyFrame *> lFixedCameras;
 
-        list<MapPoint *>::iterator lit = lLocalMapPoints.begin();
-        list<MapPoint *>::iterator lend = lLocalMapPoints.end();
+        list<MapPoint*>::iterator l_mp_it = lLocalMapPoints.begin();
+        list<MapPoint*>::iterator l_mp_end = lLocalMapPoints.end();
 
         // 遍歷『共視地圖點』
-        for (; lit != lend; lit++)
+        for (; l_mp_it != l_mp_end; l_mp_it++)
         {
             // 觀察到『共視地圖點 (*lit)』的關鍵幀，及其對應的特徵點的索引值
-            map<KeyFrame *, size_t> observations = (*lit)->GetObservations();
+            map<KeyFrame *, size_t> observations = (*l_mp_it)->GetObservations();
 
             map<KeyFrame *, size_t>::iterator mit = observations.begin();
             map<KeyFrame *, size_t>::iterator mend = observations.end();
@@ -693,8 +693,8 @@ namespace ORB_SLAM2
         unsigned long maxKFid = 0;
 
         // Set Local KeyFrame vertices
-        list<KeyFrame *>::iterator lit = lLocalKeyFrames.begin();
-        list<KeyFrame *>::iterator lend = lLocalKeyFrames.end();
+        lit = lLocalKeyFrames.begin();
+        lend = lLocalKeyFrames.end();
 
         // Local 共視關鍵幀作為頂點加入優化
         for (; lit != lend; lit++)
@@ -715,8 +715,8 @@ namespace ORB_SLAM2
         }
 
         // Set Fixed KeyFrame vertices
-        list<KeyFrame *>::iterator lit = lFixedCameras.begin();
-        list<KeyFrame *>::iterator lend = lFixedCameras.end();
+        lit = lFixedCameras.begin();
+        lend = lFixedCameras.end();
 
         // Fixed 共視關鍵幀作為頂點加入優化
         for (; lit != lend; lit++)
@@ -762,14 +762,14 @@ namespace ORB_SLAM2
         const float thHuberMono = sqrt(5.991);
         const float thHuberStereo = sqrt(7.815);
 
-        list<MapPoint *>::iterator lit = lLocalMapPoints.begin();
-        list<MapPoint *>::iterator lend = lLocalMapPoints.end();
+        list<MapPoint *>::iterator l_mappoint_it = lLocalMapPoints.begin();
+        list<MapPoint *>::iterator l_mappoint_end = lLocalMapPoints.end();
 
         // 『共視地圖點』作為『頂點』，而『觀察到共視地圖點的特徵點的位置』作為『邊』
-        for (; lit != lend; lit++)
+        for (; l_mappoint_it != l_mappoint_end; l_mappoint_it++)
         {
             // 『Local 共視關鍵幀所觀察到的地圖點』作為頂點加入優化
-            MapPoint *pMP = *lit;
+            MapPoint *pMP = *l_mappoint_it;
             g2o::VertexSBAPointXYZ *vPoint = new g2o::VertexSBAPointXYZ();
             vPoint->setEstimate(Converter::toVector3d(pMP->GetWorldPos()));
             int id = pMP->mnId + maxKFid + 1;
@@ -996,8 +996,8 @@ namespace ORB_SLAM2
         // Recover optimized data
 
         // Keyframes
-        list<KeyFrame *>::iterator lit = lLocalKeyFrames.begin();
-        list<KeyFrame *>::iterator lend = lLocalKeyFrames.end();
+        lit = lLocalKeyFrames.begin();
+        lend = lLocalKeyFrames.end();
 
         // 利用 Local 關鍵幀的 mnId 取出相對應的頂點，並更新自身的位姿估計
         for (; lit != lend; lit++)
@@ -1010,13 +1010,13 @@ namespace ORB_SLAM2
         }
 
         // Points
-        list<MapPoint *>::iterator lit = lLocalMapPoints.begin();
-        list<MapPoint *>::iterator lend = lLocalMapPoints.end();
+        l_mappoint_it = lLocalMapPoints.begin();
+        l_mappoint_end = lLocalMapPoints.end();
 
         // 依序取出地圖點之頂點，並更新地圖點的位置
-        for (; lit != lend; lit++)
+        for (; l_mappoint_it != l_mappoint_end; l_mappoint_it++)
         {
-            MapPoint *pMP = *lit;
+            MapPoint *pMP = *l_mappoint_it;
 
             // 為何地圖點的頂點 ID 會是 pMP->mnId + maxKFid + 1？
             g2o::VertexSBAPointXYZ *vPoint = 

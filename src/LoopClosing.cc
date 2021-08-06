@@ -588,7 +588,7 @@ namespace ORB_SLAM2
 
         // If a Global Bundle Adjustment is running, abort it
         // 若『執行續 RunGlobalBundleAdjustment』正在執行，將其停止
-        if (isRunningGBA()
+        if (isRunningGBA())
         {
             unique_lock<mutex> lock(mMutexGBA);
 
