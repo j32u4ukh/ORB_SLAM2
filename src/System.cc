@@ -348,6 +348,9 @@ void System::Shutdown()
         while(!mpViewer->isFinished()){
             usleep(5000);
         }
+
+        delete mpViewer;
+        mpViewer = static_cast<Viewer*>(NULL);
     }
 
     // Wait until all thread have effectively stopped
