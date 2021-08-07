@@ -167,6 +167,7 @@ namespace ORB_SLAM2
     void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText)
     {
         stringstream s;
+        
         if (nState == Tracking::NO_IMAGES_YET){
             s << " WAITING FOR IMAGES";
         }

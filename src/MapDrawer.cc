@@ -62,15 +62,24 @@ namespace ORB_SLAM2
         // 設置為黑色 -> 過去觀察到的點
         glColor3f(0.0, 0.0, 0.0);
 
-        for (size_t i = 0, iend = vpMPs.size(); i < iend; i++)
-        {
-            if (vpMPs[i]->isBad() || spRefMPs.count(vpMPs[i])){
+        for(MapPoint * mp : vpMPs){
+            if (mp->isBad() || spRefMPs.count(mp)){
                 continue;
             }
 
-            cv::Mat pos = vpMPs[i]->GetWorldPos();
+            cv::Mat pos = mp->GetWorldPos();
             glVertex3f(pos.at<float>(0), pos.at<float>(1), pos.at<float>(2));
         }
+
+        // for (size_t i = 0, iend = vpMPs.size(); i < iend; i++)
+        // {
+        //     if (vpMPs[i]->isBad() || spRefMPs.count(vpMPs[i])){
+        //         continue;
+        //     }
+
+        //     cv::Mat pos = vpMPs[i]->GetWorldPos();
+        //     glVertex3f(pos.at<float>(0), pos.at<float>(1), pos.at<float>(2));
+        // }
 
         glEnd();
 
@@ -80,18 +89,27 @@ namespace ORB_SLAM2
         // 設置為紅色 -> 當前觀察到的點
         glColor3f(1.0, 0.0, 0.0);
 
-        set<MapPoint *>::iterator sit = spRefMPs.begin();
-        set<MapPoint *>::iterator send = spRefMPs.end();
-
-        for (; sit != send; sit++)
-        {
-            if ((*sit)->isBad()){
+        for(MapPoint * mp : spRefMPs){
+            if (mp->isBad()){
                 continue;
             }
 
-            cv::Mat pos = (*sit)->GetWorldPos();
+            cv::Mat pos = mp->GetWorldPos();
             glVertex3f(pos.at<float>(0), pos.at<float>(1), pos.at<float>(2));
         }
+
+        // set<MapPoint *>::iterator sit = spRefMPs.begin();
+        // set<MapPoint *>::iterator send = spRefMPs.end();
+
+        // for (; sit != send; sit++)
+        // {
+        //     if ((*sit)->isBad()){
+        //         continue;
+        //     }
+
+        //     cv::Mat pos = (*sit)->GetWorldPos();
+        //     glVertex3f(pos.at<float>(0), pos.at<float>(1), pos.at<float>(2));
+        // }
 
         glEnd();
     }
