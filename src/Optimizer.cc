@@ -1267,6 +1267,7 @@ namespace ORB_SLAM2
 
             // Covisibility graph edges
             // 取得至多 minFeat 個『共視關鍵幀』
+            // 取得『關鍵幀 pKF』的『已連結關鍵幀（根據觀察到的地圖點數量由大到小排序，且觀察到的地圖點數量「大於」 minFeat）』
             const vector<KeyFrame *> vpConnectedKFs = pKF->GetCovisiblesByWeight(minFeat);
 
             vector<KeyFrame *>::const_iterator vit = vpConnectedKFs.begin();

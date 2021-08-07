@@ -64,7 +64,10 @@ namespace ORB_SLAM2
         std::set<KeyFrame *> GetConnectedKeyFrames();
         std::vector<KeyFrame *> GetVectorCovisibleKeyFrames();
         std::vector<KeyFrame *> GetBestCovisibilityKeyFrames(const int &N);
+
+        // 取得『關鍵幀』的『已連結關鍵幀（根據觀察到的地圖點數量由大到小排序，且觀察到的地圖點數量「大於」 w）』
         std::vector<KeyFrame *> GetCovisiblesByWeight(const int &w);
+
         int GetWeight(KeyFrame *pKF);
 
         // Spanning tree functions
@@ -233,12 +236,13 @@ namespace ORB_SLAM2
         // 紀錄網格 mGrid[nGridPosX][nGridPosY] 所包含的關鍵點的索引值
         std::vector<std::vector<std::vector<size_t>>> mGrid;
 
-        // 『關鍵幀』與『觀察到的地圖點個數』之對應關係
+        // 『已連結關鍵幀』與『觀察到的地圖點個數』之對應（根據觀察到的地圖點數量由大到小排序）
         std::map<KeyFrame *, int> mConnectedKeyFrameWeights;
 
-        // 根據觀察到的地圖點數量排序的共視關鍵幀
+        // 『已連結關鍵幀』（根據觀察到的地圖點數量由大到小排序）
         std::vector<KeyFrame *> mvpOrderedConnectedKeyFrames;
 
+        // 『已連結關鍵幀』觀察到的地圖點數量（已由大到小排序）
         std::vector<int> mvOrderedWeights;
 
         // Spanning Tree and Loop Edges

@@ -161,7 +161,7 @@ namespace ORB_SLAM2
         UpdateBestCovisibles();
     }
 
-    // 將共視關鍵幀根據觀察到的地圖點數量排序，再存入 mvpOrderedConnectedKeyFrames
+    // 將共視關鍵幀根據觀察到的地圖點數量由大到小排序，再存入 mvpOrderedConnectedKeyFrames
     void KeyFrame::UpdateBestCovisibles()
     {
         unique_lock<mutex> lock(mMutexConnections);
@@ -191,8 +191,10 @@ namespace ORB_SLAM2
 
         /// NOTE: 將關鍵幀加到 lKFs 當中，再賦值給 mvpOrderedConnectedKeyFrames 的理由大概是，
         /// 可以各自在自己的執行續繼續操作，降低需要暫停執行續的需求
-        // 根據觀察到的地圖點數量排序的共視關鍵幀
+        // 根據觀察到的地圖點數量由大到小排序的共視關鍵幀
         mvpOrderedConnectedKeyFrames = vector<KeyFrame *>(lKFs.begin(), lKFs.end());
+        
+        // 『已連結關鍵幀』觀察到的地圖點數量（已由大到小排序）
         mvOrderedWeights = vector<int>(lWs.begin(), lWs.end());
     }
 
@@ -217,7 +219,7 @@ namespace ORB_SLAM2
     {
         unique_lock<mutex> lock(mMutexConnections);
 
-        // 根據觀察到的地圖點數量排序的共視關鍵幀
+        // 根據觀察到的地圖點數量由大到小排序的共視關鍵幀
         return mvpOrderedConnectedKeyFrames;
     }
 
@@ -228,7 +230,7 @@ namespace ORB_SLAM2
 
         if ((int)mvpOrderedConnectedKeyFrames.size() < N){
 
-            // 根據觀察到的地圖點數量排序的共視關鍵幀
+            // 根據觀察到的地圖點數量由大到小排序的共視關鍵幀
             return mvpOrderedConnectedKeyFrames;
         }
         else{
@@ -237,7 +239,7 @@ namespace ORB_SLAM2
         }
     }
 
-    // 取得至多 w 個『共視關鍵幀』
+    // 取得『關鍵幀』的『已連結關鍵幀（根據觀察到的地圖點數量由大到小排序，且觀察到的地圖點數量「大於」 w）』
     vector<KeyFrame *> KeyFrame::GetCovisiblesByWeight(const int &w)
     {
         unique_lock<mutex> lock(mMutexConnections);
@@ -246,30 +248,62 @@ namespace ORB_SLAM2
             return vector<KeyFrame *>();
         }
 
+        /* 
+        lower_bound & upper_bound 【用途】針對「已經排序」的資料進行binary search。
+        vector <int> v;
+        sort(v.begin(), v.end());
+
+        lower_bound：找出vector中「大於或等於」val的「最小值」的位置：
+            auto it = lower_bound(v.begin(), v.end(), val);
+
+        upper_bound：找出vector中「大於」val的「最小值」的位置：
+            auto it = upper_bound(v.begin(), v.end(), val);
+
+        自定義了 __comp 的 upper_bound： 查找[first, last)區域中第一個不符合 __comp 規則的元素的 iterator
+        */
+       
+        // 取得『已連結關鍵幀觀察到的地圖點數量（已由大到小排序）』，地圖點數量「大於」 w 的「最小值」的位置
         vector<int>::iterator it = upper_bound(mvOrderedWeights.begin(), 
                                                mvOrderedWeights.end(), 
                                                w, 
                                                KeyFrame::weightComp);
 
-        if (it == mvOrderedWeights.end()){
-            return vector<KeyFrame *>();
-        }
-        else
-        {
-            int n = it - mvOrderedWeights.begin();
+        // iterator 的個數
+        int n = it - mvOrderedWeights.begin();
 
-            return vector<KeyFrame *>(mvpOrderedConnectedKeyFrames.begin(), 
-                                      mvpOrderedConnectedKeyFrames.begin() + n);
-        }
+        // 返回地圖點數量「大於」 w 的『已連結關鍵幀（根據觀察到的地圖點數量由大到小排序）』
+        return vector<KeyFrame *>(mvpOrderedConnectedKeyFrames.begin(), 
+                                  mvpOrderedConnectedKeyFrames.begin() + n);
+
+        // // 若 it 即為 mvOrderedWeights 尾端，表示 mvOrderedWeights 全部都大於 w
+        // if (it == mvOrderedWeights.end())
+        // {
+        //     return vector<KeyFrame *>(mvpOrderedConnectedKeyFrames);
+        //     // // 返回空 vector
+        //     // /// NOTE: 不是應該全部返回嗎？
+        //     // return vector<KeyFrame *>();
+        // }
+        // else
+        // {
+        //     // iterator 的個數
+        //     int n = it - mvOrderedWeights.begin();
+
+        //     // 返回地圖點數量「大於」 w 的『已連結關鍵幀（根據觀察到的地圖點數量由大到小排序）』
+        //     return vector<KeyFrame *>(mvpOrderedConnectedKeyFrames.begin(), 
+        //                               mvpOrderedConnectedKeyFrames.begin() + n);
+        // }
     }
 
     int KeyFrame::GetWeight(KeyFrame *pKF)
     {
         unique_lock<mutex> lock(mMutexConnections);
-        if (mConnectedKeyFrameWeights.count(pKF))
+        
+        if (mConnectedKeyFrameWeights.count(pKF)){
             return mConnectedKeyFrameWeights[pKF];
-        else
+        }
+        else{
             return 0;
+        }
     }
 
     // 關鍵幀的第 idx 個關鍵點觀察到了地圖點 pMP
@@ -482,7 +516,7 @@ namespace ORB_SLAM2
             unique_lock<mutex> lockCon(mMutexConnections);
 
             // mspConnectedKeyFrames = spConnectedKeyFrames;
-            // mConnectedKeyFrameWeights：『關鍵幀』與『觀察到的地圖點個數』之對應關係
+            // mConnectedKeyFrameWeights：『關鍵幀』與『觀察到的地圖點個數』之對應關係（由大到小排序）
             mConnectedKeyFrameWeights = KFcounter;
             mvpOrderedConnectedKeyFrames = vector<KeyFrame *>(lKFs.begin(), lKFs.end());
             mvOrderedWeights = vector<int>(lWs.begin(), lWs.end());

@@ -1,3 +1,8 @@
+編譯期
+cmake .. -DCMAKE_BUILD_TYPE=Release
+make -j4
+
+執行期
 $ /home/j32u4ukh/Documents/ORB_SLAM2> 
 
 
@@ -12,3 +17,11 @@ $ /home/j32u4ukh/Documents/ORB_SLAM2>
 .
 .
 ./Examples/Monocular/mono_kitti Vocabulary/ORBvoc.txt Examples/Monocular/KITTI04-12.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/12"
+
+
+
+
+$ /home/j32u4ukh/Documents/ORB_SLAM2/build> 
+
+# 詞袋數據讀取 00:09.80 建圖 10:30.44
+../Examples/Monocular/mono_kitti ../Vocabulary/ORBvoc.txt ../Examples/Monocular/KITTI00-02.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/00"
