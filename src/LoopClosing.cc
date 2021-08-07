@@ -1036,12 +1036,8 @@ namespace ORB_SLAM2
                     // 『關鍵幀 pKF』的相機座標到世界座標的轉換矩陣
                     cv::Mat Twc = pKF->GetPoseInverse();
 
-                    set<KeyFrame *>::const_iterator sit = sChilds.begin();
-
                     // 遍歷『關鍵幀 pKF』的『子關鍵幀』
-                    for (; sit != sChilds.end(); sit++)
-                    {
-                        KeyFrame *pChild = *sit;
+                    for(KeyFrame * pChild : sChilds){
 
                         if (pChild->mnBAGlobalForKF != nLoopKF)
                         {
@@ -1061,12 +1057,33 @@ namespace ORB_SLAM2
                         lpKFtoCheck.push_back(pChild);
                     }
 
+                    // set<KeyFrame *>::const_iterator sit = sChilds.begin();
+                    // // 遍歷『關鍵幀 pKF』的『子關鍵幀』
+                    // for (; sit != sChilds.end(); sit++)
+                    // {
+                    //     KeyFrame *pChild = *sit;
+                    //     if (pChild->mnBAGlobalForKF != nLoopKF)
+                    //     {
+                    //         // 『關鍵幀 pKF』的相機座標到『子關鍵幀』的相機座標的轉換矩陣
+                    //         cv::Mat Tchildc = pChild->GetPose() * Twc;
+                    //         // *Tcorc*pKF->mTcwGBA;
+                    //         // pKF->mTcwGBA：『關鍵幀 pKF』在 BundleAdjustment 優化後的位姿估計 
+                    //         // Tchildc：相當於『關鍵幀 pKF』往『子關鍵幀 pChild』的相對運動
+                    //         // Tchildc * pKF->mTcwGBA：
+                    //         // 以『關鍵幀 pKF』優化後的位姿估計為基礎，進行相對運動到『子關鍵幀 pChild』
+                    //         pChild->mTcwGBA = Tchildc * pKF->mTcwGBA; 
+                    //         pChild->mnBAGlobalForKF = nLoopKF;
+                    //     }
+                    //     lpKFtoCheck.push_back(pChild);
+                    // }
+
                     // 保存上一次 mTcwGBA 的數值    
                     pKF->mTcwBefGBA = pKF->GetPose();
 
                     // 利用 mTcwGBA 更新『關鍵幀 pKF』的位姿估計
                     pKF->SetPose(pKF->mTcwGBA);
 
+                    // 移除 lpKFtoCheck 第一個元素
                     lpKFtoCheck.pop_front();
                 }
 
@@ -1074,10 +1091,8 @@ namespace ORB_SLAM2
                 // 取得所有『地圖點』
                 const vector<MapPoint *> vpMPs = mpMap->GetAllMapPoints();
 
-                for (size_t i = 0; i < vpMPs.size(); i++)
-                {
-                    MapPoint *pMP = vpMPs[i];
-
+                for(MapPoint * pMP : vpMPs){
+                    
                     if (pMP->isBad()){
                         continue;
                     }
@@ -1114,6 +1129,40 @@ namespace ORB_SLAM2
                         pMP->SetWorldPos(Rwc * Xc + twc);
                     }
                 }
+
+                // for (size_t i = 0; i < vpMPs.size(); i++)
+                // {
+                //     MapPoint *pMP = vpMPs[i];
+                //     if (pMP->isBad()){
+                //         continue;
+                //     }
+                //     if (pMP->mnBAGlobalForKF == nLoopKF)
+                //     {
+                //         // If optimized by Global BA, just update
+                //         pMP->SetWorldPos(pMP->mPosGBA);
+                //     }
+                //     else
+                //     {
+                //         // Update according to the correction of its reference keyframe
+                //         // 取得『地圖點 pMP』的參考關鍵幀
+                //         KeyFrame *pRefKF = pMP->GetReferenceKeyFrame();
+                //         if (pRefKF->mnBAGlobalForKF != nLoopKF){
+                //             continue;
+                //         }
+                //         // Map to non-corrected camera
+                //         cv::Mat Rcw = pRefKF->mTcwBefGBA.rowRange(0, 3).colRange(0, 3);
+                //         cv::Mat tcw = pRefKF->mTcwBefGBA.rowRange(0, 3).col(3);
+                //         // 將『地圖點 pMP』從世界座標轉換到相機座標下
+                //         cv::Mat Xc = Rcw * pMP->GetWorldPos() + tcw;
+                //         // Backproject using corrected camera
+                //         cv::Mat Twc = pRefKF->GetPoseInverse();
+                //         cv::Mat Rwc = Twc.rowRange(0, 3).colRange(0, 3);
+                //         cv::Mat twc = Twc.rowRange(0, 3).col(3);
+                //         // 利用 mTcwBefGBA 轉換到相機座標系，再利用 GetPoseInverse 轉回世界座標系
+                //         // 即撤銷以原本的轉換矩陣而得的世界座標，再以優化後的位姿估計來估計空間中的世界座標系
+                //         pMP->SetWorldPos(Rwc * Xc + twc);
+                //     }
+                // }
 
                 // 增加『重要變革的索引值』
                 mpMap->InformNewBigChange();

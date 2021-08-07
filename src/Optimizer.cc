@@ -78,10 +78,7 @@ namespace ORB_SLAM2
 
         // Set KeyFrame vertices
         // 將『關鍵幀』的位姿，作為『頂點』加入優化，Id 由 0 到 maxKFid 編號
-        for (size_t i = 0; i < vpKFs.size(); i++)
-        {
-            KeyFrame *pKF = vpKFs[i];
-
+        for(KeyFrame * pKF : vpKFs){
             if (pKF->isBad()){
                 continue;
             }
@@ -101,6 +98,30 @@ namespace ORB_SLAM2
                 maxKFid = pKF->mnId;
             }
         }
+
+        // for (size_t i = 0; i < vpKFs.size(); i++)
+        // {
+        //     KeyFrame *pKF = vpKFs[i];
+
+        //     if (pKF->isBad()){
+        //         continue;
+        //     }
+
+        //     g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
+
+        //     // 取得『關鍵幀 pKF』的位姿，並轉換成 g2o 所需的類型 
+        //     vSE3->setEstimate(Converter::toSE3Quat(pKF->GetPose()));
+
+        //     vSE3->setId(pKF->mnId);
+        //     vSE3->setFixed(pKF->mnId == 0);
+
+        //     // 『關鍵幀 pKF』的位姿，作為『頂點』加入優化
+        //     optimizer.addVertex(vSE3);
+
+        //     if (pKF->mnId > maxKFid){
+        //         maxKFid = pKF->mnId;
+        //     }
+        // }
 
         const float thHuber2D = sqrt(5.99);
         const float thHuber3D = sqrt(7.815);
@@ -135,12 +156,10 @@ namespace ORB_SLAM2
             int nEdges = 0;
             
             // SET EDGES
-            map<KeyFrame *, size_t>::const_iterator mit = observations.begin();
+            for(pair<KeyFrame *, size_t> obs : observations){
 
-            for (; mit != observations.end(); mit++)
-            {
-
-                KeyFrame *pKF = mit->first;
+                KeyFrame *pKF = obs.first;
+                size_t kp_idx = obs.second;
 
                 if (pKF->isBad() || pKF->mnId > maxKFid){
                     continue;
@@ -148,11 +167,11 @@ namespace ORB_SLAM2
 
                 nEdges++;
 
-                // 『關鍵幀 pKF』的第 mit->second 個『關鍵點 kpUn』觀察到『地圖點 pMP』
-                const cv::KeyPoint &kpUn = pKF->mvKeysUn[mit->second];
+                // 『關鍵幀 pKF』的第 kp_idx 個『關鍵點 kpUn』觀察到『地圖點 pMP』
+                const cv::KeyPoint &kpUn = pKF->mvKeysUn[kp_idx];
 
                 // 單目的 mvuRight 會是負的
-                if (pKF->mvuRight[mit->second] < 0)
+                if (pKF->mvuRight[kp_idx] < 0)
                 {
                     Eigen::Matrix<double, 2, 1> obs;
                     obs << kpUn.pt.x, kpUn.pt.y;
@@ -190,7 +209,7 @@ namespace ORB_SLAM2
                 else
                 {
                     Eigen::Matrix<double, 3, 1> obs;
-                    const float kp_ur = pKF->mvuRight[mit->second];
+                    const float kp_ur = pKF->mvuRight[kp_idx];
                     obs << kpUn.pt.x, kpUn.pt.y, kp_ur;
 
                     g2o::EdgeStereoSE3ProjectXYZ *e = new g2o::EdgeStereoSE3ProjectXYZ();
@@ -222,6 +241,76 @@ namespace ORB_SLAM2
                 }
             }
 
+            // map<KeyFrame *, size_t>::const_iterator mit = observations.begin();
+            // for (; mit != observations.end(); mit++)
+            // {
+            //     KeyFrame *pKF = mit->first;
+            //     if (pKF->isBad() || pKF->mnId > maxKFid){
+            //         continue;
+            //     }
+            //     nEdges++;
+            //     // 『關鍵幀 pKF』的第 mit->second 個『關鍵點 kpUn』觀察到『地圖點 pMP』
+            //     const cv::KeyPoint &kpUn = pKF->mvKeysUn[mit->second];
+            //     // 單目的 mvuRight 會是負的
+            //     if (pKF->mvuRight[mit->second] < 0)
+            //     {
+            //         Eigen::Matrix<double, 2, 1> obs;
+            //         obs << kpUn.pt.x, kpUn.pt.y;
+            //         g2o::EdgeSE3ProjectXYZ *e = new g2o::EdgeSE3ProjectXYZ();
+            //         // 『邊』連接第 mnId 個關鍵幀和第 mnId 個地圖點
+            //         // （地圖點接續關鍵幀的 id 編號，因此是由 maxKFid + 1 開始編號）
+            //         e->setVertex(0, 
+            //                      dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(id)));
+            //         e->setVertex(1, 
+            //                      dynamic_cast<g2o::OptimizableGraph::Vertex *>(
+            //                                                             optimizer.vertex(pKF->mnId)));
+            //         e->setMeasurement(obs);
+            //         const float &invSigma2 = pKF->mvInvLevelSigma2[kpUn.octave];
+            //         e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
+            //         if (bRobust)
+            //         {
+            //             g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+            //             e->setRobustKernel(rk);
+            //             rk->setDelta(thHuber2D);
+            //         }
+            //         e->fx = pKF->fx;
+            //         e->fy = pKF->fy;
+            //         e->cx = pKF->cx;
+            //         e->cy = pKF->cy;
+            //         // 『關鍵點 kpUn』作為『邊』加入優化
+            //         optimizer.addEdge(e);
+            //     }
+            //     // 非單目，暫時跳過
+            //     else
+            //     {
+            //         Eigen::Matrix<double, 3, 1> obs;
+            //         const float kp_ur = pKF->mvuRight[mit->second];
+            //         obs << kpUn.pt.x, kpUn.pt.y, kp_ur;
+            //         g2o::EdgeStereoSE3ProjectXYZ *e = new g2o::EdgeStereoSE3ProjectXYZ();
+            //         e->setVertex(0, 
+            //                      dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(id)));
+            //         e->setVertex(1, 
+            //                      dynamic_cast<g2o::OptimizableGraph::Vertex *>(
+            //                                                             optimizer.vertex(pKF->mnId)));
+            //         e->setMeasurement(obs);
+            //         const float &invSigma2 = pKF->mvInvLevelSigma2[kpUn.octave];
+            //         Eigen::Matrix3d Info = Eigen::Matrix3d::Identity() * invSigma2;
+            //         e->setInformation(Info);
+            //         if (bRobust)
+            //         {
+            //             g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+            //             e->setRobustKernel(rk);
+            //             rk->setDelta(thHuber3D);
+            //         }
+            //         e->fx = pKF->fx;
+            //         e->fy = pKF->fy;
+            //         e->cx = pKF->cx;
+            //         e->cy = pKF->cy;
+            //         e->bf = pKF->mbf;
+            //         optimizer.addEdge(e);
+            //     }
+            // }
+
             if (nEdges == 0)
             {
                 optimizer.removeVertex(vPoint);
@@ -243,9 +332,7 @@ namespace ORB_SLAM2
 
         // Keyframes
         // 更新為優化後的位姿
-        for (size_t i = 0; i < vpKFs.size(); i++)
-        {
-            KeyFrame *pKF = vpKFs[i];
+        for(KeyFrame *pKF : vpKFs){
 
             if (pKF->isBad()){
                 continue;
@@ -274,6 +361,31 @@ namespace ORB_SLAM2
                 pKF->mnBAGlobalForKF = nLoopKF;
             }
         }
+
+        // for (size_t i = 0; i < vpKFs.size(); i++)
+        // {
+        //     KeyFrame *pKF = vpKFs[i];
+        //     if (pKF->isBad()){
+        //         continue;
+        //     }
+        //     g2o::VertexSE3Expmap *vSE3 = 
+        //                             static_cast<g2o::VertexSE3Expmap *>(optimizer.vertex(pKF->mnId));
+        //     // 估計優化後的位姿
+        //     g2o::SE3Quat SE3quat = vSE3->estimate();
+        //     // nLoopKF：關鍵幀 Id，也就是只有第一次才會直接存在『關鍵幀 pKF』的位姿中
+        //     if (nLoopKF == 0)
+        //     {
+        //         pKF->SetPose(Converter::toCvMat(SE3quat));
+        //     }
+        //     // 第二次開始會先存在 mTcwGBA 當中，之後才會在 LoopClosing::RunGlobalBundleAdjustment 用來更新位姿
+        //     else
+        //     {
+        //         pKF->mTcwGBA.create(4, 4, CV_32F);
+        //         // 優化後的位姿估計存在 pKF->mTcwGBA，而非直接存在『關鍵幀 pKF』的位姿中
+        //         Converter::toCvMat(SE3quat).copyTo(pKF->mTcwGBA);
+        //         pKF->mnBAGlobalForKF = nLoopKF;
+        //     }
+        // }
 
         // Points
         // 更新為優化後的估計點位置
