@@ -448,15 +448,25 @@ namespace ORB_SLAM2
         vP2D.clear();
         vP2D.reserve(vP3Dw.size());
 
-        for (size_t i = 0, iend = vP3Dw.size(); i < iend; i++)
-        {
-            cv::Mat P3Dc = Rcw * vP3Dw[i] + tcw;
+        for(cv::Mat p3dw : vP3Dw){
+            
+            cv::Mat P3Dc = Rcw * p3dw + tcw;
             const float invz = 1 / (P3Dc.at<float>(2));
             const float x = P3Dc.at<float>(0) * invz;
             const float y = P3Dc.at<float>(1) * invz;
 
             vP2D.push_back((cv::Mat_<float>(2, 1) << fx * x + cx, fy * y + cy));
         }
+
+        // for (size_t i = 0, iend = vP3Dw.size(); i < iend; i++)
+        // {
+        //     cv::Mat P3Dc = Rcw * vP3Dw[i] + tcw;
+        //     const float invz = 1 / (P3Dc.at<float>(2));
+        //     const float x = P3Dc.at<float>(0) * invz;
+        //     const float y = P3Dc.at<float>(1) * invz;
+
+        //     vP2D.push_back((cv::Mat_<float>(2, 1) << fx * x + cx, fy * y + cy));
+        // }
     }
 
     // 利用『相機內參 K』將『空間點 vP3Dc』由世界座標轉換到『成像平面座標 vP2D』

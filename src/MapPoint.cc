@@ -477,13 +477,10 @@ namespace ORB_SLAM2
         cv::Mat normal = cv::Mat::zeros(3, 1, CV_32F);
 
         int n = 0;
-        
-        map<KeyFrame *, size_t>::iterator mit = observations.begin();
-        map<KeyFrame *, size_t>::iterator mend = observations.end();
 
-        for (; mit != mend; mit++)
-        {
-            KeyFrame *pKF = mit->first;
+        for(pair<KeyFrame *, size_t> obs : observations){
+
+            KeyFrame *pKF = obs.first;
             cv::Mat Owi = pKF->GetCameraCenter();
 
             // 相機中心 指向 地圖點 的向量
@@ -494,6 +491,19 @@ namespace ORB_SLAM2
 
             n++;
         }
+        
+        // map<KeyFrame *, size_t>::iterator mit = observations.begin();
+        // map<KeyFrame *, size_t>::iterator mend = observations.end();
+        // for (; mit != mend; mit++)
+        // {
+        //     KeyFrame *pKF = mit->first;
+        //     cv::Mat Owi = pKF->GetCameraCenter();
+        //     // 相機中心 指向 地圖點 的向量
+        //     cv::Mat normali = mWorldPos - Owi;
+        //     // normal 為正歸化後的 normali 的累加
+        //     normal = normal + normali / cv::norm(normali);
+        //     n++;
+        // }
 
         // 相機中心 指向 地圖點 的向量
         cv::Mat PC = Pos - pRefKF->GetCameraCenter();

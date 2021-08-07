@@ -157,9 +157,7 @@ namespace ORB_SLAM2
         int nmatches = 0;
 
         // For each Candidate MapPoint Project and Match
-        for (int iMP = 0, iendMP = vpPoints.size(); iMP < iendMP; iMP++)
-        {
-            MapPoint *pMP = vpPoints[iMP];
+        for(MapPoint *pMP : vpPoints){
 
             // Discard Bad MapPoints and already found
             // spAlreadyFound.count(pMP)：排除已存在的地圖點
@@ -233,12 +231,7 @@ namespace ORB_SLAM2
             int bestDist = 256;
             int bestIdx = -1;
 
-            vector<size_t>::const_iterator vit = vIndices.begin();
-            vector<size_t>::const_iterator vend = vIndices.end();
-
-            for (; vit != vend; vit++)
-            {
-                const size_t idx = *vit;
+            for(const size_t idx : vIndices){
 
                 if (vpMatched[idx]){
                     continue;
@@ -273,6 +266,96 @@ namespace ORB_SLAM2
                 nmatches++;
             }
         }
+
+        // // For each Candidate MapPoint Project and Match
+        // for (int iMP = 0, iendMP = vpPoints.size(); iMP < iendMP; iMP++)
+        // {
+        //     MapPoint *pMP = vpPoints[iMP];
+        //     // Discard Bad MapPoints and already found
+        //     // spAlreadyFound.count(pMP)：排除已存在的地圖點
+        //     if (pMP->isBad() || spAlreadyFound.count(pMP)){
+        //         continue;
+        //     }
+        //     // Get 3D Coords.
+        //     cv::Mat p3Dw = pMP->GetWorldPos();
+        //     // Transform into Camera Coords.
+        //     cv::Mat p3Dc = Rcw * p3Dw + tcw;
+        //     // Depth must be positive
+        //     if (p3Dc.at<float>(2) < 0.0){
+        //         continue;
+        //     }
+        //     // Project into Image
+        //     const float invz = 1 / p3Dc.at<float>(2);
+        //     const float x = p3Dc.at<float>(0) * invz;
+        //     const float y = p3Dc.at<float>(1) * invz;
+        //     const float u = fx * x + cx;
+        //     const float v = fy * y + cy;
+        //     // Point must be inside the image
+        //     if (!pKF->IsInImage(u, v)){
+        //         continue;
+        //     }
+        //     // Depth must be inside the scale invariance region of the point
+        //     const float maxDistance = pMP->GetMaxDistanceInvariance();
+        //     const float minDistance = pMP->GetMinDistanceInvariance();
+        //     // 相機中心指向空間點
+        //     cv::Mat PO = p3Dw - Ow;
+        //     // 深度
+        //     const float dist = cv::norm(PO);
+        //     if (dist < minDistance || dist > maxDistance){
+        //         continue;
+        //     }
+        //     // Viewing angle must be less than 60 deg
+        //     // 取得『地圖點 pMP』的法向量
+        //     cv::Mat Pn = pMP->GetNormal();
+        //     if (PO.dot(Pn) < 0.5 * dist){
+        //         continue;
+        //     }
+        //     // 『關鍵幀 pKF』根據當前『地圖點 pMP』的深度，估計場景規模
+        //     int nPredictedLevel = pMP->PredictScale(dist, pKF);
+        //     // Search in a radius
+        //     const float radius = th * pKF->mvScaleFactors[nPredictedLevel];
+        //     // 取得區域內的候選關鍵點的索引值
+        //     const vector<size_t> vIndices = pKF->GetFeaturesInArea(u, v, radius);
+        //     if (vIndices.empty()){
+        //         continue;
+        //     }
+        //     // Match to the most similar keypoint in the radius
+        //     // 取得『地圖點 pMP』描述子
+        //     const cv::Mat dMP = pMP->GetDescriptor();
+        //     int bestDist = 256;
+        //     int bestIdx = -1;
+        //     vector<size_t>::const_iterator vit = vIndices.begin();
+        //     vector<size_t>::const_iterator vend = vIndices.end();
+        //     for (; vit != vend; vit++)
+        //     {
+        //         const size_t idx = *vit;
+        //         if (vpMatched[idx]){
+        //             continue;
+        //         }
+        //         // 『關鍵點 kp』的金字塔層級
+        //         const int &kpLevel = pKF->mvKeysUn[idx].octave;
+        //         // kpLevel 可以是：(nPredictedLevel - 1) 或 nPredictedLevel
+        //         if (kpLevel < nPredictedLevel - 1 || kpLevel > nPredictedLevel){
+        //             continue;
+        //         }
+        //         // 取得『關鍵幀 pKF』的第 idx 個特徵點的描述子
+        //         const cv::Mat &dKF = pKF->mDescriptors.row(idx);
+        //         // 計算『地圖點 pMP』描述子和『關鍵幀 pKF』的第 idx 個特徵點的描述子之間的距離
+        //         const int dist = DescriptorDistance(dMP, dKF);
+        //         // 篩選距離最近的『距離 bestDist』和『關鍵幀索引值 bestIdx』
+        //         if (dist < bestDist)
+        //         {
+        //             bestDist = dist;
+        //             bestIdx = idx;
+        //         }
+        //     }
+        //     if (bestDist <= TH_LOW)
+        //     {
+        //         // 『關鍵幀 pKF』的第 idx 個特徵點對應『地圖點 pMP』
+        //         vpMatched[bestIdx] = pMP;
+        //         nmatches++;
+        //     }
+        // }
 
         return nmatches;
     }
@@ -1773,9 +1856,7 @@ namespace ORB_SLAM2
             int bestDist = INT_MAX;
             int bestIdx = -1;
 
-            for (vector<size_t>::const_iterator vit = vIndices.begin(); vit != vIndices.end(); vit++)
-            {
-                const size_t idx = *vit;
+            for(const size_t idx : vIndices){
 
                 // 『關鍵點 kp』的金字塔層級
                 const int &kpLevel = pKF->mvKeysUn[idx].octave;
@@ -1798,6 +1879,27 @@ namespace ORB_SLAM2
                     bestIdx = idx;
                 }
             }
+
+            // for (vector<size_t>::const_iterator vit = vIndices.begin(); vit != vIndices.end(); vit++)
+            // {
+            //     const size_t idx = *vit;
+            //     // 『關鍵點 kp』的金字塔層級
+            //     const int &kpLevel = pKF->mvKeysUn[idx].octave;
+            //     // kpLevel 可以是：(nPredictedLevel - 1) 或 nPredictedLevel
+            //     if (kpLevel < nPredictedLevel - 1 || kpLevel > nPredictedLevel){
+            //         continue;
+            //     }
+            //     // 取得『關鍵幀 pKF』的第 idx 個特徵點的描述子
+            //     const cv::Mat &dKF = pKF->mDescriptors.row(idx);
+            //     // 『關鍵幀 pKF』的第 idx 個特徵點的描述子 和 『地圖點 pMP』的描述子 之間的距離
+            //     int dist = DescriptorDistance(dMP, dKF);
+            //     // 篩選距離最近的『距離 bestDist』和『關鍵幀索引值 bestIdx』
+            //     if (dist < bestDist)
+            //     {
+            //         bestDist = dist;
+            //         bestIdx = idx;
+            //     }
+            // }
 
             // If there is already a MapPoint replace otherwise add new measurement
             // 若『地圖點 pMP』描述子和『關鍵幀 pKF』的第 bestIdx 個特徵點的描述子之間的距離足夠小
@@ -1963,13 +2065,8 @@ namespace ORB_SLAM2
             int bestDist = INT_MAX;
             int bestIdx = -1;
 
-            vector<size_t>::const_iterator vit = vIndices.begin();
-            vector<size_t>::const_iterator vend = vIndices.end();
-
             // 遍歷『關鍵幀 pKF2』當中可能和『地圖點 pMP』（『關鍵幀 pKF1』的第 i1 個地圖點）匹配的特徵點
-            for (; vit != vend; vit++)
-            {
-                const size_t idx = *vit;
+            for(const size_t idx : vIndices){
 
                 const cv::KeyPoint &kp = pKF2->mvKeysUn[idx];
 
@@ -1992,6 +2089,28 @@ namespace ORB_SLAM2
                     bestIdx = idx;
                 }
             }
+
+            // vector<size_t>::const_iterator vit = vIndices.begin();
+            // vector<size_t>::const_iterator vend = vIndices.end();            
+            // for (; vit != vend; vit++)
+            // {
+            //     const size_t idx = *vit;
+            //     const cv::KeyPoint &kp = pKF2->mvKeysUn[idx];
+            //     if (kp.octave < nPredictedLevel - 1 || kp.octave > nPredictedLevel){
+            //         continue;
+            //     }
+            //     // 『關鍵幀 pKF2』的第 idx 個特徵點的描述子
+            //     const cv::Mat &dKF = pKF2->mDescriptors.row(idx);
+            //     // 『關鍵幀 pKF2』的第 idx 個特徵點的描述子 和 『地圖點 pMP』的描述子 之間的距離
+            //     const int dist = DescriptorDistance(dMP, dKF);
+            //     // 篩選描述子距離最短的情況
+            //     if (dist < bestDist)
+            //     {
+            //         bestDist = dist;
+            //         // 『關鍵幀 pKF2』的第 bestIdx 個特徵點和『地圖點 pMP』最相似
+            //         bestIdx = idx;
+            //     }
+            // }
 
             // 若描述子距離足夠近
             if (bestDist <= TH_HIGH)
@@ -2072,13 +2191,8 @@ namespace ORB_SLAM2
             int bestDist = INT_MAX;
             int bestIdx = -1;
 
-            vector<size_t>::const_iterator vit = vIndices.begin();
-            vector<size_t>::const_iterator vend = vIndices.end();
-
             // 遍歷『關鍵幀 pKF1』當中可能和『地圖點 pMP』（『關鍵幀 pKF2』的第 i2 個地圖點）匹配的特徵點
-            for (; vit != vend; vit++)
-            {
-                const size_t idx = *vit;
+            for(const size_t idx : vIndices){
 
                 const cv::KeyPoint &kp = pKF1->mvKeysUn[idx];
 
@@ -2101,6 +2215,28 @@ namespace ORB_SLAM2
                     bestIdx = idx;
                 }
             }
+
+            // vector<size_t>::const_iterator vit = vIndices.begin();
+            // vector<size_t>::const_iterator vend = vIndices.end();
+            // for (; vit != vend; vit++)
+            // {
+            //     const size_t idx = *vit;
+            //     const cv::KeyPoint &kp = pKF1->mvKeysUn[idx];
+            //     if (kp.octave < nPredictedLevel - 1 || kp.octave > nPredictedLevel){
+            //         continue;
+            //     }
+            //     // 『關鍵幀 pKF1』的第 idx 個特徵點的描述子
+            //     const cv::Mat &dKF = pKF1->mDescriptors.row(idx);
+            //     // 『關鍵幀 pKF1』的第 idx 個特徵點的描述子 和 『地圖點 pMP』的描述子 之間的距離
+            //     const int dist = DescriptorDistance(dMP, dKF);
+            //     // 篩選描述子距離最短的情況
+            //     if (dist < bestDist)
+            //     {
+            //         bestDist = dist;
+            //         // 『關鍵幀 pKF1』的第 bestIdx 個特徵點和『地圖點 pMP』最相似
+            //         bestIdx = idx;
+            //     }
+            // }
 
             // 若描述子距離足夠近
             if (bestDist <= TH_HIGH)
@@ -2196,6 +2332,7 @@ namespace ORB_SLAM2
         for (int i = 0; i < 8; i++, pa++, pb++)
         {
             unsigned int v = *pa ^ *pb;
+            
             v = v - ((v >> 1) & 0x55555555);
             v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
             dist += (((v + (v >> 4)) & 0xF0F0F0F) * 0x1010101) >> 24;
