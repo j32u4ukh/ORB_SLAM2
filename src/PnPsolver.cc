@@ -306,11 +306,16 @@ namespace ORB_SLAM2
 
     reset_correspondences();
 
-    for (size_t i = 0; i < vIndices.size(); i++)
+    for(int idx : vIndices)
     {
-      int idx = vIndices[i];
       add_correspondence(mvP3Dw[idx].x, mvP3Dw[idx].y, mvP3Dw[idx].z, mvP2D[idx].x, mvP2D[idx].y);
     }
+
+    // for (size_t i = 0; i < vIndices.size(); i++)
+    // {
+    //   int idx = vIndices[i];
+    //   add_correspondence(mvP3Dw[idx].x, mvP3Dw[idx].y, mvP3Dw[idx].z, mvP2D[idx].x, mvP2D[idx].y);
+    // }
 
     // Compute camera pose
     compute_pose(mRi, mti);
@@ -1107,27 +1112,33 @@ namespace ORB_SLAM2
 
     // b <- Qt b
     double *ppAjj = pA, *pb = b->data.db;
+
     for (int j = 0; j < nc; j++)
     {
       double *ppAij = ppAjj, tau = 0;
+
       for (int i = j; i < nr; i++)
       {
         tau += *ppAij * pb[i];
         ppAij += nc;
       }
+
       tau /= A1[j];
       ppAij = ppAjj;
+
       for (int i = j; i < nr; i++)
       {
         pb[i] -= tau * *ppAij;
         ppAij += nc;
       }
+
       ppAjj += nc + 1;
     }
 
     // X = R-1 b
     double *pX = X->data.db;
     pX[nc - 1] = pb[nc - 1] / A2[nc - 1];
+
     for (int i = nc - 2; i >= 0; i--)
     {
       double *ppAij = pA + i * nc + (i + 1), sum = 0;
@@ -1137,6 +1148,7 @@ namespace ORB_SLAM2
         sum += *ppAij * pX[j];
         ppAij++;
       }
+      
       pX[i] = (pb[i] - sum) / A2[i];
     }
   }

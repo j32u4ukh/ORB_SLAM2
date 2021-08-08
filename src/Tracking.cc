@@ -221,7 +221,16 @@ namespace ORB_SLAM2
             }
         }
 
-        mCurrentFrame = Frame(mImGray, imGrayRight, timestamp, mpORBextractorLeft, mpORBextractorRight, mpORBVocabulary, mK, mDistCoef, mbf, mThDepth);
+        mCurrentFrame = Frame(mImGray, 
+                              imGrayRight, 
+                              timestamp, 
+                              mpORBextractorLeft, 
+                              mpORBextractorRight, 
+                              mpORBVocabulary, 
+                              mK, 
+                              mDistCoef, 
+                              mbf, 
+                              mThDepth);
 
         Track();
 
@@ -235,23 +244,36 @@ namespace ORB_SLAM2
 
         if (mImGray.channels() == 3)
         {
-            if (mbRGB)
+            if (mbRGB){
                 cvtColor(mImGray, mImGray, CV_RGB2GRAY);
-            else
+            }
+            else{
                 cvtColor(mImGray, mImGray, CV_BGR2GRAY);
+            }
         }
         else if (mImGray.channels() == 4)
         {
-            if (mbRGB)
+            if (mbRGB){
                 cvtColor(mImGray, mImGray, CV_RGBA2GRAY);
-            else
+            }
+            else{
                 cvtColor(mImGray, mImGray, CV_BGRA2GRAY);
+            }
         }
 
-        if ((fabs(mDepthMapFactor - 1.0f) > 1e-5) || imDepth.type() != CV_32F)
+        if ((fabs(mDepthMapFactor - 1.0f) > 1e-5) || imDepth.type() != CV_32F){
             imDepth.convertTo(imDepth, CV_32F, mDepthMapFactor);
+        }
 
-        mCurrentFrame = Frame(mImGray, imDepth, timestamp, mpORBextractorLeft, mpORBVocabulary, mK, mDistCoef, mbf, mThDepth);
+        mCurrentFrame = Frame(mImGray, 
+                              imDepth, 
+                              timestamp, 
+                              mpORBextractorLeft, 
+                              mpORBVocabulary, 
+                              mK, 
+                              mDistCoef, 
+                              mbf, 
+                              mThDepth);
 
         Track();
 
@@ -946,7 +968,6 @@ namespace ORB_SLAM2
 
             if (pMP)
             {
-
                 // 地圖點的位置 乘上 深度中位數的倒數，用於控制地圖規模
                 pMP->SetWorldPos(pMP->GetWorldPos() * invMedianDepth);
             }
@@ -1111,9 +1132,11 @@ namespace ORB_SLAM2
         // We sort points according to their measured depth by the stereo/RGB-D sensor
         vector<pair<float, int>> vDepthIdx;
         vDepthIdx.reserve(mLastFrame.N);
+
         for (int i = 0; i < mLastFrame.N; i++)
         {
             float z = mLastFrame.mvDepth[i];
+
             if (z > 0)
             {
                 vDepthIdx.push_back(make_pair(z, i));
@@ -1128,6 +1151,7 @@ namespace ORB_SLAM2
         // We insert all close points (depth<mThDepth)
         // If less than 100 close points, we insert the 100 closest ones.
         int nPoints = 0;
+
         for (size_t j = 0; j < vDepthIdx.size(); j++)
         {
             int i = vDepthIdx[j].second;
@@ -2358,11 +2382,13 @@ namespace ORB_SLAM2
         DistCoef.at<float>(2) = fSettings["Camera.p1"];
         DistCoef.at<float>(3) = fSettings["Camera.p2"];
         const float k3 = fSettings["Camera.k3"];
+
         if (k3 != 0)
         {
             DistCoef.resize(5);
             DistCoef.at<float>(4) = k3;
         }
+        
         DistCoef.copyTo(mDistCoef);
 
         mbf = fSettings["Camera.bf"];

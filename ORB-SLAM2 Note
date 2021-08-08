@@ -35,9 +35,12 @@ mean tracking time: 0.0662374
 median tracking time: 0.076828
 mean tracking time: 0.0877051
 
-median tracking time: 0.0543958
-mean tracking time: 0.0609036
-建圖 10:25.80
+median tracking time: 0.0642098
+mean tracking time: 0.0733727
+
+建圖 10:16.31
+
+virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()
 
 
 DBoW2::FeatureVector kf_feature_vector = vFeatVecKF;

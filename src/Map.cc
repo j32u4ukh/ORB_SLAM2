@@ -132,17 +132,15 @@ namespace ORB_SLAM2
 
     void Map::clear()
     {
-        set<MapPoint *>::iterator sit = mspMapPoints.begin();
-        set<MapPoint *>::iterator send = mspMapPoints.end();
+        set<MapPoint *>::iterator sit, send = mspMapPoints.end();
 
-        for (; sit != send; sit++){
+        for (sit = mspMapPoints.begin(); sit != send; sit++){
             delete *sit;
         }
 
-        set<KeyFrame*>::iterator s_kf_it = mspKeyFrames.begin();
-        set<KeyFrame*>::iterator s_kf_end = mspKeyFrames.end();
+        set<KeyFrame*>::iterator s_kf_it, s_kf_end = mspKeyFrames.end();
 
-        for (; s_kf_it != s_kf_end; sit++){
+        for (s_kf_it = mspKeyFrames.begin(); s_kf_it != s_kf_end; sit++){
             delete *s_kf_it;
         }
 

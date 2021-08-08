@@ -293,7 +293,8 @@ namespace ORB_SLAM2
             }
 
             // 這個條件是說地圖點已經生成並存在很長一段時間了，所以並沒有將之標記為 Bad ，僅僅從容器中移除而已
-            else if (((int)nCurrentKFid - (int)pMP->mnFirstKFid) >= 3){
+            else if (((int)nCurrentKFid - (int)pMP->mnFirstKFid) >= 3)
+            {
                 lit = mlpRecentAddedMapPoints.erase(lit);
             }
             else{

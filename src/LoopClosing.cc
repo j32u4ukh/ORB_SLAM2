@@ -556,10 +556,15 @@ namespace ORB_SLAM2
 
         if (!bMatch)
         {
-            for (int i = 0; i < nInitialCandidates; i++)
+            for(KeyFrame * candidate : mvpEnoughConsistentCandidates)
             {
-                mvpEnoughConsistentCandidates[i]->SetErase();
+                candidate->SetErase();
             }
+
+            // for (int i = 0; i < nInitialCandidates; i++)
+            // {
+            //     mvpEnoughConsistentCandidates[i]->SetErase();
+            // }
 
             mpCurrentKF->SetErase();
 

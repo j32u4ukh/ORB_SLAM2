@@ -1035,6 +1035,7 @@ namespace ORB_SLAM2
     cv::Mat KeyFrame::UnprojectStereo(int i)
     {
         const float z = mvDepth[i];
+
         if (z > 0)
         {
             const float u = mvKeys[i].pt.x;
@@ -1046,8 +1047,9 @@ namespace ORB_SLAM2
             unique_lock<mutex> lock(mMutexPose);
             return Twc.rowRange(0, 3).colRange(0, 3) * x3Dc + Twc.rowRange(0, 3).col(3);
         }
-        else
+        else{
             return cv::Mat();
+        }
     }
 
     // 取得當前關鍵幀的座標系之下，關鍵幀觀察到的所有地圖點的深度中位數（當 q = 2）

@@ -114,7 +114,8 @@ namespace ORB_SLAM2
         // 『關鍵幀 pKF』的第 idx 個『關鍵點』觀察到這個地圖點的
         mObservations[pKF] = idx;
 
-        if (pKF->mvuRight[idx] >= 0){
+        if (pKF->mvuRight[idx] >= 0)
+        {
             nObs += 2;
         }
         else{
@@ -254,29 +255,48 @@ namespace ORB_SLAM2
             mpReplaced = pMP;
         }
 
-        map<KeyFrame *, size_t>::iterator mit = obs.begin();
-        map<KeyFrame *, size_t>::iterator mend = obs.end();
-
-        for (; mit != mend; mit++)
+        for(pair<KeyFrame *, size_t> kf_kpidx : obs)
         {
             // Replace measurement in keyframe
-            KeyFrame *pKF = mit->first;
+            KeyFrame *pKF = kf_kpidx.first;
+            size_t kp_idx = kf_kpidx.second;
 
             // 檢查是否還沒被添加過『關鍵幀 pKF』到當前地圖中
             if (!pMP->IsInKeyFrame(pKF))
             {
                 // 關鍵幀的第 idx 個關鍵幀觀察到的地圖點汰換成『地圖點 pMP』
-                pKF->ReplaceMapPointMatch(mit->second, pMP);
+                pKF->ReplaceMapPointMatch(kp_idx, pMP);
 
                 // 『地圖點 pMP』被『關鍵幀 pKF』的第 (mit->second) 個關鍵點觀察到
-                pMP->AddObservation(pKF, mit->second);
+                pMP->AddObservation(pKF, kp_idx);
             }
             else
             {
                 // 『關鍵幀 pKF』第 (mit->second) 個關鍵點觀察到的『地圖點 pMP』，設為 NULL
-                pKF->EraseMapPointMatch(mit->second);
+                pKF->EraseMapPointMatch(kp_idx);
             }
         }
+
+        // map<KeyFrame *, size_t>::iterator mit = obs.begin();
+        // map<KeyFrame *, size_t>::iterator mend = obs.end();
+        // for (; mit != mend; mit++)
+        // {
+        //     // Replace measurement in keyframe
+        //     KeyFrame *pKF = mit->first;
+        //     // 檢查是否還沒被添加過『關鍵幀 pKF』到當前地圖中
+        //     if (!pMP->IsInKeyFrame(pKF))
+        //     {
+        //         // 關鍵幀的第 idx 個關鍵幀觀察到的地圖點汰換成『地圖點 pMP』
+        //         pKF->ReplaceMapPointMatch(mit->second, pMP);
+        //         // 『地圖點 pMP』被『關鍵幀 pKF』的第 (mit->second) 個關鍵點觀察到
+        //         pMP->AddObservation(pKF, mit->second);
+        //     }
+        //     else
+        //     {
+        //         // 『關鍵幀 pKF』第 (mit->second) 個關鍵點觀察到的『地圖點 pMP』，設為 NULL
+        //         pKF->EraseMapPointMatch(mit->second);
+        //     }
+        // }
 
         // 增加實際觀測到地圖點的關鍵幀數量
         pMP->IncreaseFound(nfound);
