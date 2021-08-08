@@ -37,7 +37,7 @@ mean tracking time: 0.0877051
 
 median tracking time: 0.0647236
 mean tracking time: 0.0755683
-建圖 10:19.77
+建圖 10:25.80
 
 
 DBoW2::FeatureVector kf_feature_vector = vFeatVecKF;

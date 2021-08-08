@@ -1625,14 +1625,8 @@ namespace ORB_SLAM2
         int nToMatch = 0;
 
         // Project points in frame and check its visibility
-        vit = mvpLocalMapPoints.begin();
-        vend = mvpLocalMapPoints.end();
-
-        /* 接下來對局部地圖中的地圖點進行投影篩選。
-        */
-        for (; vit != vend; vit++)
-        {
-            MapPoint *pMP = *vit;
+        // 對局部地圖中的地圖點進行投影篩選
+        for(MapPoint *pMP : mvpLocalMapPoints){
 
             if (pMP->mnLastFrameSeen == mCurrentFrame.mnId)
             {
@@ -1654,6 +1648,32 @@ namespace ORB_SLAM2
                 nToMatch++;
             }
         }
+
+        // vit = mvpLocalMapPoints.begin();
+        // vend = mvpLocalMapPoints.end();
+        // /* 接下來。
+        // */
+        // for (; vit != vend; vit++)
+        // {
+        //     MapPoint *pMP = *vit;
+        //     if (pMP->mnLastFrameSeen == mCurrentFrame.mnId)
+        //     {
+        //         continue;
+        //     }
+        //     if (pMP->isBad())
+        //     {
+        //         continue;
+        //     }
+        //     // Project (this fills MapPoint variables for matching)
+        //     /* 通過當前幀的接口函數 isInFrustum 完成實際的投影篩選工作。
+        //     這個函數有兩個參數，第一個參數就是待篩的地圖點指針，
+        //     第二個參數則是拒絕待篩地圖點的視角余弦閾值，這里是 0.5 = cos60◦。*/
+        //     if (mCurrentFrame.isInFrustum(pMP, 0.5))
+        //     {
+        //         pMP->IncreaseVisible();
+        //         nToMatch++;
+        //     }
+        // }
 
         // 如果最後發現有地圖點通過了篩選，就對當前幀進行一次投影特征匹配，擴展匹配地圖點。
         if (nToMatch > 0)
@@ -1734,21 +1754,17 @@ namespace ORB_SLAM2
 
             // vector<MapPoint *>::const_iterator itMP = vpMPs.begin();
             // vector<MapPoint *>::const_iterator itEndMP = vpMPs.end();
-
             // for (; itMP != itEndMP; itMP++)
             // {
             //     MapPoint *pMP = *itMP;
-
             //     if (!pMP)
             //     {
             //         continue;
             //     }
-
             //     if (pMP->mnTrackReferenceForFrame == mCurrentFrame.mnId)
             //     {
             //         continue;
             //     }
-
             //     if (!pMP->isBad())
             //     {
             //         mvpLocalMapPoints.push_back(pMP);
