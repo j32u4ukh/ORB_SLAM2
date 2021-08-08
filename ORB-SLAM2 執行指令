@@ -30,3 +30,41 @@ $ /home/j32u4ukh/Documents/ORB_SLAM2/build>
 > LocalMapping foreach 改版後
 median tracking time: 0.0590746
 mean tracking time: 0.0662374
+
+> Tracking foreach 改版後
+median tracking time: 0.0790669
+mean tracking time: 0.0931071
+
+
+
+DBoW2::FeatureVector kf_feature_vector = vFeatVecKF;
+DBoW2::FeatureVector f_feature_vector = F.mFeatVec;
+
+if(kf_feature_vector.first < )
+
+for (auto feature_vector : boost::combine(kf_feature_vector, f_feature_vector)) {
+
+    // FeatureVector == std::map<NodeId, std::vector<unsigned int> >
+    pair<DBoW2::NodeId, std::vector<unsigned int>> kf_feature;
+    pair<DBoW2::NodeId, std::vector<unsigned int>> f_feature;
+
+    boost::tie(kf_feature, f_feature) = feature_vector;
+    DBoW2::NodeId kf_node_id = kf_feature.first;
+    DBoW2::NodeId f_node_id = f_feature.first;
+
+    // kf_feature 起始節點較 f_feature 小
+    if(kf_node_id < f_node_id){
+
+        // 將 kf_feature 起始節點設為第 f_node_id 個節點
+        kf_feature = vFeatVecKF.lower_bound(f_node_id);
+    }
+    
+    // kf_feature 起始節點較 f_feature 大
+    else if(kf_node_id > f_node_id){
+
+        // 將 f_feature 起始節點設為第 kf_node_id 個節點
+        f_feature = F.mFeatVec.lower_bound(kf_node_id);
+    }
+    
+    
+}

@@ -824,10 +824,7 @@ namespace ORB_SLAM2
             int bestIdx2 = -1;
 
             // 遍歷 F2 的（已校正關鍵點）索引值
-            for (vector<size_t>::iterator vit = vIndices2.begin(); vit != vIndices2.end(); vit++)
-            {
-                // 關鍵點的索引值
-                size_t i2 = *vit;
+            for(size_t i2 : vIndices2){
 
                 // 取出影像 F2 當中的第 i2 個關鍵點的描述子
                 cv::Mat d2 = F2.mDescriptors.row(i2);
@@ -858,6 +855,35 @@ namespace ORB_SLAM2
                     bestDist2 = dist;
                 }
             }
+
+            // for (vector<size_t>::iterator vit = vIndices2.begin(); vit != vIndices2.end(); vit++)
+            // {
+            //     // 關鍵點的索引值
+            //     size_t i2 = *vit;
+            //     // 取出影像 F2 當中的第 i2 個關鍵點的描述子
+            //     cv::Mat d2 = F2.mDescriptors.row(i2);
+            //     // d1：影像 F1 當中的第 i1 個關鍵點的描述子
+            //     // d2：影像 F2 當中的第 i2 個關鍵點的描述子
+            //     // 計算兩個關鍵點的距離
+            //     int dist = DescriptorDistance(d1, d2);
+            //     // 若關鍵點之間的距離，比已匹配距離更遠，則直接計算下一點
+            //     if (vMatchedDistance[i2] <= dist){
+            //         continue;
+            //     }
+            //     if (dist < bestDist)
+            //     {
+            //         // 最小距離
+            //         bestDist2 = bestDist;
+            //         // 第二小距離
+            //         bestDist = dist;
+            //         // 影像 F2 當中和 d1 距離最近的關鍵點的索引值
+            //         bestIdx2 = i2;
+            //     }
+            //     else if (dist < bestDist2)
+            //     {
+            //         bestDist2 = dist;
+            //     }
+            // }
 
             // 若最小距離足夠小
             if (bestDist <= TH_LOW)
@@ -947,9 +973,11 @@ namespace ORB_SLAM2
             }
         }
 
-        //Update prev matched
+        // Update prev matched
         for (size_t i1 = 0, iend1 = vnMatches12.size(); i1 < iend1; i1++){
+
             if (vnMatches12[i1] >= 0){
+                
                 // 更新為當前各個匹配成功的關鍵點的位置，協助尋找下一幀的關鍵點
                 vbPrevMatched[i1] = F2.mvKeysUn[vnMatches12[i1]].pt;
             }

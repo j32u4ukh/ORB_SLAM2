@@ -79,6 +79,7 @@ namespace ORB_SLAM2
         // Set KeyFrame vertices
         // 將『關鍵幀』的位姿，作為『頂點』加入優化，Id 由 0 到 maxKFid 編號
         for(KeyFrame * pKF : vpKFs){
+
             if (pKF->isBad()){
                 continue;
             }
@@ -102,22 +103,16 @@ namespace ORB_SLAM2
         // for (size_t i = 0; i < vpKFs.size(); i++)
         // {
         //     KeyFrame *pKF = vpKFs[i];
-
         //     if (pKF->isBad()){
         //         continue;
         //     }
-
         //     g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
-
         //     // 取得『關鍵幀 pKF』的位姿，並轉換成 g2o 所需的類型 
         //     vSE3->setEstimate(Converter::toSE3Quat(pKF->GetPose()));
-
         //     vSE3->setId(pKF->mnId);
         //     vSE3->setFixed(pKF->mnId == 0);
-
         //     // 『關鍵幀 pKF』的位姿，作為『頂點』加入優化
         //     optimizer.addVertex(vSE3);
-
         //     if (pKF->mnId > maxKFid){
         //         maxKFid = pKF->mnId;
         //     }

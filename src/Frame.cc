@@ -246,6 +246,7 @@ namespace ORB_SLAM2
 
         for (unsigned int i = 0; i < FRAME_GRID_COLS; i++){
             for (unsigned int j = 0; j < FRAME_GRID_ROWS; j++){
+                
                 // 配置足夠的記憶體大小
                 mGrid[i][j].reserve(nReserve);
             }

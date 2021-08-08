@@ -68,6 +68,7 @@ namespace ORB_SLAM2
         {
             // 將描述子轉換為 vector<cv::Mat>
             vector<cv::Mat> vCurrentDesc = Converter::toDescriptorVector(mDescriptors);
+
             // Feature vector associate features with nodes in the 4th level (from leaves up)
             // We assume the vocabulary tree has 6 levels, change the 4 otherwise
             mpORBvocabulary->transform(vCurrentDesc, mBowVec, mFeatVec, 4);
@@ -373,9 +374,7 @@ namespace ORB_SLAM2
         int nPoints = 0;
         const bool bCheckObs = minObs > 0;
 
-        for (int i = 0; i < N; i++)
-        {
-            MapPoint *pMP = mvpMapPoints[i];
+        for(MapPoint *pMP : mvpMapPoints){
 
             if (pMP)
             {
@@ -384,7 +383,7 @@ namespace ORB_SLAM2
                     if (bCheckObs)
                     {
                         // 這個地圖點被足過多的關鍵幀觀察到
-                        if (mvpMapPoints[i]->Observations() >= minObs){
+                        if (pMP->Observations() >= minObs){
                             nPoints++;
                         }
                     }
@@ -394,6 +393,27 @@ namespace ORB_SLAM2
                 }
             }
         }
+
+        // for (int i = 0; i < N; i++)
+        // {
+        //     MapPoint *pMP = mvpMapPoints[i];
+        //     if (pMP)
+        //     {
+        //         if (!pMP->isBad())
+        //         {
+        //             if (bCheckObs)
+        //             {
+        //                 // 這個地圖點被足過多的關鍵幀觀察到
+        //                 if (mvpMapPoints[i]->Observations() >= minObs){
+        //                     nPoints++;
+        //                 }
+        //             }
+        //             else{
+        //                 nPoints++;
+        //             }
+        //         }
+        //     }
+        // }
 
         return nPoints;
     }

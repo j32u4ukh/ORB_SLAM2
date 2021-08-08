@@ -506,14 +506,19 @@ namespace ORB_SLAM2
     static void computeOrientation(const Mat &image, vector<KeyPoint> &keypoints, 
                                    const vector<int> &umax)
     {
-        vector<KeyPoint>::iterator keypoint = keypoints.begin();
-        vector<KeyPoint>::iterator keypointEnd = keypoints.end();
+        for(cv::KeyPoint keypoint : keypoints){
 
-        for (; keypoint != keypointEnd; ++keypoint)
-        {
             // 灰階質心法，計算區塊 image 的角度
-            keypoint->angle = IC_Angle(image, keypoint->pt, umax);
+            keypoint.angle = IC_Angle(image, keypoint.pt, umax);
         }
+
+        // vector<KeyPoint>::iterator keypoint = keypoints.begin();
+        // vector<KeyPoint>::iterator keypointEnd = keypoints.end();
+        // for (; keypoint != keypointEnd; ++keypoint)
+        // {
+        //     // 灰階質心法，計算區塊 image 的角度
+        //     keypoint->angle = IC_Angle(image, keypoint->pt, umax);
+        // }
     }
 
     // 將 ExtractorNode 化分成田字型的 4 塊 ExtractorNode
@@ -548,9 +553,7 @@ namespace ORB_SLAM2
         n4.vKeys.reserve(vKeys.size());
 
         //Associate points to childs
-        for (size_t i = 0; i < vKeys.size(); i++)
-        {
-            const cv::KeyPoint &kp = vKeys[i];
+        for(const cv::KeyPoint &kp : vKeys){
 
             if (kp.pt.x < n1.UR.x)
             {
@@ -568,6 +571,26 @@ namespace ORB_SLAM2
                 n4.vKeys.push_back(kp);
             }
         }
+
+        // for (size_t i = 0; i < vKeys.size(); i++)
+        // {
+        //     const cv::KeyPoint &kp = vKeys[i];
+        //     if (kp.pt.x < n1.UR.x)
+        //     {
+        //         if (kp.pt.y < n1.BR.y){
+        //             n1.vKeys.push_back(kp);
+        //         }
+        //         else{
+        //             n3.vKeys.push_back(kp);
+        //         }
+        //     }
+        //     else if (kp.pt.y < n1.BR.y){
+        //         n2.vKeys.push_back(kp);
+        //     }
+        //     else{
+        //         n4.vKeys.push_back(kp);
+        //     }
+        // }
 
         if (n1.vKeys.size() == 1){
             n1.bNoMore = true;
@@ -618,14 +641,19 @@ namespace ORB_SLAM2
         }
 
         // Associate points to childs
-        for (size_t i = 0; i < vToDistributeKeys.size(); i++)
-        {
-            // 取出特徵點
-            const cv::KeyPoint &kp = vToDistributeKeys[i];
+        for(const cv::KeyPoint &kp : vToDistributeKeys){
 
             // 根據特徵點所屬區域，計算索引值，將特徵點加入該 ExtractorNode 當中
             vpIniNodes[kp.pt.x / hX]->vKeys.push_back(kp);
         }
+
+        // for (size_t i = 0; i < vToDistributeKeys.size(); i++)
+        // {
+        //     // 取出特徵點
+        //     const cv::KeyPoint &kp = vToDistributeKeys[i];
+        //     // 根據特徵點所屬區域，計算索引值，將特徵點加入該 ExtractorNode 當中
+        //     vpIniNodes[kp.pt.x / hX]->vKeys.push_back(kp);
+        // }
 
         list<ExtractorNode>::iterator lit = lNodes.begin();
 
@@ -838,14 +866,23 @@ namespace ORB_SLAM2
             float maxResponse = pKP->response;
 
             // 遍歷各個 ExtractorNode，其 response 值最大的特徵點才加入 vResultKeys
-            for (size_t k = 1; k < vNodeKeys.size(); k++)
-            {
-                if (vNodeKeys[k].response > maxResponse)
+            for(cv::KeyPoint &kp : vNodeKeys){
+
+                if (kp.response > maxResponse)
                 {
-                    pKP = &vNodeKeys[k];
-                    maxResponse = vNodeKeys[k].response;
+                    pKP = &kp;
+                    maxResponse = kp.response;
                 }
             }
+
+            // for (size_t k = 1; k < vNodeKeys.size(); k++)
+            // {
+            //     if (vNodeKeys[k].response > maxResponse)
+            //     {
+            //         pKP = &vNodeKeys[k];
+            //         maxResponse = vNodeKeys[k].response;
+            //     }
+            // }
 
             vResultKeys.push_back(*pKP);
         }
@@ -924,15 +961,24 @@ namespace ORB_SLAM2
                     // 若特徵點不為空
                     if (!vKeysCell.empty())
                     {
-                        vector<cv::KeyPoint>::iterator vit = vKeysCell.begin();
+                        for(cv::KeyPoint keypoint : vKeysCell){
 
-                        for (; vit != vKeysCell.end(); vit++)
-                        {
                             // 將特徵點的位置，校正為各層級圖中的位置
-                            (*vit).pt.x += j * wCell;
-                            (*vit).pt.y += i * hCell;
-                            vToDistributeKeys.push_back(*vit);
+                            keypoint.pt.x += j * wCell;
+                            keypoint.pt.y += i * hCell;
+
+                            vToDistributeKeys.push_back(keypoint);
                         }
+
+                        // vector<cv::KeyPoint>::iterator vit = vKeysCell.begin();
+
+                        // for (; vit != vKeysCell.end(); vit++)
+                        // {
+                        //     // 將特徵點的位置，校正為各層級圖中的位置
+                        //     (*vit).pt.x += j * wCell;
+                        //     (*vit).pt.y += i * hCell;
+                        //     vToDistributeKeys.push_back(*vit);
+                        // }
                     }
                 }
             }

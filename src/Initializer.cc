@@ -583,13 +583,21 @@ namespace ORB_SLAM2
         // 內點的數量
         int N = 0;
 
-        for (size_t i = 0, iend = vbMatchesInliers.size(); i < iend; i++)
-        {
-            if (vbMatchesInliers[i])
+        for(bool is_inlier : vbMatchesInliers){
+
+            if (is_inlier)
             {
                 N++;
             }
         }
+
+        // for (size_t i = 0, iend = vbMatchesInliers.size(); i < iend; i++)
+        // {
+        //     if (vbMatchesInliers[i])
+        //     {
+        //         N++;
+        //     }
+        // }
 
         // Compute Essential Matrix from Fundamental Matrix
         // 利用『基礎矩陣Fundamental Matrix』計算『本質矩陣 Essential Matrix』
@@ -722,13 +730,21 @@ namespace ORB_SLAM2
         // 內點的數量
         int N = 0;
 
-        for (size_t i = 0, iend = vbMatchesInliers.size(); i < iend; i++)
-        {
-            if (vbMatchesInliers[i])
+        for(bool is_inlier : vbMatchesInliers){
+
+            if (is_inlier)
             {
                 N++;
             }
         }
+
+        // for (size_t i = 0, iend = vbMatchesInliers.size(); i < iend; i++)
+        // {
+        //     if (vbMatchesInliers[i])
+        //     {
+        //         N++;
+        //     }
+        // }
 
         // We recover 8 motion hypotheses using the method of Faugeras et al.
         // Motion and structure from motion in a piecewise planar environment.
@@ -838,8 +854,11 @@ namespace ORB_SLAM2
             np.at<float>(2) = x3[i];
 
             cv::Mat n = V * np;
-            if (n.at<float>(2) < 0)
+
+            if (n.at<float>(2) < 0){
                 n = -n;
+            }
+
             vn.push_back(n);
         }
 
