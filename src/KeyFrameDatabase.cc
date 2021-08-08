@@ -290,19 +290,11 @@ namespace ORB_SLAM2
 
             // 分類樹中 leaf 的數值與權重(葉) Bag of Words Vector structures.
             // BowVector == std::map<WordId: int, WordValue: double>
-            DBoW2::BowVector::const_iterator vit = F->mBowVec.begin();
-            DBoW2::BowVector::const_iterator vend = F->mBowVec.end();
+            for(pair<DBoW2::WordId, DBoW2::WordValue> id_value : F->mBowVec){
 
-            for (; vit != vend; vit++)
-            {
-                list<KeyFrame *> &lKFs = mvInvertedFile[vit->first];
+                list<KeyFrame *> &lKFs = mvInvertedFile[id_value.first];
 
-                list<KeyFrame *>::iterator lit = lKFs.begin();
-                list<KeyFrame *>::iterator lend = lKFs.end();
-
-                for (; lit != lend; lit++)
-                {
-                    KeyFrame *pKFi = *lit;
+                for(KeyFrame *pKFi : lKFs){
 
                     // mnRelocQuery：推測為『紀錄提出重定位請求的 Frame 的 Id』
                     if (pKFi->mnRelocQuery != F->mnId)
@@ -318,6 +310,29 @@ namespace ORB_SLAM2
                     pKFi->mnRelocWords++;
                 }
             }
+
+            // DBoW2::BowVector::const_iterator vit = F->mBowVec.begin();
+            // DBoW2::BowVector::const_iterator vend = F->mBowVec.end();
+            // for (; vit != vend; vit++)
+            // {
+            //     list<KeyFrame *> &lKFs = mvInvertedFile[vit->first];
+            //     list<KeyFrame *>::iterator lit = lKFs.begin();
+            //     list<KeyFrame *>::iterator lend = lKFs.end();
+            //     for (; lit != lend; lit++)
+            //     {
+            //         KeyFrame *pKFi = *lit;
+            //         // mnRelocQuery：推測為『紀錄提出重定位請求的 Frame 的 Id』
+            //         if (pKFi->mnRelocQuery != F->mnId)
+            //         {
+            //             // mnRelocWords
+            //             pKFi->mnRelocWords = 0;
+            //             pKFi->mnRelocQuery = F->mnId;
+            //             lKFsSharingWords.push_back(pKFi);
+            //         }
+            //         // mnRelocWords：推測為『包含多少用於重定位的 Word』
+            //         pKFi->mnRelocWords++;
+            //     }
+            // }
         }
 
         if (lKFsSharingWords.empty())
@@ -327,17 +342,25 @@ namespace ORB_SLAM2
 
         // Only compare against those keyframes that share enough words
         int maxCommonWords = 0;
-        list<KeyFrame *>::iterator lit = lKFsSharingWords.begin();
-        list<KeyFrame *>::iterator lend = lKFsSharingWords.end();
 
         // 尋找包含最多『重定位詞』的 KeyFrame
-        for (; lit != lend; lit++)
-        {
-            if ((*lit)->mnRelocWords > maxCommonWords)
+        for(KeyFrame * kf : lKFsSharingWords){
+
+            if (kf->mnRelocWords > maxCommonWords)
             {
-                maxCommonWords = (*lit)->mnRelocWords;
+                maxCommonWords = kf->mnRelocWords;
             }
         }
+
+        // list<KeyFrame *>::iterator lit = lKFsSharingWords.begin();
+        // list<KeyFrame *>::iterator lend = lKFsSharingWords.end();
+        // for (; lit != lend; lit++)
+        // {
+        //     if ((*lit)->mnRelocWords > maxCommonWords)
+        //     {
+        //         maxCommonWords = (*lit)->mnRelocWords;
+        //     }
+        // }
 
         // 『重定位詞』個數下限，定為最大值的 8 成
         int minCommonWords = maxCommonWords * 0.8f;
@@ -349,12 +372,7 @@ namespace ORB_SLAM2
         int nscores = 0;
 
         // Compute similarity score.
-        lit = lKFsSharingWords.begin();
-        lend = lKFsSharingWords.end();
-        
-        for (; lit != lend; lit++)
-        {
-            KeyFrame *pKFi = *lit;
+        for(KeyFrame *pKFi : lKFsSharingWords){
 
             // 若關鍵幀 pKFi 的『重定位詞』個數大於下限
             if (pKFi->mnRelocWords > minCommonWords)
@@ -370,6 +388,23 @@ namespace ORB_SLAM2
             }
         }
 
+        // lit = lKFsSharingWords.begin();
+        // lend = lKFsSharingWords.end();        
+        // for (; lit != lend; lit++)
+        // {
+        //     KeyFrame *pKFi = *lit;
+        //     // 若關鍵幀 pKFi 的『重定位詞』個數大於下限
+        //     if (pKFi->mnRelocWords > minCommonWords)
+        //     {
+        //         // nscores 沒用處
+        //         nscores++;
+        //         // 重定位分數
+        //         float si = mpVoc->score(F->mBowVec, pKFi->mBowVec);
+        //         pKFi->mRelocScore = si;
+        //         lScoreAndMatch.push_back(make_pair(si, pKFi));
+        //     }
+        // }
+
         if (lScoreAndMatch.empty()){
             return vector<KeyFrame *>();
         }
@@ -380,29 +415,21 @@ namespace ORB_SLAM2
         float bestAccScore = 0;
 
         // Lets now accumulate score by covisibility
-        list<pair<float, KeyFrame *>>::iterator it = lScoreAndMatch.begin();
-        list<pair<float, KeyFrame *>>::iterator itend = lScoreAndMatch.end();
+        for(pair<float, KeyFrame *> score_match : lScoreAndMatch){
 
-        for (; it != itend; it++)
-        {
-            KeyFrame *pKFi = it->second;
+            // 關鍵幀和『當前幀 F』的 BoW 相似性得分
+            float bestScore = score_match.first;
+
+            KeyFrame *pKFi = score_match.second;
 
             // 返回至多 10 個已連結的有序關鍵幀（已連結：彼此觀察到相同地圖點的關鍵幀）
             vector<KeyFrame *> vpNeighs = pKFi->GetBestCovisibilityKeyFrames(10);
 
-            // 關鍵幀和『當前幀 F』的 BoW 相似性得分
-            float bestScore = it->first;
-
             float accScore = bestScore;
             KeyFrame *pBestKF = pKFi;
 
-            vector<KeyFrame *>::iterator vit = vpNeighs.begin();
-            vector<KeyFrame *>::iterator vend = vpNeighs.end();
-
-            for (; vit != vend; vit++)
-            {
-                KeyFrame *pKF2 = *vit;
-
+            for(KeyFrame *pKF2 : vpNeighs){
+                
                 // 若當前幀沒有對 pKF2 提出過重定位請求，則跳過
                 if (pKF2->mnRelocQuery != F->mnId){
                     continue;
@@ -427,6 +454,42 @@ namespace ORB_SLAM2
             }
         }
 
+        // list<pair<float, KeyFrame *>>::iterator it = lScoreAndMatch.begin();
+        // list<pair<float, KeyFrame *>>::iterator itend = lScoreAndMatch.end();
+        // for (; it != itend; it++)
+        // {
+        //     KeyFrame *pKFi = it->second;
+        //     // 返回至多 10 個已連結的有序關鍵幀（已連結：彼此觀察到相同地圖點的關鍵幀）
+        //     vector<KeyFrame *> vpNeighs = pKFi->GetBestCovisibilityKeyFrames(10);
+        //     // 關鍵幀和『當前幀 F』的 BoW 相似性得分
+        //     float bestScore = it->first;
+        //     float accScore = bestScore;
+        //     KeyFrame *pBestKF = pKFi;
+        //     vector<KeyFrame *>::iterator vit = vpNeighs.begin();
+        //     vector<KeyFrame *>::iterator vend = vpNeighs.end();
+        //     for (; vit != vend; vit++)
+        //     {
+        //         KeyFrame *pKF2 = *vit;
+        //         // 若當前幀沒有對 pKF2 提出過重定位請求，則跳過
+        //         if (pKF2->mnRelocQuery != F->mnId){
+        //             continue;
+        //         }
+        //         // 將其他觀察到相同地圖點的關鍵幀的 BoW 相似性得分都考慮進來
+        //         accScore += pKF2->mRelocScore;
+        //         // 更新 BoW 相似性得分最高值，以及其對應的關鍵幀
+        //         if (pKF2->mRelocScore > bestScore)
+        //         {
+        //             pBestKF = pKF2;
+        //             bestScore = pKF2->mRelocScore;
+        //         }
+        //     }
+        //     lAccScoreAndMatch.push_back(make_pair(accScore, pBestKF));
+        //     // 更新最高的 BoW 相似性得分
+        //     if (accScore > bestAccScore){
+        //         bestAccScore = accScore;
+        //     }
+        // }
+
         // Return all those keyframes with a score higher than 0.75 * bestScore
         // BoW 相似性得分至少為最高分的 0.75 倍
         float minScoreToRetain = 0.75f * bestAccScore;
@@ -438,17 +501,14 @@ namespace ORB_SLAM2
         // 協助 vpRelocCandidates 不要重複添加
         set<KeyFrame *> spAlreadyAddedKF;
 
-        it = lAccScoreAndMatch.begin();
-        itend = lAccScoreAndMatch.end();
+        for(pair<float, KeyFrame *> score_match : lAccScoreAndMatch){
 
-        for (; it != itend; it++)
-        {
-            const float &si = it->first;
+            const float &si = score_match.first;
 
             // 若 BoW 相似性得分大於最低要求
             if (si > minScoreToRetain)
             {
-                KeyFrame *pKFi = it->second;
+                KeyFrame *pKFi = score_match.second;
 
                 if (!spAlreadyAddedKF.count(pKFi))
                 {
@@ -459,6 +519,24 @@ namespace ORB_SLAM2
                 }
             }
         }
+
+        // it = lAccScoreAndMatch.begin();
+        // itend = lAccScoreAndMatch.end();
+        // for (; it != itend; it++)
+        // {
+        //     const float &si = it->first;
+        //     // 若 BoW 相似性得分大於最低要求
+        //     if (si > minScoreToRetain)
+        //     {
+        //         KeyFrame *pKFi = it->second;
+        //         if (!spAlreadyAddedKF.count(pKFi))
+        //         {
+        //             // 將關鍵幀加入 vpRelocCandidates，將用於協助重定位
+        //             vpRelocCandidates.push_back(pKFi);
+        //             spAlreadyAddedKF.insert(pKFi);
+        //         }
+        //     }
+        // }
 
         return vpRelocCandidates;
     }
