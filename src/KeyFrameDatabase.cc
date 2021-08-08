@@ -39,12 +39,18 @@ namespace ORB_SLAM2
     {
         unique_lock<mutex> lock(mMutex);
 
-        DBoW2::BowVector::const_iterator vit = pKF->mBowVec.begin();
-        DBoW2::BowVector::const_iterator vend = pKF->mBowVec.end();
+        DBoW2::BowVector bow_vector = pKF->mBowVec;
 
-        for (; vit != vend; vit++){
-            mvInvertedFile[vit->first].push_back(pKF);
+        for(pair<DBoW2::WordId, DBoW2::WordValue> bow : bow_vector)
+        {
+            mvInvertedFile[bow.first].push_back(pKF);
         }
+
+        // DBoW2::BowVector::const_iterator vit = pKF->mBowVec.begin();
+        // DBoW2::BowVector::const_iterator vend = pKF->mBowVec.end();
+        // for (; vit != vend; vit++){
+        //     mvInvertedFile[vit->first].push_back(pKF);
+        // }
     }
 
     void KeyFrameDatabase::erase(KeyFrame *pKF)
@@ -52,13 +58,12 @@ namespace ORB_SLAM2
         unique_lock<mutex> lock(mMutex);
 
         // Erase elements in the Inverse File for the entry
-        DBoW2::BowVector::const_iterator vit = pKF->mBowVec.begin();
-        DBoW2::BowVector::const_iterator vend = pKF->mBowVec.end();
+        DBoW2::BowVector bow_vector = pKF->mBowVec;
 
-        for (; vit != vend; vit++)
+        for(pair<DBoW2::WordId, DBoW2::WordValue> bow : bow_vector)
         {
             // List of keyframes that share the word
-            list<KeyFrame *> &lKFs = mvInvertedFile[vit->first];
+            list<KeyFrame *> &lKFs = mvInvertedFile[bow.first];
 
             list<KeyFrame *>::iterator lit = lKFs.begin();
             list<KeyFrame *>::iterator lend = lKFs.end();
@@ -72,6 +77,24 @@ namespace ORB_SLAM2
                 }
             }
         }
+
+        // DBoW2::BowVector::const_iterator vit = pKF->mBowVec.begin();
+        // DBoW2::BowVector::const_iterator vend = pKF->mBowVec.end();
+        // for (; vit != vend; vit++)
+        // {
+        //     // List of keyframes that share the word
+        //     list<KeyFrame *> &lKFs = mvInvertedFile[vit->first];
+        //     list<KeyFrame *>::iterator lit = lKFs.begin();
+        //     list<KeyFrame *>::iterator lend = lKFs.end();
+        //     for (; lit != lend; lit++)
+        //     {
+        //         if (pKF == *lit)
+        //         {
+        //             lKFs.erase(lit);
+        //             break;
+        //         }
+        //     }
+        // }
     }
 
     void KeyFrameDatabase::clear()
@@ -99,21 +122,15 @@ namespace ORB_SLAM2
 
             // BowVector == std::map<WordId, WordValue>
             // WordValue: tf * idf
-            DBoW2::BowVector::const_iterator vit = pKF->mBowVec.begin();
-            DBoW2::BowVector::const_iterator vend = pKF->mBowVec.end();
+            DBoW2::BowVector bow_vector = pKF->mBowVec;
 
-            for (; vit != vend; vit++)
+            for(pair<DBoW2::WordId, DBoW2::WordValue> bow : bow_vector)
             {
                 // mvInvertedFile[vit->first]：含有『單字 vit->first』的關鍵幀陣列
-                list<KeyFrame *> &lKFs = mvInvertedFile[vit->first];
+                list<KeyFrame *> &lKFs = mvInvertedFile[bow.first];
 
-                list<KeyFrame *>::iterator lit = lKFs.begin();
-                list<KeyFrame *>::iterator lend = lKFs.end();
-
-                for (; lit != lend; lit++)
+                for(KeyFrame *pKFi : lKFs)
                 {
-                    KeyFrame *pKFi = *lit;
-
                     if (pKFi->mnLoopQuery != pKF->mnId)
                     {
                         pKFi->mnLoopWords = 0;
@@ -130,6 +147,32 @@ namespace ORB_SLAM2
                     pKFi->mnLoopWords++;
                 }
             }
+
+            // DBoW2::BowVector::const_iterator vit = pKF->mBowVec.begin();
+            // DBoW2::BowVector::const_iterator vend = pKF->mBowVec.end();
+            // for (; vit != vend; vit++)
+            // {
+            //     // mvInvertedFile[vit->first]：含有『單字 vit->first』的關鍵幀陣列
+            //     list<KeyFrame *> &lKFs = mvInvertedFile[vit->first];
+            //     list<KeyFrame *>::iterator lit = lKFs.begin();
+            //     list<KeyFrame *>::iterator lend = lKFs.end();
+            //     for (; lit != lend; lit++)
+            //     {
+            //         KeyFrame *pKFi = *lit;
+            //         if (pKFi->mnLoopQuery != pKF->mnId)
+            //         {
+            //             pKFi->mnLoopWords = 0;
+            //             // 是否已在『關鍵幀 pKF』的『已連結關鍵幀』當中
+            //             if (!spConnectedKeyFrames.count(pKFi))
+            //             {
+            //                 pKFi->mnLoopQuery = pKF->mnId;
+            //                 lKFsSharingWords.push_back(pKFi);
+            //             }
+            //         }
+            //         // 紀錄『關鍵幀 pKFi』和『關鍵幀 pKF』有多少相同單字
+            //         pKFi->mnLoopWords++;
+            //     }
+            // }
         }
 
         // 若 lKFsSharingWords 為空，則返回空陣列
@@ -140,18 +183,26 @@ namespace ORB_SLAM2
         // Only compare against those keyframes that share enough words
         int maxCommonWords = 0;
 
-        list<KeyFrame *>::iterator lit = lKFsSharingWords.begin();
-        list<KeyFrame *>::iterator lend = lKFsSharingWords.end();
-
-        for (; lit != lend; lit++)
+        for(KeyFrame * kf : lKFsSharingWords)
         {
-            // (*lit)->mnLoopWords：紀錄『關鍵幀 (*lit)』和『關鍵幀 pKF』有多少相同單字
-            if ((*lit)->mnLoopWords > maxCommonWords){
+            // kf->mnLoopWords：紀錄『關鍵幀 kf』和『關鍵幀 pKF』有多少相同單字
+            if (kf->mnLoopWords > maxCommonWords){
 
                 // 取得最多相同單字個數
-                maxCommonWords = (*lit)->mnLoopWords;
+                maxCommonWords = kf->mnLoopWords;
             }
         }
+
+        // list<KeyFrame *>::iterator lit = lKFsSharingWords.begin();
+        // list<KeyFrame *>::iterator lend = lKFsSharingWords.end();
+        // for (; lit != lend; lit++)
+        // {
+        //     // (*lit)->mnLoopWords：紀錄『關鍵幀 (*lit)』和『關鍵幀 pKF』有多少相同單字
+        //     if ((*lit)->mnLoopWords > maxCommonWords){
+        //         // 取得最多相同單字個數
+        //         maxCommonWords = (*lit)->mnLoopWords;
+        //     }
+        // }
 
         // key: 和『關鍵幀 pKF』的相似程度分數, value: 關鍵幀
         list<pair<float, KeyFrame *>> lScoreAndMatch;
@@ -163,13 +214,8 @@ namespace ORB_SLAM2
         int nscores = 0;
 
         // Compute similarity score. Retain the matches whose score is higher than minScore
-        lit = lKFsSharingWords.begin();
-        lend = lKFsSharingWords.end();
-
-        for (; lit != lend; lit++)
+        for(KeyFrame *pKFi : lKFsSharingWords)
         {
-            KeyFrame *pKFi = *lit;
-
             // 若『關鍵幀 pKFi』和『關鍵幀 pKF』相同單字的個數大於下限
             if (pKFi->mnLoopWords > minCommonWords)
             {
@@ -189,6 +235,27 @@ namespace ORB_SLAM2
             }
         }
 
+        // lit = lKFsSharingWords.begin();
+        // lend = lKFsSharingWords.end();
+        // for (; lit != lend; lit++)
+        // {
+        //     KeyFrame *pKFi = *lit;
+        //     // 若『關鍵幀 pKFi』和『關鍵幀 pKF』相同單字的個數大於下限
+        //     if (pKFi->mnLoopWords > minCommonWords)
+        //     {
+        //         nscores++;
+        //         // 計算『關鍵幀 pKFi』和『關鍵幀 pKF』的相似程度
+        //         float si = mpVoc->score(pKF->mBowVec, pKFi->mBowVec);
+        //         // 紀錄『關鍵幀 pKFi』和『關鍵幀 pKF』的相似程度
+        //         pKFi->mLoopScore = si;
+        //         // 相似程度 大於 『關鍵幀 pKF』和其『共視關鍵幀』的相似程度最小值
+        //         if (si >= minScore){
+        //             // 將『相似程度』與『關鍵幀 pKFi』作為一組，放入 lScoreAndMatch
+        //             lScoreAndMatch.push_back(make_pair(si, pKFi));
+        //         }
+        //     }
+        // }
+
         if (lScoreAndMatch.empty()){
             return vector<KeyFrame *>();
         }
@@ -198,30 +265,21 @@ namespace ORB_SLAM2
 
         // Lets now accumulate score by covisibility
         // lScoreAndMatch key: 和『關鍵幀 pKF』的相似程度分數, value: 關鍵幀
-        list<pair<float, KeyFrame *>>::iterator it = lScoreAndMatch.begin();
-        list<pair<float, KeyFrame *>>::iterator itend = lScoreAndMatch.end();
-
-        for (; it != itend; it++)
+        for(pair<float, KeyFrame *> score_match : lScoreAndMatch)
         {
-            KeyFrame *pKFi = it->second;
+            // it->first：『關鍵幀 pKFi』和『關鍵幀 pKF』的相似程度分數
+            float bestScore = score_match.first;
+            float accScore = score_match.first;
+
+            KeyFrame *pKFi = score_match.second;
+            KeyFrame *pBestKF = pKFi;
 
             // 自『根據觀察到的地圖點數量排序的共視關鍵幀』當中返回至多 10 個共視關鍵幀
             vector<KeyFrame *> vpNeighs = pKFi->GetBestCovisibilityKeyFrames(10);
 
-            // it->first：『關鍵幀 pKFi』和『關鍵幀 pKF』的相似程度分數
-            float bestScore = it->first;
-            float accScore = it->first;
-
-            KeyFrame *pBestKF = pKFi;
-
-            vector<KeyFrame *>::iterator vit = vpNeighs.begin();
-            vector<KeyFrame *>::iterator vend = vpNeighs.end();
-
-            for (; vit != vend; vit++)
+            // 『關鍵幀 pKFi』的『共視關鍵幀』
+            for(KeyFrame *pKF2 : vpNeighs)
             {
-                // 『關鍵幀 pKFi』的『共視關鍵幀』
-                KeyFrame *pKF2 = *vit;
-
                 // 若『關鍵幀 pKF2』曾協助迴路檢測 且 和『關鍵幀 pKF』的相同單字的個數大於下限
                 if (pKF2->mnLoopQuery == pKF->mnId && pKF2->mnLoopWords > minCommonWords)
                 {
@@ -246,6 +304,44 @@ namespace ORB_SLAM2
             }
         }
 
+        // list<pair<float, KeyFrame *>>::iterator it = lScoreAndMatch.begin();
+        // list<pair<float, KeyFrame *>>::iterator itend = lScoreAndMatch.end();
+        // for (; it != itend; it++)
+        // {
+        //     KeyFrame *pKFi = it->second;
+        //     // 自『根據觀察到的地圖點數量排序的共視關鍵幀』當中返回至多 10 個共視關鍵幀
+        //     vector<KeyFrame *> vpNeighs = pKFi->GetBestCovisibilityKeyFrames(10);
+        //     // it->first：『關鍵幀 pKFi』和『關鍵幀 pKF』的相似程度分數
+        //     float bestScore = it->first;
+        //     float accScore = it->first;
+        //     KeyFrame *pBestKF = pKFi;
+        //     vector<KeyFrame *>::iterator vit = vpNeighs.begin();
+        //     vector<KeyFrame *>::iterator vend = vpNeighs.end();
+        //     for (; vit != vend; vit++)
+        //     {
+        //         // 『關鍵幀 pKFi』的『共視關鍵幀』
+        //         KeyFrame *pKF2 = *vit;
+        //         // 若『關鍵幀 pKF2』曾協助迴路檢測 且 和『關鍵幀 pKF』的相同單字的個數大於下限
+        //         if (pKF2->mnLoopQuery == pKF->mnId && pKF2->mnLoopWords > minCommonWords)
+        //         {
+        //             // accumulation 累積
+        //             // 『關鍵幀 pKF2』和『關鍵幀 pKF』的相似分數加入『累積相似分數 accScore』
+        //             accScore += pKF2->mLoopScore;
+        //             // 篩選和『關鍵幀 pKF』最相似的關鍵幀，及其相似分數
+        //             if (pKF2->mLoopScore > bestScore)
+        //             {
+        //                 pBestKF = pKF2;
+        //                 bestScore = pKF2->mLoopScore;
+        //             }
+        //         }
+        //     }
+        //     // 『關鍵幀 pKFi』的『共視關鍵幀』當中，和『關鍵幀 pKF』最相似的關鍵幀，及其相似分數
+        //     lAccScoreAndMatch.push_back(make_pair(accScore, pBestKF));
+        //     if (accScore > bestAccScore){
+        //         bestAccScore = accScore;
+        //     }
+        // }
+
         // Return all those keyframes with a score higher than 0.75*bestScore
         // 相似分數下限
         float minScoreToRetain = 0.75f * bestAccScore;
@@ -254,15 +350,12 @@ namespace ORB_SLAM2
         vector<KeyFrame *> vpLoopCandidates;
         vpLoopCandidates.reserve(lAccScoreAndMatch.size());
 
-        it = lAccScoreAndMatch.begin();
-        itend = lAccScoreAndMatch.end();
-
-        for (; it != itend; it++)
+        for(pair<float, KeyFrame *> score_match : lAccScoreAndMatch)
         {
             // 『關鍵幀』的『共視關鍵幀 it->second』的相似分數 大於 相似分數下限
-            if (it->first > minScoreToRetain)
+            if (score_match.first > minScoreToRetain)
             {
-                KeyFrame *pKFi = it->second;
+                KeyFrame *pKFi = score_match.second;
 
                 // 避免重複添加『關鍵幀 pKFi』
                 if (!spAlreadyAddedKF.count(pKFi))
@@ -272,6 +365,23 @@ namespace ORB_SLAM2
                 }
             }
         }
+
+        // it = lAccScoreAndMatch.begin();
+        // itend = lAccScoreAndMatch.end();
+        // for (; it != itend; it++)
+        // {
+        //     // 『關鍵幀』的『共視關鍵幀 it->second』的相似分數 大於 相似分數下限
+        //     if (it->first > minScoreToRetain)
+        //     {
+        //         KeyFrame *pKFi = it->second;
+        //         // 避免重複添加『關鍵幀 pKFi』
+        //         if (!spAlreadyAddedKF.count(pKFi))
+        //         {
+        //             vpLoopCandidates.push_back(pKFi);
+        //             spAlreadyAddedKF.insert(pKFi);
+        //         }
+        //     }
+        // }
 
         return vpLoopCandidates;
     }

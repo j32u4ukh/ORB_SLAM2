@@ -141,6 +141,7 @@ namespace ORB_SLAM2
         // Check mode change
         {
             unique_lock<mutex> lock(mMutexMode);
+
             if (mbActivateLocalizationMode)
             {
                 mpLocalMapper->RequestStop();
@@ -251,7 +252,8 @@ namespace ORB_SLAM2
             // 是否為定位模式
             if (mbActivateLocalizationMode)
             {
-                // LocalMapping::Run & Tracking::NeedNewKeyFrame & Optimizer::LocalBundleAdjustment 將被暫時停止
+                // LocalMapping::Run & Tracking::NeedNewKeyFrame & Optimizer::LocalBundleAdjustment 
+                // 將被暫時停止
                 mpLocalMapper->RequestStop();
 
                 // Wait until Local Mapping has effectively stopped
@@ -292,6 +294,7 @@ namespace ORB_SLAM2
         cv::Mat Tcw = mpTracker->GrabImageMonocular(im, timestamp);
 
         unique_lock<mutex> lock2(mMutexState);
+
         mTrackingState = mpTracker->mState;
         mTrackedMapPoints = mpTracker->mCurrentFrame.mvpMapPoints;
         mTrackedKeyPointsUn = mpTracker->mCurrentFrame.mvKeysUn;
@@ -321,13 +324,16 @@ namespace ORB_SLAM2
     {
         static int n = 0;
         int curn = mpMap->GetLastBigChangeIdx();
+
         if (n < curn)
         {
             n = curn;
+
             return true;
         }
-        else
+        else{
             return false;
+        }
     }
 
     void System::Reset()
@@ -355,13 +361,16 @@ namespace ORB_SLAM2
                 usleep(5000);
             }
 
+            // ===== Add by myself =====
             delete mpViewer;
             mpViewer = static_cast<Viewer *>(NULL);
+            // =========================
         }
 
         // Wait until all thread have effectively stopped
         // 等待所有線程確實停止
-        while (!mpLocalMapper->isFinished() || !mpLoopCloser->isFinished() || mpLoopCloser->isRunningGBA())
+        while (!mpLocalMapper->isFinished() || !mpLoopCloser->isFinished() || 
+                mpLoopCloser->isRunningGBA())
         {
             usleep(5000);
         }
@@ -437,6 +446,7 @@ namespace ORB_SLAM2
              << "trajectory saved!" << endl;
     }
 
+    // For Monocular
     void System::SaveKeyFrameTrajectoryTUM(const string &filename)
     {
         cout << endl

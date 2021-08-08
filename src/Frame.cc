@@ -37,34 +37,42 @@ namespace ORB_SLAM2
     }
 
     // Copy Constructor
-    Frame::Frame(const Frame &frame)
-        : mpORBvocabulary(frame.mpORBvocabulary), mpORBextractorLeft(frame.mpORBextractorLeft), mpORBextractorRight(frame.mpORBextractorRight),
-          mTimeStamp(frame.mTimeStamp), mK(frame.mK.clone()), mDistCoef(frame.mDistCoef.clone()),
-          mbf(frame.mbf), mb(frame.mb), mThDepth(frame.mThDepth), N(frame.N), mvKeys(frame.mvKeys),
-          mvKeysRight(frame.mvKeysRight), mvKeysUn(frame.mvKeysUn), mvuRight(frame.mvuRight),
-          mvDepth(frame.mvDepth), mBowVec(frame.mBowVec), mFeatVec(frame.mFeatVec),
-          mDescriptors(frame.mDescriptors.clone()), mDescriptorsRight(frame.mDescriptorsRight.clone()),
-          mvpMapPoints(frame.mvpMapPoints), mvbOutlier(frame.mvbOutlier), mnId(frame.mnId),
-          mpReferenceKF(frame.mpReferenceKF), mnScaleLevels(frame.mnScaleLevels),
-          mfScaleFactor(frame.mfScaleFactor), mfLogScaleFactor(frame.mfLogScaleFactor),
-          mvScaleFactors(frame.mvScaleFactors), mvInvScaleFactors(frame.mvInvScaleFactors),
-          mvLevelSigma2(frame.mvLevelSigma2), mvInvLevelSigma2(frame.mvInvLevelSigma2)
+    Frame::Frame(const Frame &frame) : 
+        mpORBvocabulary(frame.mpORBvocabulary), mpORBextractorLeft(frame.mpORBextractorLeft), 
+        mpORBextractorRight(frame.mpORBextractorRight), mTimeStamp(frame.mTimeStamp), 
+        mK(frame.mK.clone()), mDistCoef(frame.mDistCoef.clone()), mbf(frame.mbf), mb(frame.mb), 
+        mThDepth(frame.mThDepth), N(frame.N), mvKeys(frame.mvKeys), mvKeysRight(frame.mvKeysRight), 
+        mvKeysUn(frame.mvKeysUn), mvuRight(frame.mvuRight), mvDepth(frame.mvDepth), 
+        mBowVec(frame.mBowVec), mFeatVec(frame.mFeatVec), mDescriptors(frame.mDescriptors.clone()), 
+        mDescriptorsRight(frame.mDescriptorsRight.clone()), mvpMapPoints(frame.mvpMapPoints), 
+        mvbOutlier(frame.mvbOutlier), mnId(frame.mnId), mpReferenceKF(frame.mpReferenceKF), 
+        mnScaleLevels(frame.mnScaleLevels), mfScaleFactor(frame.mfScaleFactor), 
+        mfLogScaleFactor(frame.mfLogScaleFactor), mvScaleFactors(frame.mvScaleFactors), 
+        mvInvScaleFactors(frame.mvInvScaleFactors), mvLevelSigma2(frame.mvLevelSigma2), 
+        mvInvLevelSigma2(frame.mvInvLevelSigma2)
     {
-        for (int i = 0; i < FRAME_GRID_COLS; i++){
-            for (int j = 0; j < FRAME_GRID_ROWS; j++){
+        for (int i = 0; i < FRAME_GRID_COLS; i++)
+        {
+            for (int j = 0; j < FRAME_GRID_ROWS; j++)
+            {
                 mGrid[i][j] = frame.mGrid[i][j];
             }
         }
 
-        if (!frame.mTcw.empty()){
+        if (!frame.mTcw.empty())
+        {
             // 設置 Frame 位姿，並根據 Frame 位姿，更新旋轉、平移等數據
             SetPose(frame.mTcw);
         }
     }
 
-    Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp, ORBextractor *extractorLeft, ORBextractor *extractorRight, ORBVocabulary *voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
-        : mpORBvocabulary(voc), mpORBextractorLeft(extractorLeft), mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), mK(K.clone()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
-          mpReferenceKF(static_cast<KeyFrame *>(NULL))
+    Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp, 
+                 ORBextractor *extractorLeft, ORBextractor *extractorRight, ORBVocabulary *voc, 
+                 cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth) : 
+                 mpORBvocabulary(voc), mpORBextractorLeft(extractorLeft), 
+                 mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), mK(K.clone()), 
+                 mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth), 
+                 mpReferenceKF(static_cast<KeyFrame *>(NULL))
     {
         // Frame ID
         mnId = nNextId++;
@@ -81,13 +89,15 @@ namespace ORB_SLAM2
         // ORB extraction
         thread threadLeft(&Frame::ExtractORB, this, 0, imLeft);
         thread threadRight(&Frame::ExtractORB, this, 1, imRight);
+
         threadLeft.join();
         threadRight.join();
 
         N = mvKeys.size();
 
-        if (mvKeys.empty())
+        if (mvKeys.empty()){
             return;
+        }
 
         UndistortKeyPoints();
 
@@ -119,9 +129,12 @@ namespace ORB_SLAM2
         AssignFeaturesToGrid();
     }
 
-    Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor *extractor, ORBVocabulary *voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
-        : mpORBvocabulary(voc), mpORBextractorLeft(extractor), mpORBextractorRight(static_cast<ORBextractor *>(NULL)),
-          mTimeStamp(timeStamp), mK(K.clone()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
+    Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, 
+                 ORBextractor *extractor, ORBVocabulary *voc, cv::Mat &K, cv::Mat &distCoef, 
+                 const float &bf, const float &thDepth) : 
+                 mpORBvocabulary(voc), mpORBextractorLeft(extractor), 
+                 mpORBextractorRight(static_cast<ORBextractor *>(NULL)), mTimeStamp(timeStamp), 
+                 mK(K.clone()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
     {
         // Frame ID
         mnId = nNextId++;
@@ -140,8 +153,9 @@ namespace ORB_SLAM2
 
         N = mvKeys.size();
 
-        if (mvKeys.empty())
+        if (mvKeys.empty()){
             return;
+        }
 
         UndistortKeyPoints();
 
@@ -155,13 +169,16 @@ namespace ORB_SLAM2
         {
             ComputeImageBounds(imGray);
 
-            mfGridElementWidthInv = static_cast<float>(FRAME_GRID_COLS) / static_cast<float>(mnMaxX - mnMinX);
-            mfGridElementHeightInv = static_cast<float>(FRAME_GRID_ROWS) / static_cast<float>(mnMaxY - mnMinY);
+            mfGridElementWidthInv = static_cast<float>(FRAME_GRID_COLS) / 
+                                                                static_cast<float>(mnMaxX - mnMinX);
+            mfGridElementHeightInv = static_cast<float>(FRAME_GRID_ROWS) / 
+                                                                static_cast<float>(mnMaxY - mnMinY);
 
             fx = K.at<float>(0, 0);
             fy = K.at<float>(1, 1);
             cx = K.at<float>(0, 2);
             cy = K.at<float>(1, 2);
+
             invfx = 1.0f / fx;
             invfy = 1.0f / fy;
 
@@ -244,9 +261,10 @@ namespace ORB_SLAM2
     {
         int nReserve = 0.5f * N / (FRAME_GRID_COLS * FRAME_GRID_ROWS);
 
-        for (unsigned int i = 0; i < FRAME_GRID_COLS; i++){
-            for (unsigned int j = 0; j < FRAME_GRID_ROWS; j++){
-                
+        for (unsigned int i = 0; i < FRAME_GRID_COLS; i++)
+        {
+            for (unsigned int j = 0; j < FRAME_GRID_ROWS; j++)
+            {                
                 // 配置足夠的記憶體大小
                 mGrid[i][j].reserve(nReserve);
             }
@@ -258,8 +276,8 @@ namespace ORB_SLAM2
             int nGridPosX, nGridPosY;
 
             // 判斷關鍵點是否在影像區域內，並將關鍵點所在網格位置返回至 nGridPosX 和 nGridPosY
-            if (PosInGrid(kp, nGridPosX, nGridPosY)){
-
+            if (PosInGrid(kp, nGridPosX, nGridPosY))
+            {
                 // 紀錄網格 mGrid[nGridPosX][nGridPosY] 所包含的關鍵點的索引值
                 mGrid[nGridPosX][nGridPosY].push_back(i);
             }
@@ -269,11 +287,13 @@ namespace ORB_SLAM2
     // 利用 ORBextractor 抽取 ORB 特徵
     void Frame::ExtractORB(int flag, const cv::Mat &im)
     {
-        if (flag == 0){
+        if (flag == 0)
+        {
             // 抽取 ORB 特徵，特徵點存於 mvKeys ，描述子存於 mDescriptors
             (*mpORBextractorLeft)(im, cv::Mat(), mvKeys, mDescriptors);
         }
-        else{
+        else
+        {
             // 抽取 ORB 特徵，特徵點存於 mvKeysRight ，描述子存於 mDescriptorsRight
             (*mpORBextractorRight)(im, cv::Mat(), mvKeysRight, mDescriptorsRight);
         }
@@ -434,10 +454,10 @@ namespace ORB_SLAM2
                     continue;
                 }
 
-                for (size_t j = 0, jend = vCell.size(); j < jend; j++)
+                for(size_t cell_idx : vCell)
                 {
-                    // vCell[j]：網格 vCell 的第 j 個關鍵點，在 mvKeysUn 的索引值
-                    const cv::KeyPoint &kpUn = mvKeysUn[vCell[j]];
+                    // 『關鍵點的索引值 cell_idx』
+                    const cv::KeyPoint &kpUn = mvKeysUn[cell_idx];
 
                     // 檢查層級是否超出 minLevel 與 maxLevel 的範圍
                     if (bCheckLevels)
@@ -456,11 +476,36 @@ namespace ORB_SLAM2
                     const float distx = kpUn.pt.x - x;
                     const float disty = kpUn.pt.y - y;
 
-                    if (fabs(distx) < r && fabs(disty) < r){
-                        // vCell[j]：網格 vCell 的第 j 個關鍵點，在 mvKeysUn 的索引值
-                        vIndices.push_back(vCell[j]);
+                    if (fabs(distx) < r && fabs(disty) < r)
+                    {
+                        // 『關鍵點的索引值 cell_idx』
+                        vIndices.push_back(cell_idx);
                     }
                 }
+
+                // for (size_t j = 0, jend = vCell.size(); j < jend; j++)
+                // {
+                //     // vCell[j]：網格 vCell 的第 j 個關鍵點，在 mvKeysUn 的索引值
+                //     const cv::KeyPoint &kpUn = mvKeysUn[vCell[j]];
+                //     // 檢查層級是否超出 minLevel 與 maxLevel 的範圍
+                //     if (bCheckLevels)
+                //     {
+                //         if (kpUn.octave < minLevel){
+                //             continue;
+                //         }
+                //         if (maxLevel >= 0){
+                //             if (kpUn.octave > maxLevel){
+                //                 continue;
+                //             }
+                //         }   
+                //     }
+                //     const float distx = kpUn.pt.x - x;
+                //     const float disty = kpUn.pt.y - y;
+                //     if (fabs(distx) < r && fabs(disty) < r){
+                //         // vCell[j]：網格 vCell 的第 j 個關鍵點，在 mvKeysUn 的索引值
+                //         vIndices.push_back(vCell[j]);
+                //     }
+                // }
             }
         }
 
