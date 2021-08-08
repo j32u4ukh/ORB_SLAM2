@@ -122,12 +122,10 @@ namespace ORB_SLAM2
 
             // BowVector == std::map<WordId, WordValue>
             // WordValue: tf * idf
-            DBoW2::BowVector bow_vector = pKF->mBowVec;
-
-            for(pair<DBoW2::WordId, DBoW2::WordValue> bow : bow_vector)
+            for(pair<DBoW2::WordId, DBoW2::WordValue> id_value : pKF->mBowVec)
             {
-                // mvInvertedFile[vit->first]：含有『單字 vit->first』的關鍵幀陣列
-                list<KeyFrame *> &lKFs = mvInvertedFile[bow.first];
+                // mvInvertedFile[id_value.first]：含有『單字 id_value.first』的關鍵幀陣列
+                list<KeyFrame *> &lKFs = mvInvertedFile[id_value.first];
 
                 for(KeyFrame *pKFi : lKFs)
                 {
@@ -529,14 +527,13 @@ namespace ORB_SLAM2
 
             // 關鍵幀和『當前幀 F』的 BoW 相似性得分
             float bestScore = score_match.first;
+            float accScore = score_match.first;
 
             KeyFrame *pKFi = score_match.second;
+            KeyFrame *pBestKF = pKFi;
 
             // 返回至多 10 個已連結的有序關鍵幀（已連結：彼此觀察到相同地圖點的關鍵幀）
             vector<KeyFrame *> vpNeighs = pKFi->GetBestCovisibilityKeyFrames(10);
-
-            float accScore = bestScore;
-            KeyFrame *pBestKF = pKFi;
 
             for(KeyFrame *pKF2 : vpNeighs){
                 

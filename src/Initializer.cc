@@ -669,6 +669,7 @@ namespace ORB_SLAM2
 
                 R1.copyTo(R21);
                 t1.copyTo(t21);
+
                 return true;
             }
         }
@@ -681,6 +682,7 @@ namespace ORB_SLAM2
 
                 R2.copyTo(R21);
                 t1.copyTo(t21);
+
                 return true;
             }
         }
@@ -693,6 +695,7 @@ namespace ORB_SLAM2
 
                 R1.copyTo(R21);
                 t2.copyTo(t21);
+
                 return true;
             }
         }
@@ -705,6 +708,7 @@ namespace ORB_SLAM2
 
                 R2.copyTo(R21);
                 t2.copyTo(t21);
+                
                 return true;
             }
         }
