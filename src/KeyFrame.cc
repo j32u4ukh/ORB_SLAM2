@@ -980,12 +980,10 @@ namespace ORB_SLAM2
         // 計算當前幀的平移
         float zcw = Tcw_.at<float>(2, 3);
 
-        for (int i = 0; i < N; i++)
-        {
-            if (mvpMapPoints[i])
-            {
-                MapPoint *pMP = mvpMapPoints[i];
+        for(MapPoint *pMP : mvpMapPoints){
 
+            if (pMP)
+            {
                 // 取出地圖點的位置
                 cv::Mat x3Dw = pMP->GetWorldPos();
 
@@ -996,6 +994,20 @@ namespace ORB_SLAM2
                 vDepths.push_back(z);
             }
         }
+
+        // for (int i = 0; i < N; i++)
+        // {
+        //     if (mvpMapPoints[i])
+        //     {
+        //         MapPoint *pMP = mvpMapPoints[i];
+        //         // 取出地圖點的位置
+        //         cv::Mat x3Dw = pMP->GetWorldPos();
+        //         // 將地圖點轉換到當前幀的座標系之下
+        //         float z = Rcw2.dot(x3Dw) + zcw;
+        //         // 取得當前幀的座標系之下，地圖點的深度
+        //         vDepths.push_back(z);
+        //     }
+        // }
 
         sort(vDepths.begin(), vDepths.end());
 

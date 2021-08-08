@@ -1366,10 +1366,8 @@ namespace ORB_SLAM2
             // 兩個特徵向量的 NodeId 相同
             if (f1it->first == f2it->first)
             {
-                for (size_t i1 = 0, iend1 = f1it->second.size(); i1 < iend1; i1++)
-                {
-                    // 『關鍵幀 pKF1』第 i1 個觀察到『特徵 f1it->first』的地圖點的索引值
-                    const size_t idx1 = f1it->second[i1];
+                // 『關鍵幀 pKF1』觀察到『特徵 f1it->first』的地圖點的索引值 idx1
+                for(const size_t idx1 : f1it->second){
 
                     // 『關鍵幀 pKF1』的第 idx1 個地圖點
                     MapPoint *pMP1 = pKF1->GetMapPoint(idx1);
@@ -1398,11 +1396,10 @@ namespace ORB_SLAM2
                     int bestDist = TH_LOW;
                     int bestIdx2 = -1;
 
-                    for (size_t i2 = 0, iend2 = f2it->second.size(); i2 < iend2; i2++)
-                    {
-                        // 『關鍵幀 pKF2』第 i2 個觀察到『特徵 f2it->first』的地圖點的索引值
-                        size_t idx2 = f2it->second[i2];
+                    // 『關鍵幀 pKF2』觀察到『特徵 f2it->first』的地圖點的索引值 idx2
+                    for(const size_t idx2 : f2it->second){
 
+                        // 『關鍵幀 pKF2』的第 idx2 個地圖點
                         MapPoint *pMP2 = pKF2->GetMapPoint(idx2);
 
                         // If we have already matched or there is a MapPoint skip
@@ -1487,6 +1484,100 @@ namespace ORB_SLAM2
                     }
                 }
 
+                // for (size_t i1 = 0, iend1 = f1it->second.size(); i1 < iend1; i1++)
+                // {
+                //     // 『關鍵幀 pKF1』第 i1 個觀察到『特徵 f1it->first』的地圖點的索引值
+                //     const size_t idx1 = f1it->second[i1];
+                //     // 『關鍵幀 pKF1』的第 idx1 個地圖點
+                //     MapPoint *pMP1 = pKF1->GetMapPoint(idx1);
+                //     // If there is already a MapPoint skip
+                //     // 若地圖點已存在，則跳過
+                //     if (pMP1){
+                //         continue;
+                //     }
+                //     // 是否為雙目（單目的 mvuRight 應為負值）
+                //     const bool bStereo1 = pKF1->mvuRight[idx1] >= 0;
+                //     if (bOnlyStereo){
+                //         if (!bStereo1){
+                //             continue;
+                //         }
+                //     }
+                //     // 『關鍵幀 pKF1』的第 idx1 個已校正關鍵點
+                //     const cv::KeyPoint &kp1 = pKF1->mvKeysUn[idx1];
+                //     // 『關鍵幀 pKF1』的第 idx1 個關鍵點的描述子
+                //     const cv::Mat &d1 = pKF1->mDescriptors.row(idx1);
+                //     int bestDist = TH_LOW;
+                //     int bestIdx2 = -1;
+                //     for (size_t i2 = 0, iend2 = f2it->second.size(); i2 < iend2; i2++)
+                //     {
+                //         // 『關鍵幀 pKF2』第 i2 個觀察到『特徵 f2it->first』的地圖點的索引值
+                //         size_t idx2 = f2it->second[i2];
+                //         MapPoint *pMP2 = pKF2->GetMapPoint(idx2);
+                //         // If we have already matched or there is a MapPoint skip
+                //         if (vbMatched2[idx2] || pMP2){
+                //             continue;
+                //         }
+                //         // 是否為雙目（單目的 mvuRight 應為負值）
+                //         const bool bStereo2 = pKF2->mvuRight[idx2] >= 0;
+                //         if (bOnlyStereo){
+                //             if (!bStereo2){
+                //                 continue;
+                //             }
+                //         }
+                //         const cv::Mat &d2 = pKF2->mDescriptors.row(idx2);
+                //         const int dist = DescriptorDistance(d1, d2);
+                //         if (dist > TH_LOW || dist > bestDist){
+                //             continue;
+                //         }
+                //         // 『關鍵幀 pKF2』的第 idx2 個關鍵點的描述子
+                //         const cv::KeyPoint &kp2 = pKF2->mvKeysUn[idx2];
+                //         // 是否為單目
+                //         if (!bStereo1 && !bStereo2)
+                //         {
+                //             // 計算重投影誤差
+                //             const float distex = ex - kp2.pt.x;
+                //             const float distey = ey - kp2.pt.y;
+                //             const float diste = distex * distex + distey * distey;
+                //             // 若誤差足夠小
+                //             if (diste < 100 * pKF2->mvScaleFactors[kp2.octave]){
+                //                 continue;
+                //             }
+                //         }
+                //         // 檢查極線長度是否足夠小（越長越難找到正確的投影點）
+                //         /// NOTE: 這裡只要符合條件就會替換數值，是否『關鍵幀 pKF2』的特徵向量有作一定的排序？
+                //         /// 使得後面的極線長度會越來越小？還是忘記過濾最佳數值？
+                //         if (CheckDistEpipolarLine(kp1, kp2, F12, pKF2))
+                //         {
+                //             bestIdx2 = idx2;
+                //             bestDist = dist;
+                //         }
+                //     }
+                //     // 若『有找到』極線長度是否足夠小的組合，bestIdx2 便會替換成該組合的索引值，進而大於等於 0
+                //     if (bestIdx2 >= 0)
+                //     {
+                //         const cv::KeyPoint &kp2 = pKF2->mvKeysUn[bestIdx2];
+                //         // 『關鍵幀 pKF1』第 idx1 個地圖點和『關鍵幀 pKF2』第 bestIdx2 個地圖點形成配對
+                //         vMatches12[idx1] = bestIdx2;
+                //         nmatches++;
+                //         // 檢查方向
+                //         if (mbCheckOrientation)
+                //         {
+                //             // 計算角度差
+                //             float rot = kp1.angle - kp2.angle;
+                //             if (rot < 0.0){
+                //                 rot += 360.0f;
+                //             }
+                //             // 角度差換算成直方圖的格子索引值
+                //             int bin = round(rot * factor);
+                //             if (bin == HISTO_LENGTH){
+                //                 bin = 0;
+                //             }
+                //             assert(bin >= 0 && bin < HISTO_LENGTH);
+                //             rotHist[bin].push_back(idx1);
+                //         }
+                //     }
+                // }
+
                 f1it++;
                 f2it++;
             }
@@ -1528,10 +1619,9 @@ namespace ORB_SLAM2
         vMatchedPairs.clear();
         vMatchedPairs.reserve(nmatches);
 
-        size_t i = 0;
-        size_t iend = vMatches12.size();
+        size_t i, iend = vMatches12.size();
 
-        for (; i < iend; i++)
+        for (i = 0; i < iend; i++)
         {
             if (vMatches12[i] < 0){
                 continue;

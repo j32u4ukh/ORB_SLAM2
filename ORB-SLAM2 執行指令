@@ -1,8 +1,8 @@
-編譯期
+# 編譯期
 cmake .. -DCMAKE_BUILD_TYPE=Release
 make -j4
 
-執行期
+# 執行期
 $ /home/j32u4ukh/Documents/ORB_SLAM2> 
 
 
@@ -25,3 +25,8 @@ $ /home/j32u4ukh/Documents/ORB_SLAM2/build>
 
 # 詞袋數據讀取 00:09.80 建圖 10:30.44
 ../Examples/Monocular/mono_kitti ../Vocabulary/ORBvoc.txt ../Examples/Monocular/KITTI00-02.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/00"
+
+# 執行時間
+> LocalMapping foreach 改版後
+median tracking time: 0.0590746
+mean tracking time: 0.0662374

@@ -703,9 +703,7 @@ namespace ORB_SLAM2
         const vector<KeyFrame *> vNeighKFs = pKF->GetVectorCovisibleKeyFrames();
 
         // 篩選好的『關鍵幀 pKF』的共視關鍵幀
-        for (int i = 0, iend = vNeighKFs.size(); i < iend; i++)
-        {
-            KeyFrame *pKFi = vNeighKFs[i];
+        for(KeyFrame *pKFi : vNeighKFs){
 
             // 標注『關鍵幀 pKFi』已參與『關鍵幀 pKF』的 LocalBundleAdjustment，避免重複添加到 lLocalKeyFrames
             pKFi->mnBALocalForKF = pKF->mnId;
@@ -715,24 +713,26 @@ namespace ORB_SLAM2
             }
         }
 
+        // for (int i = 0, iend = vNeighKFs.size(); i < iend; i++)
+        // {
+        //     KeyFrame *pKFi = vNeighKFs[i];
+        //     // 標注『關鍵幀 pKFi』已參與『關鍵幀 pKF』的 LocalBundleAdjustment，避免重複添加到 lLocalKeyFrames
+        //     pKFi->mnBALocalForKF = pKF->mnId;
+        //     if (!pKFi->isBad()){
+        //         lLocalKeyFrames.push_back(pKFi);
+        //     }
+        // }
+
         // Local MapPoints seen in Local KeyFrames
         // 共視地圖點：『共視關鍵幀 list<KeyFrame *> lLocalKeyFrames』所觀察到的地圖點
         list<MapPoint *> lLocalMapPoints;
 
-        list<KeyFrame *>::iterator lit = lLocalKeyFrames.begin();
-        list<KeyFrame *>::iterator lend = lLocalKeyFrames.end();
+        for(KeyFrame * local_kf : lLocalKeyFrames){
 
-        for (; lit != lend; lit++)
-        {
             // 『關鍵幀 (*lit)』的關鍵點觀察到的地圖點
-            vector<MapPoint *> vpMPs = (*lit)->GetMapPointMatches();
+            vector<MapPoint *> vpMPs = local_kf->GetMapPointMatches();
 
-            vector<MapPoint *>::iterator vit = vpMPs.begin();
-            vector<MapPoint *>::iterator vend = vpMPs.end();
-
-            for (; vit != vend; vit++)
-            {
-                MapPoint *pMP = *vit;
+            for(MapPoint *pMP : vpMPs){
 
                 if (pMP){
                     if (!pMP->isBad()){
@@ -750,25 +750,43 @@ namespace ORB_SLAM2
             }
         }
 
+        // list<KeyFrame *>::iterator lit = lLocalKeyFrames.begin();
+        // list<KeyFrame *>::iterator lend = lLocalKeyFrames.end();
+        // for (; lit != lend; lit++)
+        // {
+        //     // 『關鍵幀 (*lit)』的關鍵點觀察到的地圖點
+        //     vector<MapPoint *> vpMPs = (*lit)->GetMapPointMatches();
+        //     vector<MapPoint *>::iterator vit = vpMPs.begin();
+        //     vector<MapPoint *>::iterator vend = vpMPs.end();
+        //     for (; vit != vend; vit++)
+        //     {
+        //         MapPoint *pMP = *vit;
+        //         if (pMP){
+        //             if (!pMP->isBad()){
+        //                 if (pMP->mnBALocalForKF != pKF->mnId)
+        //                 {
+        //                     lLocalMapPoints.push_back(pMP);
+        //                     // 標注『地圖點 pMP』已參與『關鍵幀 pKF』的 LocalBundleAdjustment
+        //                     // 避免重複添加到 lLocalMapPoints
+        //                     pMP->mnBALocalForKF = pKF->mnId;
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+
         // Fixed Keyframes. Keyframes that see Local MapPoints but that are not Local Keyframes
         // 哪些關鍵幀同時也觀察到 lLocalMapPoints 當中的地圖點
         list<KeyFrame *> lFixedCameras;
 
-        list<MapPoint*>::iterator l_mp_it = lLocalMapPoints.begin();
-        list<MapPoint*>::iterator l_mp_end = lLocalMapPoints.end();
+        for(MapPoint* local_mp : lLocalMapPoints){
 
-        // 遍歷『共視地圖點』
-        for (; l_mp_it != l_mp_end; l_mp_it++)
-        {
             // 觀察到『共視地圖點 (*lit)』的關鍵幀，及其對應的特徵點的索引值
-            map<KeyFrame *, size_t> observations = (*l_mp_it)->GetObservations();
+            map<KeyFrame *, size_t> observations = local_mp->GetObservations();
 
-            map<KeyFrame *, size_t>::iterator mit = observations.begin();
-            map<KeyFrame *, size_t>::iterator mend = observations.end();
+            for(pair<KeyFrame *, size_t> obs : observations){
 
-            for (; mit != mend; mit++)
-            {
-                KeyFrame *pKFi = mit->first;
+                KeyFrame *pKFi = obs.first;
 
                 // Local && Fixed
                 // 檢查『關鍵幀 pKFi』是否已參與『關鍵幀 pKF』的 LocalBundleAdjustment
@@ -782,6 +800,30 @@ namespace ORB_SLAM2
                 }
             }
         }
+
+        // list<MapPoint*>::iterator l_mp_it = lLocalMapPoints.begin();
+        // list<MapPoint*>::iterator l_mp_end = lLocalMapPoints.end();
+        // // 遍歷『共視地圖點』
+        // for (; l_mp_it != l_mp_end; l_mp_it++)
+        // {
+        //     // 觀察到『共視地圖點 (*lit)』的關鍵幀，及其對應的特徵點的索引值
+        //     map<KeyFrame *, size_t> observations = (*l_mp_it)->GetObservations();
+        //     map<KeyFrame *, size_t>::iterator mit = observations.begin();
+        //     map<KeyFrame *, size_t>::iterator mend = observations.end();
+        //     for (; mit != mend; mit++)
+        //     {
+        //         KeyFrame *pKFi = mit->first;
+        //         // Local && Fixed
+        //         // 檢查『關鍵幀 pKFi』是否已參與『關鍵幀 pKF』的 LocalBundleAdjustment
+        //         if (pKFi->mnBALocalForKF != pKF->mnId && pKFi->mnBAFixedForKF != pKF->mnId)
+        //         {
+        //             pKFi->mnBAFixedForKF = pKF->mnId;
+        //             if (!pKFi->isBad()){
+        //                 lFixedCameras.push_back(pKFi);
+        //             }
+        //         }
+        //     }
+        // }
 
         // g2o 的優化會分別使用到 lLocalKeyFrames, lLocalMapPoints, lFixedCameras
 
@@ -805,13 +847,8 @@ namespace ORB_SLAM2
         unsigned long maxKFid = 0;
 
         // Set Local KeyFrame vertices
-        lit = lLocalKeyFrames.begin();
-        lend = lLocalKeyFrames.end();
+        for(KeyFrame *pKFi : lLocalKeyFrames){
 
-        // Local 共視關鍵幀作為頂點加入優化
-        for (; lit != lend; lit++)
-        {
-            KeyFrame *pKFi = *lit;
             g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
             vSE3->setEstimate(Converter::toSE3Quat(pKFi->GetPose()));
             vSE3->setId(pKFi->mnId);
@@ -819,21 +856,35 @@ namespace ORB_SLAM2
             // Local 共視關鍵幀只有第 0 幀設為 Fixed，Fixed 共視關鍵幀全部都設為 Fixed
             vSE3->setFixed(pKFi->mnId == 0);
 
+            // Local 共視關鍵幀作為頂點加入優化        
             optimizer.addVertex(vSE3);
 
             if (pKFi->mnId > maxKFid){
                 maxKFid = pKFi->mnId;
             }
         }
+        
+        // lit = lLocalKeyFrames.begin();
+        // lend = lLocalKeyFrames.end();
+        // // Local 共視關鍵幀作為頂點加入優化
+        // for (; lit != lend; lit++)
+        // {
+        //     KeyFrame *pKFi = *lit;
+        //     g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
+        //     vSE3->setEstimate(Converter::toSE3Quat(pKFi->GetPose()));
+        //     vSE3->setId(pKFi->mnId);
+        //     // Local 共視關鍵幀只有第 0 幀設為 Fixed，Fixed 共視關鍵幀全部都設為 Fixed
+        //     vSE3->setFixed(pKFi->mnId == 0);
+        //     optimizer.addVertex(vSE3);
+        //     if (pKFi->mnId > maxKFid){
+        //         maxKFid = pKFi->mnId;
+        //     }
+        // }
 
         // Set Fixed KeyFrame vertices
-        lit = lFixedCameras.begin();
-        lend = lFixedCameras.end();
-
         // Fixed 共視關鍵幀作為頂點加入優化
-        for (; lit != lend; lit++)
-        {
-            KeyFrame *pKFi = *lit;
+        for(KeyFrame *pKFi : lFixedCameras){
+
             g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
             vSE3->setEstimate(Converter::toSE3Quat(pKFi->GetPose()));
             vSE3->setId(pKFi->mnId);
@@ -847,6 +898,22 @@ namespace ORB_SLAM2
                 maxKFid = pKFi->mnId;
             }
         }
+
+        // lit = lFixedCameras.begin();
+        // lend = lFixedCameras.end();        
+        // for (; lit != lend; lit++)
+        // {
+        //     KeyFrame *pKFi = *lit;
+        //     g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
+        //     vSE3->setEstimate(Converter::toSE3Quat(pKFi->GetPose()));
+        //     vSE3->setId(pKFi->mnId);
+        //     // Fixed 共視關鍵幀全部都設為 Fixed，Local 共視關鍵幀只有第 0 幀設為 Fixed
+        //     vSE3->setFixed(true);
+        //     optimizer.addVertex(vSE3);
+        //     if (pKFi->mnId > maxKFid){
+        //         maxKFid = pKFi->mnId;
+        //     }
+        // }
 
         // Set MapPoint vertices
         // （『Local 關鍵幀個數』 + 『Fixed 關鍵幀個數』） * 『Local 關鍵幀所觀察到的地圖點個數』
@@ -874,39 +941,34 @@ namespace ORB_SLAM2
         const float thHuberMono = sqrt(5.991);
         const float thHuberStereo = sqrt(7.815);
 
-        list<MapPoint *>::iterator l_mappoint_it = lLocalMapPoints.begin();
-        list<MapPoint *>::iterator l_mappoint_end = lLocalMapPoints.end();
-
         // 『共視地圖點』作為『頂點』，而『觀察到共視地圖點的特徵點的位置』作為『邊』
-        for (; l_mappoint_it != l_mappoint_end; l_mappoint_it++)
-        {
-            // 『Local 共視關鍵幀所觀察到的地圖點』作為頂點加入優化
-            MapPoint *pMP = *l_mappoint_it;
+        for(MapPoint *pMP : lLocalMapPoints){
+            
             g2o::VertexSBAPointXYZ *vPoint = new g2o::VertexSBAPointXYZ();
             vPoint->setEstimate(Converter::toVector3d(pMP->GetWorldPos()));
             int id = pMP->mnId + maxKFid + 1;
             vPoint->setId(id);
             vPoint->setMarginalized(true);
+
+            // 『Local 共視關鍵幀所觀察到的地圖點』作為頂點加入優化
             optimizer.addVertex(vPoint);
 
             // 和 list<KeyFrame *> lFixedCameras 區塊很相似，但前面區塊只取出關鍵幀而已
             const map<KeyFrame *, size_t> observations = pMP->GetObservations();
 
             // Set edges
-            map<KeyFrame *, size_t>::const_iterator mit = observations.begin();
-            map<KeyFrame *, size_t>::const_iterator mend = observations.end();
+            for(pair<KeyFrame *, size_t> obs : observations){
 
-            for (; mit != mend; mit++)
-            {
-                KeyFrame *pKFi = mit->first;
+                KeyFrame *pKFi = obs.first;
+                size_t kp_idx = obs.second;
 
                 if (!pKFi->isBad())
                 {
                     // 根據索引值，取得已校正的關鍵點
-                    const cv::KeyPoint &kpUn = pKFi->mvKeysUn[mit->second];
+                    const cv::KeyPoint &kpUn = pKFi->mvKeysUn[kp_idx];
 
                     // Monocular observation
-                    if (pKFi->mvuRight[mit->second] < 0)
+                    if (pKFi->mvuRight[kp_idx] < 0)
                     {
                         // 已校正的關鍵點的位置，作為『邊』加入優化
                         Eigen::Matrix<double, 2, 1> obs;
@@ -943,7 +1005,7 @@ namespace ORB_SLAM2
                     else 
                     {
                         Eigen::Matrix<double, 3, 1> obs;
-                        const float kp_ur = pKFi->mvuRight[mit->second];
+                        const float kp_ur = pKFi->mvuRight[kp_idx];
                         obs << kpUn.pt.x, kpUn.pt.y, kp_ur;
 
                         g2o::EdgeStereoSE3ProjectXYZ *e = new g2o::EdgeStereoSE3ProjectXYZ();
@@ -976,6 +1038,90 @@ namespace ORB_SLAM2
                 }
             }
         }
+
+        // list<MapPoint *>::iterator l_mappoint_it = lLocalMapPoints.begin();
+        // list<MapPoint *>::iterator l_mappoint_end = lLocalMapPoints.end();        
+        // for (; l_mappoint_it != l_mappoint_end; l_mappoint_it++)
+        // {
+        //     MapPoint *pMP = *l_mappoint_it;
+        //     g2o::VertexSBAPointXYZ *vPoint = new g2o::VertexSBAPointXYZ();
+        //     vPoint->setEstimate(Converter::toVector3d(pMP->GetWorldPos()));
+        //     int id = pMP->mnId + maxKFid + 1;
+        //     vPoint->setId(id);
+        //     vPoint->setMarginalized(true);
+        //     // 『Local 共視關鍵幀所觀察到的地圖點』作為頂點加入優化
+        //     optimizer.addVertex(vPoint);
+        //     // 和 list<KeyFrame *> lFixedCameras 區塊很相似，但前面區塊只取出關鍵幀而已
+        //     const map<KeyFrame *, size_t> observations = pMP->GetObservations();
+        //     // Set edges
+        //     map<KeyFrame *, size_t>::const_iterator mit = observations.begin();
+        //     map<KeyFrame *, size_t>::const_iterator mend = observations.end();
+        //     for (; mit != mend; mit++)
+        //     {
+        //         KeyFrame *pKFi = mit->first;
+        //         if (!pKFi->isBad())
+        //         {
+        //             // 根據索引值，取得已校正的關鍵點
+        //             const cv::KeyPoint &kpUn = pKFi->mvKeysUn[mit->second];
+        //             // Monocular observation
+        //             if (pKFi->mvuRight[mit->second] < 0)
+        //             {
+        //                 // 已校正的關鍵點的位置，作為『邊』加入優化
+        //                 Eigen::Matrix<double, 2, 1> obs;
+        //                 obs << kpUn.pt.x, kpUn.pt.y;
+        //                 g2o::EdgeSE3ProjectXYZ *e = new g2o::EdgeSE3ProjectXYZ();
+        //                 e->setVertex(0,
+        //                     dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(id)));
+        //                 e->setVertex(1, 
+        //                     dynamic_cast<g2o::OptimizableGraph::Vertex *>(
+        //                                                                 optimizer.vertex(pKFi->mnId)));
+        //                 e->setMeasurement(obs);
+        //                 const float &invSigma2 = pKFi->mvInvLevelSigma2[kpUn.octave];
+        //                 e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
+        //                 g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+        //                 e->setRobustKernel(rk);
+        //                 rk->setDelta(thHuberMono);
+        //                 e->fx = pKFi->fx;
+        //                 e->fy = pKFi->fy;
+        //                 e->cx = pKFi->cx;
+        //                 e->cy = pKFi->cy;
+        //                 optimizer.addEdge(e);
+        //                 vpEdgesMono.push_back(e);
+        //                 vpEdgeKFMono.push_back(pKFi);
+        //                 vpMapPointEdgeMono.push_back(pMP);
+        //             }
+        //             // Stereo observation（非單目，暫時跳過）
+        //             else 
+        //             {
+        //                 Eigen::Matrix<double, 3, 1> obs;
+        //                 const float kp_ur = pKFi->mvuRight[mit->second];
+        //                 obs << kpUn.pt.x, kpUn.pt.y, kp_ur;
+        //                 g2o::EdgeStereoSE3ProjectXYZ *e = new g2o::EdgeStereoSE3ProjectXYZ();
+        //                 e->setVertex(0, 
+        //                     dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(id)));
+        //                 e->setVertex(1, 
+        //                     dynamic_cast<g2o::OptimizableGraph::Vertex *>(
+        //                                                                 optimizer.vertex(pKFi->mnId)));
+        //                 e->setMeasurement(obs);
+        //                 const float &invSigma2 = pKFi->mvInvLevelSigma2[kpUn.octave];
+        //                 Eigen::Matrix3d Info = Eigen::Matrix3d::Identity() * invSigma2;
+        //                 e->setInformation(Info);
+        //                 g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+        //                 e->setRobustKernel(rk);
+        //                 rk->setDelta(thHuberStereo);
+        //                 e->fx = pKFi->fx;
+        //                 e->fy = pKFi->fy;
+        //                 e->cx = pKFi->cx;
+        //                 e->cy = pKFi->cy;
+        //                 e->bf = pKFi->mbf;
+        //                 optimizer.addEdge(e);
+        //                 vpEdgesStereo.push_back(e);
+        //                 vpEdgeKFStereo.push_back(pKFi);
+        //                 vpMapPointEdgeStereo.push_back(pMP);
+        //             }
+        //         }
+        //     }
+        // }
 
         if (pbStopFlag){
             if (*pbStopFlag){
@@ -1091,44 +1237,57 @@ namespace ORB_SLAM2
         // 將前一步驟標注要移除的內容給實際移除
         if (!vToErase.empty())
         {
-            for (size_t i = 0; i < vToErase.size(); i++)
-            {
-                KeyFrame *pKFi = vToErase[i].first;
-                MapPoint *pMPi = vToErase[i].second;
+            for(pair<KeyFrame *, MapPoint *> to_earse : vToErase){
+                
+                KeyFrame *pKFi = to_earse.first;
+                MapPoint *pMPi = to_earse.second;
 
                 // 從當前關鍵幀觀察到的地圖點當中移除『地圖點 pMPi』，表示其實沒有觀察到
-                pKFi->EraseMapPointMatch(pMPi);
-                
-                // 移除『關鍵幀 pKF』，更新關鍵幀的計數，若『觀察到這個地圖點的關鍵幀』太少（少於 3 個），
+                pKFi->EraseMapPointMatch(pMPi);  
+
+                // 移除『關鍵幀 pKFi』，更新關鍵幀的計數，若『觀察到這個地圖點的關鍵幀』太少（少於 3 個），
                 // 則將地圖點與關鍵幀等全部移除
                 pMPi->EraseObservation(pKFi);
             }
+
+            // for (size_t i = 0; i < vToErase.size(); i++)
+            // {
+            //     KeyFrame *pKFi = vToErase[i].first;
+            //     MapPoint *pMPi = vToErase[i].second;
+            //     // 從當前關鍵幀觀察到的地圖點當中移除『地圖點 pMPi』，表示其實沒有觀察到
+            //     pKFi->EraseMapPointMatch(pMPi);                
+            //     // 移除『關鍵幀 pKF』，更新關鍵幀的計數，若『觀察到這個地圖點的關鍵幀』太少（少於 3 個），
+            //     // 則將地圖點與關鍵幀等全部移除
+            //     pMPi->EraseObservation(pKFi);
+            // }
         }
 
         // Recover optimized data
 
         // Keyframes
-        lit = lLocalKeyFrames.begin();
-        lend = lLocalKeyFrames.end();
-
         // 利用 Local 關鍵幀的 mnId 取出相對應的頂點，並更新自身的位姿估計
-        for (; lit != lend; lit++)
-        {
-            KeyFrame *pKF = *lit;
+        for(KeyFrame *pKF : lLocalKeyFrames){
+
             g2o::VertexSE3Expmap *vSE3 = 
                                     static_cast<g2o::VertexSE3Expmap *>(optimizer.vertex(pKF->mnId));
             g2o::SE3Quat SE3quat = vSE3->estimate();
             pKF->SetPose(Converter::toCvMat(SE3quat));
         }
 
-        // Points
-        l_mappoint_it = lLocalMapPoints.begin();
-        l_mappoint_end = lLocalMapPoints.end();
+        // lit = lLocalKeyFrames.begin();
+        // lend = lLocalKeyFrames.end();        
+        // for (; lit != lend; lit++)
+        // {
+        //     KeyFrame *pKF = *lit;
+        //     g2o::VertexSE3Expmap *vSE3 = 
+        //                             static_cast<g2o::VertexSE3Expmap *>(optimizer.vertex(pKF->mnId));
+        //     g2o::SE3Quat SE3quat = vSE3->estimate();
+        //     pKF->SetPose(Converter::toCvMat(SE3quat));
+        // }
 
+        // Points
         // 依序取出地圖點之頂點，並更新地圖點的位置
-        for (; l_mappoint_it != l_mappoint_end; l_mappoint_it++)
-        {
-            MapPoint *pMP = *l_mappoint_it;
+        for(MapPoint *pMP : lLocalMapPoints){
 
             // 為何地圖點的頂點 ID 會是 pMP->mnId + maxKFid + 1？
             g2o::VertexSBAPointXYZ *vPoint = 
@@ -1140,6 +1299,20 @@ namespace ORB_SLAM2
             // 利用所有觀察到這個地圖點的關鍵幀來估計關鍵幀們平均指向的方向，以及該地圖點可能的深度範圍(最近與最遠)
             pMP->UpdateNormalAndDepth();
         }
+
+        // l_mappoint_it = lLocalMapPoints.begin();
+        // l_mappoint_end = lLocalMapPoints.end();
+        // for (; l_mappoint_it != l_mappoint_end; l_mappoint_it++)
+        // {
+        //     MapPoint *pMP = *l_mappoint_it;
+        //     // 為何地圖點的頂點 ID 會是 pMP->mnId + maxKFid + 1？
+        //     g2o::VertexSBAPointXYZ *vPoint = 
+        //             static_cast<g2o::VertexSBAPointXYZ *>(optimizer.vertex(pMP->mnId + maxKFid + 1));
+        //     // 更新地圖點的位置
+        //     pMP->SetWorldPos(Converter::toCvMat(vPoint->estimate()));
+        //     // 利用所有觀察到這個地圖點的關鍵幀來估計關鍵幀們平均指向的方向，以及該地圖點可能的深度範圍(最近與最遠)
+        //     pMP->UpdateNormalAndDepth();
+        // }
     }
 
     // 『當前關鍵幀』轉換到『共視關鍵幀』的『相似轉換矩陣』作為頂點;『共視關鍵幀』之間的轉換的『相似轉換矩陣』作為『邊』

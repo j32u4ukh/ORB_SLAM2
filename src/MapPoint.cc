@@ -350,19 +350,30 @@ namespace ORB_SLAM2
         }
 
         vDescriptors.reserve(observations.size());
-        map<KeyFrame *, size_t>::iterator mit = observations.begin();
-        map<KeyFrame *, size_t>::iterator mend = observations.end();
 
-        for (; mit != mend; mit++)
-        {
-            KeyFrame *pKF = mit->first;
+        for(pair<KeyFrame *, size_t> obs : observations){
+
+            KeyFrame *pKF = obs.first;
 
             if (!pKF->isBad()){
+
                 // 這個地圖點是被關鍵幀 pKF 的第 mit->second 個關鍵點觀察到，
                 // 因此取出第 mit->second 個關鍵點的描述子
-                vDescriptors.push_back(pKF->mDescriptors.row(mit->second));
+                vDescriptors.push_back(pKF->mDescriptors.row(obs.second));
             }
         }
+
+        // map<KeyFrame *, size_t>::iterator mit = observations.begin();
+        // map<KeyFrame *, size_t>::iterator mend = observations.end();
+        // for (; mit != mend; mit++)
+        // {
+        //     KeyFrame *pKF = mit->first;
+        //     if (!pKF->isBad()){
+        //         // 這個地圖點是被關鍵幀 pKF 的第 mit->second 個關鍵點觀察到，
+        //         // 因此取出第 mit->second 個關鍵點的描述子
+        //         vDescriptors.push_back(pKF->mDescriptors.row(mit->second));
+        //     }
+        // }
 
         if (vDescriptors.empty()){
             return;
