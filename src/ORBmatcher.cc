@@ -656,12 +656,9 @@ namespace ORB_SLAM2
 
                     int bestDist = 256;
                     int bestIdx2 = -1;
-                    vector<size_t>::const_iterator vit = vIndices2.begin();
 
                     // 遍歷關鍵點的索引值
-                    for (; vit != vIndices2.end(); vit++)
-                    {
-                        const size_t i2 = *vit;
+                    for(const size_t i2 : vIndices2){
 
                         if (CurrentFrame.mvpMapPoints[i2]){
                             continue;
@@ -679,6 +676,24 @@ namespace ORB_SLAM2
                             bestIdx2 = i2;
                         }
                     }
+
+                    // vector<size_t>::const_iterator vit = vIndices2.begin();
+                    // for (; vit != vIndices2.end(); vit++)
+                    // {
+                    //     const size_t i2 = *vit;
+                    //     if (CurrentFrame.mvpMapPoints[i2]){
+                    //         continue;
+                    //     }
+                    //     // 取得當前幀的第 i2 個特徵點的描述子
+                    //     const cv::Mat &d = CurrentFrame.mDescriptors.row(i2);
+                    //     // 計算描述子之間的距離（相似程度）
+                    //     const int dist = DescriptorDistance(dMP, d);
+                    //     if (dist < bestDist)
+                    //     {
+                    //         bestDist = dist;
+                    //         bestIdx2 = i2;
+                    //     }
+                    // }
 
                     if (bestDist <= ORBdist)
                     {

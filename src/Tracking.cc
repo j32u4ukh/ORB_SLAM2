@@ -1705,26 +1705,15 @@ namespace ORB_SLAM2
         mvpLocalMapPoints.clear();
 
         // UpdateLocalKeyFrames 當中更新的當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』
-        vector<KeyFrame *>::const_iterator itKF = mvpLocalKeyFrames.begin();
-        vector<KeyFrame *>::const_iterator itEndKF = mvpLocalKeyFrames.end();
-
         /* 遍歷剛剛計算的關鍵幀集合 K1、K2，把它們的地圖點一個個的都給摳出來，放到容器 mvpLocalMapPoints 中。
         通過地圖點的成員變量 mnTrackReferenceForFrame 來防止重覆添加地圖點。*/
-        for (; itKF != itEndKF; itKF++)
-        {
-            // 『共視關鍵幀 pKF』
-            KeyFrame *pKF = *itKF;
+        for(KeyFrame *pKF : mvpLocalKeyFrames){
 
             // 『共視關鍵幀 pKF』的已配對地圖點
             const vector<MapPoint *> vpMPs = pKF->GetMapPointMatches();
 
-            vector<MapPoint *>::const_iterator itMP = vpMPs.begin();
-            vector<MapPoint *>::const_iterator itEndMP = vpMPs.end();
-
             // 遍歷『共視關鍵幀 pKF』的已配對地圖點
-            for (; itMP != itEndMP; itMP++)
-            {
-                MapPoint *pMP = *itMP;
+            for(MapPoint *pMP : vpMPs){
 
                 if (!pMP)
                 {
@@ -1742,7 +1731,61 @@ namespace ORB_SLAM2
                     pMP->mnTrackReferenceForFrame = mCurrentFrame.mnId;
                 }
             }
+
+            // vector<MapPoint *>::const_iterator itMP = vpMPs.begin();
+            // vector<MapPoint *>::const_iterator itEndMP = vpMPs.end();
+
+            // for (; itMP != itEndMP; itMP++)
+            // {
+            //     MapPoint *pMP = *itMP;
+
+            //     if (!pMP)
+            //     {
+            //         continue;
+            //     }
+
+            //     if (pMP->mnTrackReferenceForFrame == mCurrentFrame.mnId)
+            //     {
+            //         continue;
+            //     }
+
+            //     if (!pMP->isBad())
+            //     {
+            //         mvpLocalMapPoints.push_back(pMP);
+            //         pMP->mnTrackReferenceForFrame = mCurrentFrame.mnId;
+            //     }
+            // }
         }
+        
+        // vector<KeyFrame *>::const_iterator itKF = mvpLocalKeyFrames.begin();
+        // vector<KeyFrame *>::const_iterator itEndKF = mvpLocalKeyFrames.end();
+        // for (; itKF != itEndKF; itKF++)
+        // {
+        //     // 『共視關鍵幀 pKF』
+        //     KeyFrame *pKF = *itKF;
+        //     // 『共視關鍵幀 pKF』的已配對地圖點
+        //     const vector<MapPoint *> vpMPs = pKF->GetMapPointMatches();
+        //     vector<MapPoint *>::const_iterator itMP = vpMPs.begin();
+        //     vector<MapPoint *>::const_iterator itEndMP = vpMPs.end();
+        //     // 遍歷『共視關鍵幀 pKF』的已配對地圖點
+        //     for (; itMP != itEndMP; itMP++)
+        //     {
+        //         MapPoint *pMP = *itMP;
+        //         if (!pMP)
+        //         {
+        //             continue;
+        //         }
+        //         if (pMP->mnTrackReferenceForFrame == mCurrentFrame.mnId)
+        //         {
+        //             continue;
+        //         }
+        //         if (!pMP->isBad())
+        //         {
+        //             mvpLocalMapPoints.push_back(pMP);
+        //             pMP->mnTrackReferenceForFrame = mCurrentFrame.mnId;
+        //         }
+        //     }
+        // }
     }
 
     // 更新 mvpLocalKeyFrames 為當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』
@@ -1764,14 +1807,19 @@ namespace ORB_SLAM2
                     // 取得觀察到『地圖點 pMP』的關鍵幀，以及是與該關鍵幀的哪個特徵點相對應
                     const map<KeyFrame *, size_t> observations = pMP->GetObservations();
 
-                    map<KeyFrame *, size_t>::const_iterator it = observations.begin();
-                    map<KeyFrame *, size_t>::const_iterator itend = observations.end();
-
                     // 遍歷這些關鍵幀，累積共視地圖點數量。
-                    for (; it != itend; it++)
-                    {
-                        keyframeCounter[it->first]++;
+                    for(pair<KeyFrame *, size_t> obs : observations){
+
+                        keyframeCounter[obs.first]++;
                     }
+
+                    // map<KeyFrame *, size_t>::const_iterator it = observations.begin();
+                    // map<KeyFrame *, size_t>::const_iterator itend = observations.end();
+                    // // 遍歷這些關鍵幀，累積共視地圖點數量。
+                    // for (; it != itend; it++)
+                    // {
+                    //     keyframeCounter[it->first]++;
+                    // }
                 }
                 else
                 {
@@ -1797,32 +1845,53 @@ namespace ORB_SLAM2
         // All keyframes that observe a map point are included in the local map.
         // Also check which keyframe shares most points
         // 遍歷局部 map 容器 keyframeCounter 中的所有關鍵幀，將之保存到成員容器 mvpLocalKeyFrames 中
-        map<KeyFrame *, int>::const_iterator it = keyframeCounter.begin();
-        map<KeyFrame *, int>::const_iterator itEnd = keyframeCounter.end();
+        for(pair<KeyFrame *, int> kf_counter : keyframeCounter){
 
-        for (; it != itEnd; it++)
-        {
-            KeyFrame *pKF = it->first;
+            KeyFrame *pKF = kf_counter.first;
 
             if (pKF->isBad()){
                 continue;
             }
 
+            int counter = kf_counter.second;
+
             // it->second：觀察到當前幀地圖點的次數
             // 更新觀察到最多次的關鍵幀，及其次數
-            if (it->second > max)
+            if (counter > max)
             {
                 // 更新 pKFmax 和 max
-                max = it->second;
+                max = counter;
                 pKFmax = pKF;
             }
 
             // 取出有觀察到相同點的關鍵幀
-            mvpLocalKeyFrames.push_back(it->first);
+            mvpLocalKeyFrames.push_back(pKF);
 
             // 紀錄『提供哪一幀作為參考幀』
             pKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
         }
+
+        // map<KeyFrame *, int>::const_iterator it = keyframeCounter.begin();
+        // map<KeyFrame *, int>::const_iterator itEnd = keyframeCounter.end();
+        // for (; it != itEnd; it++)
+        // {
+        //     KeyFrame *pKF = it->first;
+        //     if (pKF->isBad()){
+        //         continue;
+        //     }
+        //     // it->second：觀察到當前幀地圖點的次數
+        //     // 更新觀察到最多次的關鍵幀，及其次數
+        //     if (it->second > max)
+        //     {
+        //         // 更新 pKFmax 和 max
+        //         max = it->second;
+        //         pKFmax = pKF;
+        //     }
+        //     // 取出有觀察到相同點的關鍵幀
+        //     mvpLocalKeyFrames.push_back(it->first);
+        //     // 紀錄『提供哪一幀作為參考幀』
+        //     pKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
+        // }
 
         // Include also some not-already-included keyframes that are neighbors to
         // already-included keyframes
@@ -1847,13 +1916,7 @@ namespace ORB_SLAM2
             // GetBestCovisibilityKeyFrames：根據觀察到的地圖點數量排序的共視關鍵幀
             const vector<KeyFrame *> vNeighs = pKF->GetBestCovisibilityKeyFrames(10);
 
-            vector<KeyFrame *>::const_iterator itNeighKF = vNeighs.begin();
-            vector<KeyFrame *>::const_iterator itEndNeighKF = vNeighs.end();
-
-            // 遍歷根據觀察到的地圖點數量排序的共視關鍵幀
-            for (; itNeighKF != itEndNeighKF; itNeighKF++)
-            {
-                KeyFrame *pNeighKF = *itNeighKF;
+            for(KeyFrame *pNeighKF : vNeighs){
 
                 if (!pNeighKF->isBad())
                 {
@@ -1871,16 +1934,31 @@ namespace ORB_SLAM2
                 }
             }
 
+            // vector<KeyFrame *>::const_iterator itNeighKF = vNeighs.begin();
+            // vector<KeyFrame *>::const_iterator itEndNeighKF = vNeighs.end();
+            // // 遍歷根據觀察到的地圖點數量排序的共視關鍵幀
+            // for (; itNeighKF != itEndNeighKF; itNeighKF++)
+            // {
+            //     KeyFrame *pNeighKF = *itNeighKF;
+            //     if (!pNeighKF->isBad())
+            //     {
+            //         // 若未曾作為當前幀的『參考關鍵幀』
+            //         if (pNeighKF->mnTrackReferenceForFrame != mCurrentFrame.mnId)
+            //         {
+            //             // 把共視關鍵幀放入容器 mvpLocalKeyFrames 中
+            //             mvpLocalKeyFrames.push_back(pNeighKF);
+            //             // 更新每個關鍵幀的成員變量 mnTrackReferenceForFrame 為當前幀的 ID，
+            //             // 以防止重覆添加某個關鍵幀
+            //             pNeighKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
+            //             break;
+            //         }
+            //     }
+            // }
+
             // 取出與『共視關鍵幀 pKF』有高度共視程度的關鍵幀
             const set<KeyFrame *> spChilds = pKF->GetChilds();
 
-            set<KeyFrame *>::const_iterator sit = spChilds.begin();
-            set<KeyFrame *>::const_iterator send = spChilds.end();
-
-            // 遍歷有高度共視程度的關鍵幀
-            for (; sit != send; sit++)
-            {
-                KeyFrame *pChildKF = *sit;
+            for(KeyFrame *pChildKF : spChilds){
 
                 if (!pChildKF->isBad())
                 {
@@ -1895,6 +1973,24 @@ namespace ORB_SLAM2
                 }
             }
 
+            // set<KeyFrame *>::const_iterator sit = spChilds.begin();
+            // set<KeyFrame *>::const_iterator send = spChilds.end();
+            // // 遍歷有高度共視程度的關鍵幀
+            // for (; sit != send; sit++)
+            // {
+            //     KeyFrame *pChildKF = *sit;
+            //     if (!pChildKF->isBad())
+            //     {
+            //         if (pChildKF->mnTrackReferenceForFrame != mCurrentFrame.mnId)
+            //         {
+            //             // 將有高度共視程度的關鍵幀加入 mvpLocalKeyFrames 進行管理
+            //             mvpLocalKeyFrames.push_back(pChildKF);
+            //             pChildKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
+            //             break;
+            //         }
+            //     }
+            // }
+
             // 取得『共視關鍵幀 pKF』的父關鍵幀
             KeyFrame *pParent = pKF->GetParent();
 
@@ -1906,6 +2002,7 @@ namespace ORB_SLAM2
                     mvpLocalKeyFrames.push_back(pParent);
 
                     pParent->mnTrackReferenceForFrame = mCurrentFrame.mnId;
+
                     break;
                 }
             }
