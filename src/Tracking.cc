@@ -942,16 +942,25 @@ namespace ORB_SLAM2
         // Scale points
         vector<MapPoint *> vpAllMapPoints = pKFini->GetMapPointMatches();
 
-        for (size_t iMP = 0; iMP < vpAllMapPoints.size(); iMP++)
-        {
-            if (vpAllMapPoints[iMP])
+        for(MapPoint *pMP : vpAllMapPoints){
+
+            if (pMP)
             {
-                MapPoint *pMP = vpAllMapPoints[iMP];
 
                 // 地圖點的位置 乘上 深度中位數的倒數，用於控制地圖規模
                 pMP->SetWorldPos(pMP->GetWorldPos() * invMedianDepth);
             }
         }
+
+        // for (size_t iMP = 0; iMP < vpAllMapPoints.size(); iMP++)
+        // {
+        //     if (vpAllMapPoints[iMP])
+        //     {
+        //         MapPoint *pMP = vpAllMapPoints[iMP];
+        //         // 地圖點的位置 乘上 深度中位數的倒數，用於控制地圖規模
+        //         pMP->SetWorldPos(pMP->GetWorldPos() * invMedianDepth);
+        //     }
+        // }
 
         mpLocalMapper->InsertKeyFrame(pKFini);
         mpLocalMapper->InsertKeyFrame(pKFcur);
@@ -987,9 +996,7 @@ namespace ORB_SLAM2
     // 更新前一幀的地圖點，更換為被較多關鍵幀觀察到的地圖點
     void Tracking::CheckReplacedInLastFrame()
     {
-        for (int i = 0; i < mLastFrame.N; i++)
-        {
-            MapPoint *pMP = mLastFrame.mvpMapPoints[i];
+        for(MapPoint *pMP : mLastFrame.mvpMapPoints){
 
             if (pMP)
             {
@@ -998,10 +1005,24 @@ namespace ORB_SLAM2
 
                 if (pRep)
                 {
-                    mLastFrame.mvpMapPoints[i] = pRep;
+                    pMP = pRep;
                 }
             }
         }
+
+        // for (int i = 0; i < mLastFrame.N; i++)
+        // {
+        //     MapPoint *pMP = mLastFrame.mvpMapPoints[i];
+        //     if (pMP)
+        //     {
+        //         // 更換為被較多關鍵幀觀察到的地圖點
+        //         MapPoint *pRep = pMP->GetReplaced();
+        //         if (pRep)
+        //         {
+        //             mLastFrame.mvpMapPoints[i] = pRep;
+        //         }
+        //     }
+        // }
     }
 
     // 利用詞袋模型，快速將『當前幀』與『參考關鍵幀』進行特徵點匹配，更新『當前幀』匹配的地圖點，並返回數量是否足夠多

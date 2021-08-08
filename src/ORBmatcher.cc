@@ -977,7 +977,7 @@ namespace ORB_SLAM2
         for (size_t i1 = 0, iend1 = vnMatches12.size(); i1 < iend1; i1++){
 
             if (vnMatches12[i1] >= 0){
-                
+
                 // 更新為當前各個匹配成功的關鍵點的位置，協助尋找下一幀的關鍵點
                 vbPrevMatched[i1] = F2.mvKeysUn[vnMatches12[i1]].pt;
             }
@@ -1030,9 +1030,7 @@ namespace ORB_SLAM2
                 // 包含了所有屬於『當前幀 F』詞袋模型的 Fit->first 節點的地圖點的索引值
                 const vector<unsigned int> vIndicesF = Fit->second;
 
-                for (size_t iKF = 0; iKF < vIndicesKF.size(); iKF++)
-                {
-                    const unsigned int realIdxKF = vIndicesKF[iKF];
+                for(const unsigned int realIdxKF : vIndicesKF){
 
                     // 『參考關鍵幀 pKF』的第 realIdxKF 個地圖點在詞袋模型中，屬於 KFit->first 節點
                     MapPoint *pMP = vpMapPointsKF[realIdxKF];
@@ -1053,9 +1051,7 @@ namespace ORB_SLAM2
                     int bestDist2 = 256;
 
                     // 遍歷所有屬於『當前幀 F』詞袋模型的 Fit->first 節點的地圖點的索引值
-                    for (size_t iF = 0; iF < vIndicesF.size(); iF++)
-                    {
-                        const unsigned int realIdxF = vIndicesF[iF];
+                    for(const unsigned int realIdxF : vIndicesF){
 
                         if (vpMapPointMatches[realIdxF]){
                             continue;
@@ -1116,6 +1112,75 @@ namespace ORB_SLAM2
                         }
                     }
                 }
+
+                // for (size_t iKF = 0; iKF < vIndicesKF.size(); iKF++)
+                // {
+                //     const unsigned int realIdxKF = vIndicesKF[iKF];
+                //     // 『參考關鍵幀 pKF』的第 realIdxKF 個地圖點在詞袋模型中，屬於 KFit->first 節點
+                //     MapPoint *pMP = vpMapPointsKF[realIdxKF];
+                //     if (!pMP){
+                //         continue;
+                //     }
+                //     if (pMP->isBad()){
+                //         continue;
+                //     }
+                //     // 同樣利用 realIdxKF 取得相對應的特徵點的描述子
+                //     const cv::Mat &dKF = pKF->mDescriptors.row(realIdxKF);
+                //     int bestDist1 = 256;
+                //     int bestIdxF = -1;
+                //     int bestDist2 = 256;
+                //     // 遍歷所有屬於『當前幀 F』詞袋模型的 Fit->first 節點的地圖點的索引值
+                //     for (size_t iF = 0; iF < vIndicesF.size(); iF++)
+                //     {
+                //         const unsigned int realIdxF = vIndicesF[iF];
+                //         if (vpMapPointMatches[realIdxF]){
+                //             continue;
+                //         }
+                //         const cv::Mat &dF = F.mDescriptors.row(realIdxF);
+                //         // 計算兩特徵點之間的距離
+                //         const int dist = DescriptorDistance(dKF, dF);
+                //         // 篩選兩特徵點之間的最短距離（bestDist1），以及其特徵點索引值（bestIdxF）
+                //         if (dist < bestDist1)
+                //         {
+                //             bestDist2 = bestDist1;
+                //             bestDist1 = dist;
+                //             bestIdxF = realIdxF;
+                //         }
+                //         else if (dist < bestDist2)
+                //         {
+                //             bestDist2 = dist;
+                //         }
+                //     }
+                //     // 若兩特徵點之間的距離足夠小
+                //     if (bestDist1 <= TH_LOW)
+                //     {
+                //         // 且比第二近的距離小的多
+                //         if (static_cast<float>(bestDist1) < mfNNratio * static_cast<float>(bestDist2))
+                //         {
+                //             // 第 bestIdxF 個匹配地圖點設為『參考關鍵幀 pKF』的第 realIdxKF 個地圖點 pMP
+                //             vpMapPointMatches[bestIdxF] = pMP;
+                //             // 取得第 realIdxKF 個地圖點相對應的（已校正）關鍵點
+                //             const cv::KeyPoint &kp = pKF->mvKeysUn[realIdxKF];
+                //             if (mbCheckOrientation)
+                //             {
+                //                 // 計算兩特徵點的角度差
+                //                 float rot = kp.angle - F.mvKeys[bestIdxF].angle;
+                //                 if (rot < 0.0){
+                //                     rot += 360.0f;
+                //                 }
+                //                 // 將角度差換算成直方圖的索引值
+                //                 int bin = round(rot * factor);
+                //                 if (bin == HISTO_LENGTH){
+                //                     bin = 0;
+                //                 }
+                //                 assert(bin >= 0 && bin < HISTO_LENGTH);
+                //                 rotHist[bin].push_back(bestIdxF);
+                //             }
+                //             // 成功配對數
+                //             nmatches++;
+                //         }
+                //     }
+                // }
 
                 // 更新 const_iterator
                 KFit++;
