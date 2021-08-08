@@ -579,10 +579,9 @@ namespace ORB_SLAM2
 
                 // Delete temporal MapPoints
                 // mlpTemporalPoints 和『單目模式』與『建圖模式』無關，暫時跳過
-                list<MapPoint *>::iterator lit = mlpTemporalPoints.begin();
-                list<MapPoint *>::iterator lend = mlpTemporalPoints.end();
+                list<MapPoint *>::iterator lit, lend = mlpTemporalPoints.end();
 
-                for (; lit != lend; lit++)
+                for (lit = mlpTemporalPoints.begin(); lit != lend; lit++)
                 {
                     MapPoint *pMP = *lit;
                     delete pMP;
@@ -639,6 +638,7 @@ namespace ORB_SLAM2
         if (!mCurrentFrame.mTcw.empty())
         {
             cv::Mat Tcr = mCurrentFrame.mTcw * mCurrentFrame.mpReferenceKF->GetPoseInverse();
+            
             mlRelativeFramePoses.push_back(Tcr);
             mlpReferences.push_back(mpReferenceKF);
             mlFrameTimes.push_back(mCurrentFrame.mTimeStamp);

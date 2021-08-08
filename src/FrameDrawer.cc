@@ -276,6 +276,7 @@ namespace ORB_SLAM2
                     {
                         // 若地圖點被至少 1 個關鍵幀觀察到
                         if (pMP->Observations() > 0){
+                            
                             // 地圖中匹配成功的地圖點
                             mvbMap[i] = true;
                         }
