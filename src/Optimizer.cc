@@ -78,18 +78,22 @@ namespace ORB_SLAM2
 
         // Set KeyFrame vertices
         // 將『關鍵幀』的位姿，作為『頂點』加入優化，Id 由 0 到 maxKFid 編號
-
-        for(KeyFrame * pKF : vpKFs){
+        for(KeyFrame * pKF : vpKFs)
+        {
             if (pKF->isBad()){
                 continue;
             }
+
             g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
+
             // 取得『關鍵幀 pKF』的位姿，並轉換成 g2o 所需的類型 
             vSE3->setEstimate(Converter::toSE3Quat(pKF->GetPose()));
             vSE3->setId(pKF->mnId);
             vSE3->setFixed(pKF->mnId == 0);
+
             // 『關鍵幀 pKF』的位姿，作為『頂點』加入優化
             optimizer.addVertex(vSE3);
+
             if (pKF->mnId > maxKFid){
                 maxKFid = pKF->mnId;
             }
@@ -147,21 +151,28 @@ namespace ORB_SLAM2
             
             // SET EDGES
 
-            for(pair<KeyFrame *, size_t> obs : observations){
+            for(pair<KeyFrame *, size_t> obs : observations)
+            {
                 KeyFrame *pKF = obs.first;
                 size_t kp_idx = obs.second;
+
                 if (pKF->isBad() || pKF->mnId > maxKFid){
                     continue;
                 }
+
                 nEdges++;
+
                 // 『關鍵幀 pKF』的第 kp_idx 個『關鍵點 kpUn』觀察到『地圖點 pMP』
                 const cv::KeyPoint &kpUn = pKF->mvKeysUn[kp_idx];
+
                 // 單目的 mvuRight 會是負的
                 if (pKF->mvuRight[kp_idx] < 0)
                 {
                     Eigen::Matrix<double, 2, 1> obs;
                     obs << kpUn.pt.x, kpUn.pt.y;
+
                     g2o::EdgeSE3ProjectXYZ *e = new g2o::EdgeSE3ProjectXYZ();
+
                     // 『邊』連接第 mnId 個關鍵幀和第 mnId 個地圖點
                     // （地圖點接續關鍵幀的 id 編號，因此是由 maxKFid + 1 開始編號）
                     e->setVertex(0, 
@@ -172,25 +183,30 @@ namespace ORB_SLAM2
                     e->setMeasurement(obs);
                     const float &invSigma2 = pKF->mvInvLevelSigma2[kpUn.octave];
                     e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
+
                     if (bRobust)
                     {
                         g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
                         e->setRobustKernel(rk);
                         rk->setDelta(thHuber2D);
                     }
+
                     e->fx = pKF->fx;
                     e->fy = pKF->fy;
                     e->cx = pKF->cx;
                     e->cy = pKF->cy;
+
                     // 『關鍵點 kpUn』作為『邊』加入優化
                     optimizer.addEdge(e);
                 }
+
                 // 非單目，暫時跳過
                 else
                 {
                     Eigen::Matrix<double, 3, 1> obs;
                     const float kp_ur = pKF->mvuRight[kp_idx];
                     obs << kpUn.pt.x, kpUn.pt.y, kp_ur;
+
                     g2o::EdgeStereoSE3ProjectXYZ *e = new g2o::EdgeStereoSE3ProjectXYZ();
                     e->setVertex(0, 
                                  dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(id)));
@@ -201,12 +217,14 @@ namespace ORB_SLAM2
                     const float &invSigma2 = pKF->mvInvLevelSigma2[kpUn.octave];
                     Eigen::Matrix3d Info = Eigen::Matrix3d::Identity() * invSigma2;
                     e->setInformation(Info);
+                    
                     if (bRobust)
                     {
                         g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
                         e->setRobustKernel(rk);
                         rk->setDelta(thHuber3D);
                     }
+
                     e->fx = pKF->fx;
                     e->fy = pKF->fy;
                     e->cx = pKF->cx;
@@ -308,25 +326,32 @@ namespace ORB_SLAM2
         // Keyframes
         // 更新為優化後的位姿
 
-        for(KeyFrame *pKF : vpKFs){
+        for(KeyFrame *pKF : vpKFs)
+        {
             if (pKF->isBad()){
                 continue;
             }
+
             g2o::VertexSE3Expmap *vSE3 = 
                                     static_cast<g2o::VertexSE3Expmap *>(optimizer.vertex(pKF->mnId));
+            
             // 估計優化後的位姿
             g2o::SE3Quat SE3quat = vSE3->estimate();
+
             // nLoopKF：關鍵幀 Id，也就是只有第一次才會直接存在『關鍵幀 pKF』的位姿中
             if (nLoopKF == 0)
             {
                 pKF->SetPose(Converter::toCvMat(SE3quat));
             }
+
             // 第二次開始會先存在 mTcwGBA 當中，之後才會在 LoopClosing::RunGlobalBundleAdjustment 用來更新位姿
             else
             {
                 pKF->mTcwGBA.create(4, 4, CV_32F);
+
                 // 優化後的位姿估計存在 pKF->mTcwGBA，而非直接存在『關鍵幀 pKF』的位姿中
                 Converter::toCvMat(SE3quat).copyTo(pKF->mTcwGBA);
+
                 pKF->mnBAGlobalForKF = nLoopKF;
             }
         }
@@ -673,9 +698,11 @@ namespace ORB_SLAM2
 
         // 篩選好的『關鍵幀 pKF』的共視關鍵幀
 
-        for(KeyFrame *pKFi : vNeighKFs){
+        for(KeyFrame *pKFi : vNeighKFs)
+        {
             // 標注『關鍵幀 pKFi』已參與『關鍵幀 pKF』的 LocalBundleAdjustment，避免重複添加到 lLocalKeyFrames
             pKFi->mnBALocalForKF = pKF->mnId;
+
             if (!pKFi->isBad()){
                 lLocalKeyFrames.push_back(pKFi);
             }
@@ -695,10 +722,13 @@ namespace ORB_SLAM2
         // 共視地圖點：『共視關鍵幀 list<KeyFrame *> lLocalKeyFrames』所觀察到的地圖點
         list<MapPoint *> lLocalMapPoints;
 
-        for(KeyFrame * local_kf : lLocalKeyFrames){
+        for(KeyFrame * local_kf : lLocalKeyFrames)
+        {
             // 『關鍵幀 (*lit)』的關鍵點觀察到的地圖點
             vector<MapPoint *> vpMPs = local_kf->GetMapPointMatches();
-            for(MapPoint *pMP : vpMPs){
+
+            for(MapPoint *pMP : vpMPs)
+            {
                 if (pMP)
                 {
                     if (!pMP->isBad())
@@ -744,16 +774,21 @@ namespace ORB_SLAM2
         // 哪些關鍵幀同時也觀察到 lLocalMapPoints 當中的地圖點
         list<KeyFrame *> lFixedCameras;
 
-        for(MapPoint* local_mp : lLocalMapPoints){
+        for(MapPoint* local_mp : lLocalMapPoints)
+        {
             // 觀察到『共視地圖點 (*lit)』的關鍵幀，及其對應的特徵點的索引值
             map<KeyFrame *, size_t> observations = local_mp->GetObservations();
-            for(pair<KeyFrame *, size_t> obs : observations){
+
+            for(pair<KeyFrame *, size_t> obs : observations)
+            {
                 KeyFrame *pKFi = obs.first;
+
                 // Local && Fixed
                 // 檢查『關鍵幀 pKFi』是否已參與『關鍵幀 pKF』的 LocalBundleAdjustment
                 if (pKFi->mnBALocalForKF != pKF->mnId && pKFi->mnBAFixedForKF != pKF->mnId)
                 {
                     pKFi->mnBAFixedForKF = pKF->mnId;
+
                     if (!pKFi->isBad()){
                         lFixedCameras.push_back(pKFi);
                     }
@@ -808,15 +843,20 @@ namespace ORB_SLAM2
 
         // Set Local KeyFrame vertices
 
-        for(KeyFrame *pKFi : lLocalKeyFrames){
+        for(KeyFrame *pKFi : lLocalKeyFrames)
+        {
             g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
             vSE3->setEstimate(Converter::toSE3Quat(pKFi->GetPose()));
             vSE3->setId(pKFi->mnId);
+
             // Local 共視關鍵幀只有第 0 幀設為 Fixed，Fixed 共視關鍵幀全部都設為 Fixed
             vSE3->setFixed(pKFi->mnId == 0);
+
             // Local 共視關鍵幀作為頂點加入優化        
             optimizer.addVertex(vSE3);
-            if (pKFi->mnId > maxKFid){
+
+            if (pKFi->mnId > maxKFid)
+            {
                 maxKFid = pKFi->mnId;
             }
         }
@@ -843,14 +883,19 @@ namespace ORB_SLAM2
         // Set Fixed KeyFrame vertices
         // Fixed 共視關鍵幀作為頂點加入優化
 
-        for(KeyFrame *pKFi : lFixedCameras){
+        for(KeyFrame *pKFi : lFixedCameras)
+        {
             g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
             vSE3->setEstimate(Converter::toSE3Quat(pKFi->GetPose()));
             vSE3->setId(pKFi->mnId);
+
             // Fixed 共視關鍵幀全部都設為 Fixed，Local 共視關鍵幀只有第 0 幀設為 Fixed
             vSE3->setFixed(true);
+
             optimizer.addVertex(vSE3);
-            if (pKFi->mnId > maxKFid){
+
+            if (pKFi->mnId > maxKFid)
+            {
                 maxKFid = pKFi->mnId;
             }
         }
@@ -913,7 +958,6 @@ namespace ORB_SLAM2
             const map<KeyFrame *, size_t> observations = pMP->GetObservations();
 
             // Set edges
-
             for(pair<KeyFrame *, size_t> obs : observations)
             {
                 KeyFrame *pKFi = obs.first;
@@ -1184,11 +1228,14 @@ namespace ORB_SLAM2
         // 將前一步驟標注要移除的內容給實際移除
         if (!vToErase.empty())
         {
-            for(pair<KeyFrame *, MapPoint *> to_earse : vToErase){                
+            for(pair<KeyFrame *, MapPoint *> to_earse : vToErase)
+            {                
                 KeyFrame *pKFi = to_earse.first;
                 MapPoint *pMPi = to_earse.second;
+
                 // 從當前關鍵幀觀察到的地圖點當中移除『地圖點 pMPi』，表示其實沒有觀察到
                 pKFi->EraseMapPointMatch(pMPi);  
+
                 // 移除『關鍵幀 pKFi』，更新關鍵幀的計數，若『觀察到這個地圖點的關鍵幀』太少（少於 3 個），
                 // 則將地圖點與關鍵幀等全部移除
                 pMPi->EraseObservation(pKFi);
@@ -1211,7 +1258,8 @@ namespace ORB_SLAM2
         // Keyframes
         // 利用 Local 關鍵幀的 mnId 取出相對應的頂點，並更新自身的位姿估計
 
-        for(KeyFrame *pKF : lLocalKeyFrames){
+        for(KeyFrame *pKF : lLocalKeyFrames)
+        {
             g2o::VertexSE3Expmap *vSE3 = 
                                     static_cast<g2o::VertexSE3Expmap *>(optimizer.vertex(pKF->mnId));
             g2o::SE3Quat SE3quat = vSE3->estimate();
@@ -1231,13 +1279,15 @@ namespace ORB_SLAM2
 
         // Points
         // 依序取出地圖點之頂點，並更新地圖點的位置
-
-        for(MapPoint *pMP : lLocalMapPoints){
+        for(MapPoint *pMP : lLocalMapPoints)
+        {
             // 為何地圖點的頂點 ID 會是 pMP->mnId + maxKFid + 1？
             g2o::VertexSBAPointXYZ *vPoint = 
                     static_cast<g2o::VertexSBAPointXYZ *>(optimizer.vertex(pMP->mnId + maxKFid + 1));
+            
             // 更新地圖點的位置
             pMP->SetWorldPos(Converter::toCvMat(vPoint->estimate()));
+            
             // 利用所有觀察到這個地圖點的關鍵幀來估計關鍵幀們平均指向的方向，以及該地圖點可能的深度範圍(最近與最遠)
             pMP->UpdateNormalAndDepth();
         }
