@@ -12,3 +12,10 @@ $ /home/j32u4ukh/Documents/ORB_SLAM2>
 .
 .
 ./Examples/Monocular/mono_kitti Vocabulary/ORBvoc.txt Examples/Monocular/KITTI04-12.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/12"
+
+foreach 改版前
+
+median tracking time: 0.0596703
+mean tracking time: 0.0700843
+建圖 10:53.73
+
