@@ -62,15 +62,24 @@ namespace ORB_SLAM2
         // 設置為黑色 -> 過去觀察到的點
         glColor3f(0.0, 0.0, 0.0);
 
-        for (size_t i = 0, iend = vpMPs.size(); i < iend; i++)
+        for(MapPoint * mp : vpMPs)
         {
-            if (vpMPs[i]->isBad() || spRefMPs.count(vpMPs[i])){
+            if (mp->isBad() || spRefMPs.count(mp)){
                 continue;
             }
 
-            cv::Mat pos = vpMPs[i]->GetWorldPos();
+            cv::Mat pos = mp->GetWorldPos();
             glVertex3f(pos.at<float>(0), pos.at<float>(1), pos.at<float>(2));
         }
+
+        // for (size_t i = 0, iend = vpMPs.size(); i < iend; i++)
+        // {
+        //     if (vpMPs[i]->isBad() || spRefMPs.count(vpMPs[i])){
+        //         continue;
+        //     }
+        //     cv::Mat pos = vpMPs[i]->GetWorldPos();
+        //     glVertex3f(pos.at<float>(0), pos.at<float>(1), pos.at<float>(2));
+        // }
 
         glEnd();
 
@@ -80,18 +89,28 @@ namespace ORB_SLAM2
         // 設置為紅色 -> 當前觀察到的點
         glColor3f(1.0, 0.0, 0.0);
 
-        set<MapPoint *>::iterator sit = spRefMPs.begin();
-        set<MapPoint *>::iterator send = spRefMPs.end();
-
-        for (; sit != send; sit++)
+        for(MapPoint * mp : spRefMPs)
         {
-            if ((*sit)->isBad()){
+            if (mp->isBad()){
                 continue;
             }
 
-            cv::Mat pos = (*sit)->GetWorldPos();
+            cv::Mat pos = mp->GetWorldPos();
             glVertex3f(pos.at<float>(0), pos.at<float>(1), pos.at<float>(2));
         }
+
+        // set<MapPoint *>::iterator sit = spRefMPs.begin();
+        // set<MapPoint *>::iterator send = spRefMPs.end();
+
+        // for (; sit != send; sit++)
+        // {
+        //     if ((*sit)->isBad()){
+        //         continue;
+        //     }
+
+        //     cv::Mat pos = (*sit)->GetWorldPos();
+        //     glVertex3f(pos.at<float>(0), pos.at<float>(1), pos.at<float>(2));
+        // }
 
         glEnd();
     }
@@ -110,10 +129,8 @@ namespace ORB_SLAM2
         if (bDrawKF)
         {
             // 遍歷所有關鍵幀
-            for (size_t i = 0; i < vpKFs.size(); i++)
+            for(KeyFrame *pKF : vpKFs)
             {
-                KeyFrame *pKF = vpKFs[i];
-
                 // 由『關鍵幀 pKF』的相機座標系，轉換到世界座標系
                 cv::Mat Twc = pKF->GetPoseInverse().t();
 
@@ -153,6 +170,39 @@ namespace ORB_SLAM2
 
                 glPopMatrix();
             }
+
+            // for (size_t i = 0; i < vpKFs.size(); i++)
+            // {
+            //     KeyFrame *pKF = vpKFs[i];
+            //     // 由『關鍵幀 pKF』的相機座標系，轉換到世界座標系
+            //     cv::Mat Twc = pKF->GetPoseInverse().t();
+            //     // 紀錄當前位姿
+            //     glPushMatrix();
+            //     // 當前位姿，乘上『轉換矩陣 Twc』
+            //     glMultMatrixf(Twc.ptr<GLfloat>(0));
+            //     glLineWidth(mKeyFrameLineWidth);
+            //     // 設為藍色
+            //     glColor3f(0.0f, 0.0f, 1.0f);
+            //     glBegin(GL_LINES);
+            //     glVertex3f(0, 0, 0);
+            //     glVertex3f(w, h, z);
+            //     glVertex3f(0, 0, 0);
+            //     glVertex3f(w, -h, z);
+            //     glVertex3f(0, 0, 0);
+            //     glVertex3f(-w, -h, z);
+            //     glVertex3f(0, 0, 0);
+            //     glVertex3f(-w, h, z);
+            //     glVertex3f(w, h, z);
+            //     glVertex3f(w, -h, z);
+            //     glVertex3f(-w, h, z);
+            //     glVertex3f(-w, -h, z);
+            //     glVertex3f(-w, h, z);
+            //     glVertex3f(w, h, z);
+            //     glVertex3f(-w, -h, z);
+            //     glVertex3f(w, -h, z);
+            //     glEnd();
+            //     glPopMatrix();
+            // }
         }
 
         if (bDrawGraph)
@@ -164,29 +214,27 @@ namespace ORB_SLAM2
 
             glBegin(GL_LINES);
 
-            for (size_t i = 0; i < vpKFs.size(); i++)
+            for(KeyFrame *pKF : vpKFs)
             {
                 // Covisibility Graph
-                // 取得『關鍵幀 vpKFs[i]』至多 100 個『共視關鍵幀』
-                const vector<KeyFrame *> vCovKFs = vpKFs[i]->GetCovisiblesByWeight(100);
+                // 取得『關鍵幀 vpKFs[i]』的『已連結關鍵幀（根據觀察到的地圖點數量由大到小排序，
+                // 且觀察到的地圖點數量「大於」 100）』
+                const vector<KeyFrame *> vCovKFs = pKF->GetCovisiblesByWeight(100);
 
                 // 取得『關鍵幀 vpKFs[i]』的相機中心
-                cv::Mat Ow = vpKFs[i]->GetCameraCenter();
+                cv::Mat Ow = pKF->GetCameraCenter();
                 
                 if (!vCovKFs.empty())
                 {
-                    vector<KeyFrame *>::const_iterator vit = vCovKFs.begin();
-                    vector<KeyFrame *>::const_iterator vend = vCovKFs.end();
-
                     // 遍歷『關鍵幀 vpKFs[i]』的『共視關鍵幀』
-                    for (; vit != vend; vit++)
+                    for(KeyFrame * kf : vCovKFs)
                     {
-                        if ((*vit)->mnId < vpKFs[i]->mnId){
+                        if (kf->mnId < pKF->mnId){
                             continue;
                         }
 
                         // 取得『共視關鍵幀 (*vit)』的相機中心
-                        cv::Mat Ow2 = (*vit)->GetCameraCenter();
+                        cv::Mat Ow2 = kf->GetCameraCenter();
 
                         // 現在為線段模式(GL_LINES)，因此是相機中心之間的連線
                         glVertex3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2));
@@ -196,7 +244,7 @@ namespace ORB_SLAM2
 
                 // Spanning tree
                 // 取得『關鍵幀 vpKFs[i]』的父關鍵幀
-                KeyFrame *pParent = vpKFs[i]->GetParent();
+                KeyFrame *pParent = pKF->GetParent();
 
                 if (pParent)
                 {
@@ -209,24 +257,73 @@ namespace ORB_SLAM2
 
                 // Loops
                 // 取得形成迴路的關鍵幀
-                set<KeyFrame *> sLoopKFs = vpKFs[i]->GetLoopEdges();
+                set<KeyFrame *> sLoopKFs = pKF->GetLoopEdges();
 
-                set<KeyFrame *>::iterator sit = sLoopKFs.begin();
-                set<KeyFrame *>::iterator send = sLoopKFs.end();
-
-                for (; sit != send; sit++)
+                for(KeyFrame * kf : sLoopKFs)
                 {
-                    if ((*sit)->mnId < vpKFs[i]->mnId){
+                    if (kf->mnId < pKF->mnId){
                         continue;
                     }
 
                     // 取得迴路關鍵幀的相機中心
-                    cv::Mat Owl = (*sit)->GetCameraCenter();
+                    cv::Mat Owl = kf->GetCameraCenter();
 
                     glVertex3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2));
                     glVertex3f(Owl.at<float>(0), Owl.at<float>(1), Owl.at<float>(2));
                 }
             }
+
+            // for (size_t i = 0; i < vpKFs.size(); i++)
+            // {
+            //     // Covisibility Graph
+            //     // 取得『關鍵幀 vpKFs[i]』的『已連結關鍵幀（根據觀察到的地圖點數量由大到小排序，
+            //     // 且觀察到的地圖點數量「大於」 100）』
+            //     const vector<KeyFrame *> vCovKFs = vpKFs[i]->GetCovisiblesByWeight(100);
+            //     // 取得『關鍵幀 vpKFs[i]』的相機中心
+            //     cv::Mat Ow = vpKFs[i]->GetCameraCenter();
+            //     if (!vCovKFs.empty())
+            //     {
+            //         vector<KeyFrame *>::const_iterator vit = vCovKFs.begin();
+            //         vector<KeyFrame *>::const_iterator vend = vCovKFs.end();
+            //         // 遍歷『關鍵幀 vpKFs[i]』的『共視關鍵幀』
+            //         for (; vit != vend; vit++)
+            //         {
+            //             if ((*vit)->mnId < vpKFs[i]->mnId){
+            //                 continue;
+            //             }
+            //             // 取得『共視關鍵幀 (*vit)』的相機中心
+            //             cv::Mat Ow2 = (*vit)->GetCameraCenter();
+            //             // 現在為線段模式(GL_LINES)，因此是相機中心之間的連線
+            //             glVertex3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2));
+            //             glVertex3f(Ow2.at<float>(0), Ow2.at<float>(1), Ow2.at<float>(2));
+            //         }
+            //     }
+            //     // Spanning tree
+            //     // 取得『關鍵幀 vpKFs[i]』的父關鍵幀
+            //     KeyFrame *pParent = vpKFs[i]->GetParent();
+            //     if (pParent)
+            //     {
+            //         // 取得父關鍵幀的相機中心
+            //         cv::Mat Owp = pParent->GetCameraCenter();
+            //         glVertex3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2));
+            //         glVertex3f(Owp.at<float>(0), Owp.at<float>(1), Owp.at<float>(2));
+            //     }
+            //     // Loops
+            //     // 取得形成迴路的關鍵幀
+            //     set<KeyFrame *> sLoopKFs = vpKFs[i]->GetLoopEdges();
+            //     set<KeyFrame *>::iterator sit = sLoopKFs.begin();
+            //     set<KeyFrame *>::iterator send = sLoopKFs.end();
+            //     for (; sit != send; sit++)
+            //     {
+            //         if ((*sit)->mnId < vpKFs[i]->mnId){
+            //             continue;
+            //         }
+            //         // 取得迴路關鍵幀的相機中心
+            //         cv::Mat Owl = (*sit)->GetCameraCenter();
+            //         glVertex3f(Ow.at<float>(0), Ow.at<float>(1), Ow.at<float>(2));
+            //         glVertex3f(Owl.at<float>(0), Owl.at<float>(1), Owl.at<float>(2));
+            //     }
+            // }
 
             glEnd();
         }

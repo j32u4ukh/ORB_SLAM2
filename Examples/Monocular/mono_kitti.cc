@@ -18,7 +18,6 @@
 * along with ORB-SLAM2. If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #include <iostream>
 #include <algorithm>
 #include <fstream>
@@ -36,14 +35,14 @@ void LoadImages(const string &strSequence, vector<string> &vstrImageFilenames,
 
 int main(int argc, char **argv)
 {
-    if(argc != 4)
+    if (argc != 4)
     {
         // 以 KITTI Dataset 為例
         // argc[0] ./Examples/Monocular/mono_kitti
-        // argc[1] Vocabulary/ORBvoc.txt 
-        // argc[2] Examples/Monocular/KITTIX.yaml 
+        // argc[1] Vocabulary/ORBvoc.txt
+        // argc[2] Examples/Monocular/KITTIX.yaml
         // argc[3] PATH_TO_DATASET_FOLDER/dataset/sequences/SEQUENCE_NUMBER
-        cerr << endl 
+        cerr << endl
              << "Usage: ./mono_kitti path_to_vocabulary path_to_settings path_to_sequence" << endl;
         return 1;
     }
@@ -59,8 +58,8 @@ int main(int argc, char **argv)
     int nImages = vstrImageFilenames.size();
 
     // 以 KITTI Dataset 為例
-    // argc[1] Vocabulary/ORBvoc.txt 
-    // argc[2] Examples/Monocular/KITTIX.yaml 
+    // argc[1] Vocabulary/ORBvoc.txt
+    // argc[2] Examples/Monocular/KITTIX.yaml
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
     ORB_SLAM2::System SLAM(argv[1], argv[2], ORB_SLAM2::System::MONOCULAR, true);
     cv::Mat im;
@@ -69,20 +68,23 @@ int main(int argc, char **argv)
     vector<float> vTimesTrack;
     vTimesTrack.resize(nImages);
 
-    cout << endl << "-------" << endl;
+    cout << endl
+         << "-------" << endl;
     cout << "Start processing sequence ..." << endl;
-    cout << "Images in the sequence: " << nImages << endl << endl;
+    cout << "Images in the sequence: " << nImages << endl
+         << endl;
 
     // Main loop
-    for(int ni = 0; ni < nImages; ni++)
+    for (int ni = 0; ni < nImages; ni++)
     {
         // Read image from file
         im = cv::imread(vstrImageFilenames[ni], cv::IMREAD_UNCHANGED);
         double tframe = vTimestamps[ni];
 
-        if(im.empty())
+        if (im.empty())
         {
-            cerr << endl << "Failed to load image at: " << vstrImageFilenames[ni] << endl;
+            cerr << endl
+                 << "Failed to load image at: " << vstrImageFilenames[ni] << endl;
             return 1;
         }
 
@@ -110,17 +112,19 @@ int main(int argc, char **argv)
         // Wait to load the next frame
         double T = 0;
 
-        if(ni < nImages - 1){
+        if (ni < nImages - 1)
+        {
             T = vTimestamps[ni + 1] - tframe;
-        }            
-        else if(ni > 0){
+        }
+        else if (ni > 0)
+        {
             T = tframe - vTimestamps[ni - 1];
         }
 
-        if(ttrack < T){
-            usleep((T-ttrack)*1e6);
+        if (ttrack < T)
+        {
+            usleep((T - ttrack) * 1e6);
         }
-            
     }
 
     // Stop all threads
@@ -129,36 +133,43 @@ int main(int argc, char **argv)
     // ===== Tracking time statistics =====
 
     // 排序每一幀花費的時間，將用於找出中位數，以衡量每幀追蹤時間
-    sort(vTimesTrack.begin(),vTimesTrack.end());
+    sort(vTimesTrack.begin(), vTimesTrack.end());
     float totaltime = 0;
 
-    for(int ni=0; ni<nImages; ni++)
-    {
-        totaltime += vTimesTrack[ni];
+    for(float time : vTimesTrack){
+
+        totaltime += time;
     }
 
-    cout << "-------" << endl << endl;
-    cout << "median tracking time: " << vTimesTrack[nImages/2] << endl;
-    cout << "mean tracking time: " << totaltime/nImages << endl;
+    // for (int ni = 0; ni < nImages; ni++)
+    // {
+    //     totaltime += vTimesTrack[ni];
+    // }
+
+    cout << "-------" << endl
+         << endl;
+    cout << "median tracking time: " << vTimesTrack[nImages / 2] << endl;
+    cout << "mean tracking time: " << totaltime / nImages << endl;
 
     // Save camera trajectory
-    SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");    
+    SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
 
     return 0;
 }
 
-void LoadImages(const string &strPathToSequence, vector<string> &vstrImageFilenames, vector<double> &vTimestamps)
+void LoadImages(const string &strPathToSequence, vector<string> &vstrImageFilenames,
+                vector<double> &vTimestamps)
 {
     ifstream fTimes;
     string strPathTimeFile = strPathToSequence + "/times.txt";
     fTimes.open(strPathTimeFile.c_str());
 
-    while(!fTimes.eof())
+    while (!fTimes.eof())
     {
         string s;
         getline(fTimes, s);
 
-        if(!s.empty())
+        if (!s.empty())
         {
             stringstream ss;
             ss << s;
@@ -175,7 +186,7 @@ void LoadImages(const string &strPathToSequence, vector<string> &vstrImageFilena
     const int nTimes = vTimestamps.size();
     vstrImageFilenames.resize(nTimes);
 
-    for(int i=0; i<nTimes; i++)
+    for (int i = 0; i < nTimes; i++)
     {
         stringstream ss;
         ss << setfill('0') << setw(6) << i;

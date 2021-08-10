@@ -63,9 +63,8 @@ using namespace std;
 namespace ORB_SLAM2
 {
 
-  PnPsolver::PnPsolver(const Frame &F, const vector<MapPoint *> &vpMapPointMatches) : 
-                       pws(0), us(0), alphas(0), pcs(0), maximum_number_of_correspondences(0), N(0), 
-                       number_of_correspondences(0), mnInliersi(0), mnIterations(0), mnBestInliers(0)
+  PnPsolver::PnPsolver(const Frame &F, const vector<MapPoint *> &vpMapPointMatches) : pws(0), us(0), alphas(0), pcs(0), maximum_number_of_correspondences(0), N(0),
+                                                                                      number_of_correspondences(0), mnInliersi(0), mnIterations(0), mnBestInliers(0)
   {
     mvpMapPointMatches = vpMapPointMatches;
     mvP2D.reserve(F.mvpMapPoints.size());
@@ -119,7 +118,7 @@ namespace ORB_SLAM2
     delete[] pcs;
   }
 
-  void PnPsolver::SetRansacParameters(double probability, int minInliers, int maxIterations, 
+  void PnPsolver::SetRansacParameters(double probability, int minInliers, int maxIterations,
                                       int minSet, float epsilon, float th2)
   {
     mRansacProb = probability;
@@ -129,34 +128,39 @@ namespace ORB_SLAM2
     mRansacMinSet = minSet;
 
     // number of correspondences
-    N = mvP2D.size(); 
+    N = mvP2D.size();
 
     mvbInliersi.resize(N);
 
     // Adjust Parameters according to number of correspondences
     int nMinInliers = N * mRansacEpsilon;
 
-    if (nMinInliers < mRansacMinInliers){
+    if (nMinInliers < mRansacMinInliers)
+    {
       nMinInliers = mRansacMinInliers;
     }
 
-    if (nMinInliers < minSet){
+    if (nMinInliers < minSet)
+    {
       nMinInliers = minSet;
     }
 
     mRansacMinInliers = nMinInliers;
 
-    if (mRansacEpsilon < (float)mRansacMinInliers / N){
+    if (mRansacEpsilon < (float)mRansacMinInliers / N)
+    {
       mRansacEpsilon = (float)mRansacMinInliers / N;
     }
 
     // Set RANSAC iterations according to probability, epsilon, and max iterations
     int nIterations;
 
-    if (mRansacMinInliers == N){
+    if (mRansacMinInliers == N)
+    {
       nIterations = 1;
     }
-    else{
+    else
+    {
       nIterations = ceil(log(1 - mRansacProb) / log(1 - pow(mRansacEpsilon, 3)));
     }
 
@@ -164,7 +168,8 @@ namespace ORB_SLAM2
 
     mvMaxError.resize(mvSigma2.size());
 
-    for (size_t i = 0; i < mvSigma2.size(); i++){
+    for (size_t i = 0; i < mvSigma2.size(); i++)
+    {
       mvMaxError[i] = mvSigma2[i] * th2;
     }
   }
@@ -250,7 +255,8 @@ namespace ORB_SLAM2
 
           for (int i = 0; i < N; i++)
           {
-            if (mvbRefinedInliers[i]){
+            if (mvbRefinedInliers[i])
+            {
               vbInliers[mvKeyPointIndices[i]] = true;
             }
           }
@@ -270,7 +276,8 @@ namespace ORB_SLAM2
 
         for (int i = 0; i < N; i++)
         {
-          if (mvbBestInliers[i]){
+          if (mvbBestInliers[i])
+          {
             vbInliers[mvKeyPointIndices[i]] = true;
           }
         }
@@ -299,11 +306,16 @@ namespace ORB_SLAM2
 
     reset_correspondences();
 
-    for (size_t i = 0; i < vIndices.size(); i++)
+    for(int idx : vIndices)
     {
-      int idx = vIndices[i];
       add_correspondence(mvP3Dw[idx].x, mvP3Dw[idx].y, mvP3Dw[idx].z, mvP2D[idx].x, mvP2D[idx].y);
     }
+
+    // for (size_t i = 0; i < vIndices.size(); i++)
+    // {
+    //   int idx = vIndices[i];
+    //   add_correspondence(mvP3Dw[idx].x, mvP3Dw[idx].y, mvP3Dw[idx].z, mvP2D[idx].x, mvP2D[idx].y);
+    // }
 
     // Compute camera pose
     compute_pose(mRi, mti);
@@ -372,19 +384,23 @@ namespace ORB_SLAM2
   {
     if (maximum_number_of_correspondences < n)
     {
-      if (pws != 0){
+      if (pws != 0)
+      {
         delete[] pws;
       }
 
-      if (us != 0){
+      if (us != 0)
+      {
         delete[] us;
       }
 
-      if (alphas != 0){
+      if (alphas != 0)
+      {
         delete[] alphas;
       }
 
-      if (pcs != 0){
+      if (pcs != 0)
+      {
         delete[] pcs;
       }
 
@@ -419,13 +435,16 @@ namespace ORB_SLAM2
     // 存放 pws 座標點的中心位置
     cws[0][0] = cws[0][1] = cws[0][2] = 0;
 
-    for (int i = 0; i < number_of_correspondences; i++){
-      for (int j = 0; j < 3; j++){
+    for (int i = 0; i < number_of_correspondences; i++)
+    {
+      for (int j = 0; j < 3; j++)
+      {
         cws[0][j] += pws[3 * i + j];
       }
     }
 
-    for (int j = 0; j < 3; j++){
+    for (int j = 0; j < 3; j++)
+    {
       cws[0][j] /= number_of_correspondences;
     }
 
@@ -437,8 +456,10 @@ namespace ORB_SLAM2
     CvMat DC = cvMat(3, 1, CV_64F, dc);
     CvMat UCt = cvMat(3, 3, CV_64F, uct);
 
-    for (int i = 0; i < number_of_correspondences; i++){
-      for (int j = 0; j < 3; j++){
+    for (int i = 0; i < number_of_correspondences; i++)
+    {
+      for (int j = 0; j < 3; j++)
+      {
         // pws 各點與中心點的差距
         PW0->data.db[3 * i + j] = pws[3 * i + j] - cws[0][j];
       }
@@ -472,7 +493,8 @@ namespace ORB_SLAM2
       // dc 0, 1, 2
       double k = sqrt(dc[i - 1] / number_of_correspondences);
 
-      for (int j = 0; j < 3; j++){
+      for (int j = 0; j < 3; j++)
+      {
         cws[i][j] = cws[0][j] + k * uct[3 * (i - 1) + j];
       }
     }
@@ -484,8 +506,10 @@ namespace ORB_SLAM2
     CvMat CC = cvMat(3, 3, CV_64F, cc);
     CvMat CC_inv = cvMat(3, 3, CV_64F, cc_inv);
 
-    for (int i = 0; i < 3; i++){
-      for (int j = 1; j < 4; j++){
+    for (int i = 0; i < 3; i++)
+    {
+      for (int j = 1; j < 4; j++)
+      {
         cc[3 * i + j - 1] = cws[j][i] - cws[0][i];
       }
     }
@@ -498,7 +522,8 @@ namespace ORB_SLAM2
       double *pi = pws + 3 * i;
       double *a = alphas + 4 * i;
 
-      for (int j = 0; j < 3; j++){
+      for (int j = 0; j < 3; j++)
+      {
         a[1 + j] =
             ci[3 * j] * (pi[0] - cws[0][0]) +
             ci[3 * j + 1] * (pi[1] - cws[0][1]) +
@@ -530,14 +555,21 @@ namespace ORB_SLAM2
   void PnPsolver::compute_ccs(const double *betas, const double *ut)
   {
     for (int i = 0; i < 4; i++)
+    {
       ccs[i][0] = ccs[i][1] = ccs[i][2] = 0.0f;
+    }
 
     for (int i = 0; i < 4; i++)
     {
       const double *v = ut + 12 * (11 - i);
+
       for (int j = 0; j < 4; j++)
+      {
         for (int k = 0; k < 3; k++)
+        {
           ccs[j][k] += betas[i] * v[3 * j + k];
+        }
+      }
     }
   }
 
@@ -549,7 +581,9 @@ namespace ORB_SLAM2
       double *pc = pcs + 3 * i;
 
       for (int j = 0; j < 3; j++)
+      {
         pc[j] = a[0] * ccs[0][j] + a[1] * ccs[1][j] + a[2] * ccs[2][j] + a[3] * ccs[3][j];
+      }
     }
   }
 
@@ -560,7 +594,8 @@ namespace ORB_SLAM2
 
     CvMat *M = cvCreateMat(2 * number_of_correspondences, 12, CV_64F);
 
-    for (int i = 0; i < number_of_correspondences; i++){
+    for (int i = 0; i < number_of_correspondences; i++)
+    {
       fill_M(M, 2 * i, alphas + 4 * i, us[2 * i], us[2 * i + 1]);
     }
 
@@ -597,11 +632,13 @@ namespace ORB_SLAM2
 
     int N = 1;
 
-    if (rep_errors[2] < rep_errors[1]){
+    if (rep_errors[2] < rep_errors[1])
+    {
       N = 2;
     }
 
-    if (rep_errors[3] < rep_errors[N]){
+    if (rep_errors[3] < rep_errors[N])
+    {
       N = 3;
     }
 
@@ -616,7 +653,10 @@ namespace ORB_SLAM2
     for (int i = 0; i < 3; i++)
     {
       for (int j = 0; j < 3; j++)
+      {
         R_dst[i][j] = R_src[i][j];
+      }
+
       t_dst[i] = t_src[i];
     }
   }
@@ -671,6 +711,7 @@ namespace ORB_SLAM2
         pw0[j] += pw[j];
       }
     }
+
     for (int j = 0; j < 3; j++)
     {
       pc0[j] /= number_of_correspondences;
@@ -684,6 +725,7 @@ namespace ORB_SLAM2
     CvMat ABt_V = cvMat(3, 3, CV_64F, abt_v);
 
     cvSetZero(&ABt);
+
     for (int i = 0; i < number_of_correspondences; i++)
     {
       double *pc = pcs + 3 * i;
@@ -700,8 +742,12 @@ namespace ORB_SLAM2
     cvSVD(&ABt, &ABt_D, &ABt_U, &ABt_V, CV_SVD_MODIFY_A);
 
     for (int i = 0; i < 3; i++)
+    {
       for (int j = 0; j < 3; j++)
+      {
         R[i][j] = dot(abt_u + 3 * i, abt_v + 3 * j);
+      }
+    }
 
     const double det =
         R[0][0] * R[1][1] * R[2][2] + R[0][1] * R[1][2] * R[2][0] + R[0][2] * R[1][0] * R[2][1] -
@@ -731,8 +777,12 @@ namespace ORB_SLAM2
     if (pcs[2] < 0.0)
     {
       for (int i = 0; i < 4; i++)
+      {
         for (int j = 0; j < 3; j++)
+        {
           ccs[i][j] = -ccs[i][j];
+        }
+      }
 
       for (int i = 0; i < number_of_correspondences; i++)
       {
@@ -823,7 +873,9 @@ namespace ORB_SLAM2
     }
 
     if (b3[1] < 0)
+    {
       betas[0] = -betas[0];
+    }
 
     betas[2] = 0.0;
     betas[3] = 0.0;
@@ -860,8 +912,12 @@ namespace ORB_SLAM2
       betas[0] = sqrt(b5[0]);
       betas[1] = (b5[2] > 0) ? sqrt(b5[2]) : 0.0;
     }
+
     if (b5[1] < 0)
+    {
       betas[0] = -betas[0];
+    }
+
     betas[2] = b5[3] / betas[0];
     betas[3] = 0.0;
   }
@@ -880,6 +936,7 @@ namespace ORB_SLAM2
     for (int i = 0; i < 4; i++)
     {
       int a = 0, b = 1;
+
       for (int j = 0; j < 6; j++)
       {
         dv[i][j][0] = v[i][3 * a] - v[i][3 * b];
@@ -887,6 +944,7 @@ namespace ORB_SLAM2
         dv[i][j][2] = v[i][3 * a + 2] - v[i][3 * b + 2];
 
         b++;
+
         if (b > 3)
         {
           a++;
@@ -956,7 +1014,9 @@ namespace ORB_SLAM2
       qr_solve(&A, &B, &X);
 
       for (int i = 0; i < 4; i++)
+      {
         betas[i] += x[i];
+      }
     }
   }
 
@@ -973,6 +1033,7 @@ namespace ORB_SLAM2
       delete[] A1;
       delete[] A2;
     }
+
     if (max_nr < nr)
     {
       max_nr = nr;
@@ -981,14 +1042,20 @@ namespace ORB_SLAM2
     }
 
     double *pA = A->data.db, *ppAkk = pA;
+
     for (int k = 0; k < nc; k++)
     {
       double *ppAik = ppAkk, eta = fabs(*ppAik);
+
       for (int i = k + 1; i < nr; i++)
       {
         double elt = fabs(*ppAik);
+
         if (eta < elt)
+        {
           eta = elt;
+        }
+
         ppAik += nc;
       }
 
@@ -1001,28 +1068,38 @@ namespace ORB_SLAM2
       else
       {
         double *ppAik = ppAkk, sum = 0.0, inv_eta = 1. / eta;
+
         for (int i = k; i < nr; i++)
         {
           *ppAik *= inv_eta;
           sum += *ppAik * *ppAik;
           ppAik += nc;
         }
+
         double sigma = sqrt(sum);
+
         if (*ppAkk < 0)
+        {
           sigma = -sigma;
+        }
+
         *ppAkk += sigma;
         A1[k] = sigma * *ppAkk;
         A2[k] = -eta * sigma;
+
         for (int j = k + 1; j < nc; j++)
         {
           double *ppAik = ppAkk, sum = 0;
+
           for (int i = k; i < nr; i++)
           {
             sum += *ppAik * ppAik[j - k];
             ppAik += nc;
           }
+
           double tau = sum / A1[k];
           ppAik = ppAkk;
+
           for (int i = k; i < nr; i++)
           {
             ppAik[j - k] -= tau * *ppAik;
@@ -1035,27 +1112,33 @@ namespace ORB_SLAM2
 
     // b <- Qt b
     double *ppAjj = pA, *pb = b->data.db;
+
     for (int j = 0; j < nc; j++)
     {
       double *ppAij = ppAjj, tau = 0;
+
       for (int i = j; i < nr; i++)
       {
         tau += *ppAij * pb[i];
         ppAij += nc;
       }
+
       tau /= A1[j];
       ppAij = ppAjj;
+
       for (int i = j; i < nr; i++)
       {
         pb[i] -= tau * *ppAij;
         ppAij += nc;
       }
+
       ppAjj += nc + 1;
     }
 
     // X = R-1 b
     double *pX = X->data.db;
     pX[nc - 1] = pb[nc - 1] / A2[nc - 1];
+
     for (int i = nc - 2; i >= 0; i--)
     {
       double *ppAij = pA + i * nc + (i + 1), sum = 0;
@@ -1065,6 +1148,7 @@ namespace ORB_SLAM2
         sum += *ppAij * pX[j];
         ppAij++;
       }
+      
       pX[i] = (pb[i] - sum) / A2[i];
     }
   }

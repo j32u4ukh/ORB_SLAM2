@@ -56,6 +56,7 @@ namespace ORB_SLAM2
         mvAllIndices.reserve(mN1);
 
         size_t idx = 0;
+
         for (int i1 = 0; i1 < mN1; i1++)
         {
             if (vpMatched12[i1])
@@ -63,17 +64,20 @@ namespace ORB_SLAM2
                 MapPoint *pMP1 = vpKeyFrameMP1[i1];
                 MapPoint *pMP2 = vpMatched12[i1];
 
-                if (!pMP1)
+                if (!pMP1){
                     continue;
+                }
 
-                if (pMP1->isBad() || pMP2->isBad())
+                if (pMP1->isBad() || pMP2->isBad()){
                     continue;
+                }
 
                 int indexKF1 = pMP1->GetIndexInKeyFrame(pKF1);
                 int indexKF2 = pMP2->GetIndexInKeyFrame(pKF2);
 
-                if (indexKF1 < 0 || indexKF2 < 0)
+                if (indexKF1 < 0 || indexKF2 < 0){
                     continue;
+                }
 
                 const cv::KeyPoint &kp1 = pKF1->mvKeysUn[indexKF1];
                 const cv::KeyPoint &kp2 = pKF2->mvKeysUn[indexKF2];
@@ -204,8 +208,10 @@ namespace ORB_SLAM2
                 {
                     nInliers = mnInliersi;
 
-                    for (int i = 0; i < N; i++){
-                        if (mvbInliersi[i]){
+                    for (int i = 0; i < N; i++)
+                    {
+                        if (mvbInliersi[i])
+                        {
                             vbInliers[mvnIndices1[i]] = true;
                         }
                     }
@@ -448,15 +454,25 @@ namespace ORB_SLAM2
         vP2D.clear();
         vP2D.reserve(vP3Dw.size());
 
-        for (size_t i = 0, iend = vP3Dw.size(); i < iend; i++)
-        {
-            cv::Mat P3Dc = Rcw * vP3Dw[i] + tcw;
+        for(cv::Mat p3dw : vP3Dw){
+            
+            cv::Mat P3Dc = Rcw * p3dw + tcw;
             const float invz = 1 / (P3Dc.at<float>(2));
             const float x = P3Dc.at<float>(0) * invz;
             const float y = P3Dc.at<float>(1) * invz;
 
             vP2D.push_back((cv::Mat_<float>(2, 1) << fx * x + cx, fy * y + cy));
         }
+
+        // for (size_t i = 0, iend = vP3Dw.size(); i < iend; i++)
+        // {
+        //     cv::Mat P3Dc = Rcw * vP3Dw[i] + tcw;
+        //     const float invz = 1 / (P3Dc.at<float>(2));
+        //     const float x = P3Dc.at<float>(0) * invz;
+        //     const float y = P3Dc.at<float>(1) * invz;
+
+        //     vP2D.push_back((cv::Mat_<float>(2, 1) << fx * x + cx, fy * y + cy));
+        // }
     }
 
     // 利用『相機內參 K』將『空間點 vP3Dc』由世界座標轉換到『成像平面座標 vP2D』
@@ -470,14 +486,22 @@ namespace ORB_SLAM2
         vP2D.clear();
         vP2D.reserve(vP3Dc.size());
 
-        for (size_t i = 0, iend = vP3Dc.size(); i < iend; i++)
+        for(cv::Mat p3dc : vP3Dc)
         {
-            const float invz = 1 / (vP3Dc[i].at<float>(2));
-            const float x = vP3Dc[i].at<float>(0) * invz;
-            const float y = vP3Dc[i].at<float>(1) * invz;
+            const float invz = 1 / (p3dc.at<float>(2));
+            const float x = p3dc.at<float>(0) * invz;
+            const float y = p3dc.at<float>(1) * invz;
 
             vP2D.push_back((cv::Mat_<float>(2, 1) << fx * x + cx, fy * y + cy));
         }
+
+        // for (size_t i = 0, iend = vP3Dc.size(); i < iend; i++)
+        // {
+        //     const float invz = 1 / (vP3Dc[i].at<float>(2));
+        //     const float x = vP3Dc[i].at<float>(0) * invz;
+        //     const float y = vP3Dc[i].at<float>(1) * invz;
+        //     vP2D.push_back((cv::Mat_<float>(2, 1) << fx * x + cx, fy * y + cy));
+        // }
     }
 
 } //namespace ORB_SLAM
