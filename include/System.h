@@ -56,10 +56,99 @@ public:
         RGBD=2
     };
 
+private:
+
+    // Input sensor
+    // System內部嵌套定義的枚舉類型，MONOCULAR=0, STEREO=1, RGBD=2
+    eSensor mSensor;
+
+    // ORB vocabulary used for place recognition and feature matching.
+    // 用於特征匹配和場景識別的詞匯表
+    ORBVocabulary* mpVocabulary;
+
+    // KeyFrame database for place recognition (relocalization and loop detection).
+    // 用於重定位和閉環檢測的關鍵幀數據庫
+    KeyFrameDatabase* mpKeyFrameDatabase;
+
+    // Map structure that stores the pointers to all KeyFrames and MapPoints.
+    // ORB-SLAM中的地圖對象，用於保存所有關鍵幀和地圖點。
+    Map* mpMap;
+
+    // Tracker. It receives a frame and computes the associated camera pose.
+    // It also decides when to insert a new keyframe, create some new MapPoints and
+    // performs relocalization if tracking fails.
+    // 軌跡跟蹤器。接收一幀特征點計算相機位置，判定是否需要新增關鍵幀，創建一些新的地圖點，如果軌跡跟丟了將進行重定位。
+    Tracking* mpTracker;
+
+    // Local Mapper. It manages the local map and performs local bundle adjustment.
+    // 局部地圖管理器。管理局部地圖，並進行局部的BA(local bundle adustment)。
+    LocalMapping* mpLocalMapper;
+
+    // Loop Closer. It searches loops with every new keyframe. If there is a loop it performs
+    // a pose graph optimization and full bundle adjustment (in a new thread) afterwards.
+    // 閉環探測器。為每個新的關鍵幀搜索閉環。
+    // 如果檢測到閉環就觸发一個位姿圖優化並在一個新的線程中進行完整的BA(full bundle adjustment)
+    LoopClosing* mpLoopCloser;
+
+    // The viewer draws the map and the current camera pose. It uses Pangolin.
+    // 基於 Pangolin 的可視化對象，用於繪制地圖和當前的相機位姿。
+    Viewer* mpViewer;
+
+    // 看字面意思應該是關鍵幀渲染器，用於通過 mpViewer 繪制關鍵幀(或者說是相機位姿)。
+    FrameDrawer* mpFrameDrawer;
+
+    // 看字面意思應該是地圖渲染器，用於通過 mpViewer 繪制地圖(或者說是地圖點)。
+    MapDrawer* mpMapDrawer;
+
+    // ==================================================
+    // System threads: Local Mapping, Loop Closing, Viewer.
+    // The Tracking thread "lives" in the main execution thread that creates the System object.
+
+    // 用於進行 LOCAL MAPPING 的線程。
+    std::thread* mptLocalMapping;
+
+    // 用於進行 LOOP CLOSING 的線程。
+    std::thread* mptLoopClosing;
+
+    // 用於可視化的線程。
+    std::thread* mptViewer;
+    // ==================================================
+
+    // Reset flag
+    // 保護成員變量 mbReset 的信號量。
+    std::mutex mMutexReset;
+
+    // 重置標志。
+    bool mbReset;
+
+    // Change mode flags
+    // 保護工作模式標志的信號量。
+    std::mutex mMutexMode;
+
+    // 是否使用定位模式
+    bool mbActivateLocalizationMode;
+
+    // 未激活定位模式。(不是很理解為什麽要弄兩個這東西，是不是有什麽安全上的考慮？留待以後分析具體源碼時在探討吧)
+    bool mbDeactivateLocalizationMode;
+
+    // Tracking state
+    // 跟蹤狀態。
+    int mTrackingState;
+
+    // 地圖點。
+    std::vector<MapPoint*> mTrackedMapPoints;
+
+    // 關鍵點。
+    std::vector<cv::KeyPoint> mTrackedKeyPointsUn;
+
+    // 保護跟蹤狀態的信號量。
+    std::mutex mMutexState;
+
 public:
 
     // Initialize the SLAM system. It launches the Local Mapping, Loop Closing and Viewer threads.
-    System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor, const bool bUseViewer = true);
+    System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor, 
+           const bool bUseViewer = true);
 
     // Proccess the given stereo frame. Images must be synchronized and rectified.
     // Input images: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.
@@ -121,98 +210,6 @@ public:
     int GetTrackingState();
     std::vector<MapPoint*> GetTrackedMapPoints();
     std::vector<cv::KeyPoint> GetTrackedKeyPointsUn();
-
-private:
-
-    // Input sensor
-    // System內部嵌套定義的枚舉類型，MONOCULAR=0, STEREO=1, RGBD=2
-    eSensor mSensor;
-
-    // ORB vocabulary used for place recognition and feature matching.
-    // 用於特征匹配和場景識別的詞匯表
-    ORBVocabulary* mpVocabulary;
-
-    // KeyFrame database for place recognition (relocalization and loop detection).
-    // 用於重定位和閉環檢測的關鍵幀數據庫
-    KeyFrameDatabase* mpKeyFrameDatabase;
-
-    // Map structure that stores the pointers to all KeyFrames and MapPoints.
-    // ORB-SLAM中的地圖對象，用於保存所有關鍵幀和地圖點。
-    Map* mpMap;
-
-    // Tracker. It receives a frame and computes the associated camera pose.
-    // It also decides when to insert a new keyframe, create some new MapPoints and
-    // performs relocalization if tracking fails.
-    // 軌跡跟蹤器。接收一幀特征點計算相機位置，判定是否需要新增關鍵幀，創建一些新的地圖點，如果軌跡跟丟了將進行重定位。
-    Tracking* mpTracker;
-
-    // Local Mapper. It manages the local map and performs local bundle adjustment.
-    // 局部地圖管理器。管理局部地圖，並進行局部的BA(local bundle adustment)。
-    LocalMapping* mpLocalMapper;
-
-    // Loop Closer. It searches loops with every new keyframe. If there is a loop it performs
-    // a pose graph optimization and full bundle adjustment (in a new thread) afterwards.
-    // 閉環探測器。為每個新的關鍵幀搜索閉環。
-    // 如果檢測到閉環就觸发一個位姿圖優化並在一個新的線程中進行完整的BA(full bundle adjustment)
-    LoopClosing* mpLoopCloser;
-
-
-
-
-
-    // The viewer draws the map and the current camera pose. It uses Pangolin.
-    // 基於 Pangolin 的可視化對象，用於繪制地圖和當前的相機位姿。
-    Viewer* mpViewer;
-
-    // 看字面意思應該是關鍵幀渲染器，用於通過 mpViewer 繪制關鍵幀(或者說是相機位姿)。
-    FrameDrawer* mpFrameDrawer;
-
-    // 看字面意思應該是地圖渲染器，用於通過 mpViewer 繪制地圖(或者說是地圖點)。
-    MapDrawer* mpMapDrawer;
-
-    // ==================================================
-    // System threads: Local Mapping, Loop Closing, Viewer.
-    // The Tracking thread "lives" in the main execution thread that creates the System object.
-
-    // 用於進行 LOCAL MAPPING 的線程。
-    std::thread* mptLocalMapping;
-
-    // 用於進行 LOOP CLOSING 的線程。
-    std::thread* mptLoopClosing;
-
-    // 用於可視化的線程。
-    std::thread* mptViewer;
-    // ==================================================
-
-    // Reset flag
-    // 保護成員變量 mbReset 的信號量。
-    std::mutex mMutexReset;
-
-    // 重置標志。
-    bool mbReset;
-
-    // Change mode flags
-    // 保護工作模式標志的信號量。
-    std::mutex mMutexMode;
-
-    // 是否使用定位模式
-    bool mbActivateLocalizationMode;
-
-    // 未激活定位模式。(不是很理解為什麽要弄兩個這東西，是不是有什麽安全上的考慮？留待以後分析具體源碼時在探討吧)
-    bool mbDeactivateLocalizationMode;
-
-    // Tracking state
-    // 跟蹤狀態。
-    int mTrackingState;
-
-    // 地圖點。
-    std::vector<MapPoint*> mTrackedMapPoints;
-
-    // 關鍵點。
-    std::vector<cv::KeyPoint> mTrackedKeyPointsUn;
-
-    // 保護跟蹤狀態的信號量。
-    std::mutex mMutexState;
 };
 
 }// namespace ORB_SLAM

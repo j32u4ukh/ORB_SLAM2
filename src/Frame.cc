@@ -32,6 +32,95 @@ namespace ORB_SLAM2
     float Frame::mnMinX, Frame::mnMinY, Frame::mnMaxX, Frame::mnMaxY;
     float Frame::mfGridElementWidthInv, Frame::mfGridElementHeightInv;
 
+    // ==================================================
+    // 以上為管理執行續相關函式
+    // ==================================================
+
+    // 第一幀初始化用 Frame
+    Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor *extractor, 
+                 ORBVocabulary *voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, 
+                 const float &thDepth) : 
+                 mpORBvocabulary(voc), mpORBextractorLeft(extractor), 
+                 mpORBextractorRight(static_cast<ORBextractor *>(NULL)), mTimeStamp(timeStamp), 
+                 mK(K.clone()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
+    {
+        // Frame ID
+        mnId = nNextId++;
+
+        // Scale Level Info
+        mnScaleLevels = mpORBextractorLeft->GetLevels();
+        mfScaleFactor = mpORBextractorLeft->GetScaleFactor();
+        mfLogScaleFactor = log(mfScaleFactor);
+        mvScaleFactors = mpORBextractorLeft->GetScaleFactors();
+        mvInvScaleFactors = mpORBextractorLeft->GetInverseScaleFactors();
+        mvLevelSigma2 = mpORBextractorLeft->GetScaleSigmaSquares();
+        mvInvLevelSigma2 = mpORBextractorLeft->GetInverseScaleSigmaSquares();
+
+        // ORB extraction
+        ExtractORB(0, imGray);
+
+        N = mvKeys.size();
+
+        if (mvKeys.empty()){
+            return;
+        }
+
+        UndistortKeyPoints();
+
+        // Set no stereo information
+        mvuRight = vector<float>(N, -1);
+        mvDepth = vector<float>(N, -1);
+
+        mvpMapPoints = vector<MapPoint *>(N, static_cast<MapPoint *>(NULL));
+        mvbOutlier = vector<bool>(N, false);
+
+        // This is done only for the first Frame (or after a change in the calibration)
+        // 只在第一幀或相機需要再次校準才會進入下方區塊
+        if (mbInitialComputations)
+        {
+            // 計算（扭曲校正後的）影像的四個頂點 mnMaxX, mnMinX, mnMaxY, mnMinY
+            ComputeImageBounds(imGray);
+
+            mfGridElementWidthInv = static_cast<float>(FRAME_GRID_COLS) / 
+                                                                    static_cast<float>(mnMaxX - mnMinX);
+            mfGridElementHeightInv = static_cast<float>(FRAME_GRID_ROWS) / 
+                                                                    static_cast<float>(mnMaxY - mnMinY);
+
+            fx = K.at<float>(0, 0);
+            fy = K.at<float>(1, 1);
+            cx = K.at<float>(0, 2);
+            cy = K.at<float>(1, 2);
+
+            invfx = 1.0f / fx;
+            invfy = 1.0f / fy;
+
+            mbInitialComputations = false;
+        }
+
+        mb = mbf / fx;
+
+        AssignFeaturesToGrid();
+    }
+
+    // 利用 ORBextractor 抽取 ORB 特徵
+    void Frame::ExtractORB(int flag, const cv::Mat &im)
+    {
+        if (flag == 0)
+        {
+            // 抽取 ORB 特徵，特徵點存於 mvKeys ，描述子存於 mDescriptors
+            (*mpORBextractorLeft)(im, cv::Mat(), mvKeys, mDescriptors);
+        }
+        else
+        {
+            // 抽取 ORB 特徵，特徵點存於 mvKeysRight ，描述子存於 mDescriptorsRight
+            (*mpORBextractorRight)(im, cv::Mat(), mvKeysRight, mDescriptorsRight);
+        }
+    }
+    
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
+
     Frame::Frame()
     {
     }
@@ -190,72 +279,6 @@ namespace ORB_SLAM2
         AssignFeaturesToGrid();
     }
 
-    // 第一幀初始化用 Frame
-    Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor *extractor, 
-                 ORBVocabulary *voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, 
-                 const float &thDepth) : 
-                 mpORBvocabulary(voc), mpORBextractorLeft(extractor), 
-                 mpORBextractorRight(static_cast<ORBextractor *>(NULL)), mTimeStamp(timeStamp), 
-                 mK(K.clone()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
-    {
-        // Frame ID
-        mnId = nNextId++;
-
-        // Scale Level Info
-        mnScaleLevels = mpORBextractorLeft->GetLevels();
-        mfScaleFactor = mpORBextractorLeft->GetScaleFactor();
-        mfLogScaleFactor = log(mfScaleFactor);
-        mvScaleFactors = mpORBextractorLeft->GetScaleFactors();
-        mvInvScaleFactors = mpORBextractorLeft->GetInverseScaleFactors();
-        mvLevelSigma2 = mpORBextractorLeft->GetScaleSigmaSquares();
-        mvInvLevelSigma2 = mpORBextractorLeft->GetInverseScaleSigmaSquares();
-
-        // ORB extraction
-        ExtractORB(0, imGray);
-
-        N = mvKeys.size();
-
-        if (mvKeys.empty()){
-            return;
-        }
-
-        UndistortKeyPoints();
-
-        // Set no stereo information
-        mvuRight = vector<float>(N, -1);
-        mvDepth = vector<float>(N, -1);
-
-        mvpMapPoints = vector<MapPoint *>(N, static_cast<MapPoint *>(NULL));
-        mvbOutlier = vector<bool>(N, false);
-
-        // This is done only for the first Frame (or after a change in the calibration)
-        // 只在第一幀或相機需要再次校準才會進入下方區塊
-        if (mbInitialComputations)
-        {
-            // 計算（扭曲校正後的）影像的四個頂點 mnMaxX, mnMinX, mnMaxY, mnMinY
-            ComputeImageBounds(imGray);
-
-            mfGridElementWidthInv = static_cast<float>(FRAME_GRID_COLS) / 
-                                                                    static_cast<float>(mnMaxX - mnMinX);
-            mfGridElementHeightInv = static_cast<float>(FRAME_GRID_ROWS) / 
-                                                                    static_cast<float>(mnMaxY - mnMinY);
-
-            fx = K.at<float>(0, 0);
-            fy = K.at<float>(1, 1);
-            cx = K.at<float>(0, 2);
-            cy = K.at<float>(1, 2);
-
-            invfx = 1.0f / fx;
-            invfy = 1.0f / fy;
-
-            mbInitialComputations = false;
-        }
-
-        mb = mbf / fx;
-
-        AssignFeaturesToGrid();
-    }
-
     // 寫入各個網格所包含的關鍵點的索引值
     void Frame::AssignFeaturesToGrid()
     {
@@ -281,21 +304,6 @@ namespace ORB_SLAM2
                 // 紀錄網格 mGrid[nGridPosX][nGridPosY] 所包含的關鍵點的索引值
                 mGrid[nGridPosX][nGridPosY].push_back(i);
             }
-        }
-    }
-
-    // 利用 ORBextractor 抽取 ORB 特徵
-    void Frame::ExtractORB(int flag, const cv::Mat &im)
-    {
-        if (flag == 0)
-        {
-            // 抽取 ORB 特徵，特徵點存於 mvKeys ，描述子存於 mDescriptors
-            (*mpORBextractorLeft)(im, cv::Mat(), mvKeys, mDescriptors);
-        }
-        else
-        {
-            // 抽取 ORB 特徵，特徵點存於 mvKeysRight ，描述子存於 mDescriptorsRight
-            (*mpORBextractorRight)(im, cv::Mat(), mvKeysRight, mDescriptorsRight);
         }
     }
 
@@ -482,30 +490,6 @@ namespace ORB_SLAM2
                         vIndices.push_back(cell_idx);
                     }
                 }
-
-                // for (size_t j = 0, jend = vCell.size(); j < jend; j++)
-                // {
-                //     // vCell[j]：網格 vCell 的第 j 個關鍵點，在 mvKeysUn 的索引值
-                //     const cv::KeyPoint &kpUn = mvKeysUn[vCell[j]];
-                //     // 檢查層級是否超出 minLevel 與 maxLevel 的範圍
-                //     if (bCheckLevels)
-                //     {
-                //         if (kpUn.octave < minLevel){
-                //             continue;
-                //         }
-                //         if (maxLevel >= 0){
-                //             if (kpUn.octave > maxLevel){
-                //                 continue;
-                //             }
-                //         }   
-                //     }
-                //     const float distx = kpUn.pt.x - x;
-                //     const float disty = kpUn.pt.y - y;
-                //     if (fabs(distx) < r && fabs(disty) < r){
-                //         // vCell[j]：網格 vCell 的第 j 個關鍵點，在 mvKeysUn 的索引值
-                //         vIndices.push_back(vCell[j]);
-                //     }
-                // }
             }
         }
 

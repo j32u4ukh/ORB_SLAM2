@@ -591,14 +591,6 @@ namespace ORB_SLAM2
             }
         }
 
-        // for (size_t i = 0, iend = vbMatchesInliers.size(); i < iend; i++)
-        // {
-        //     if (vbMatchesInliers[i])
-        //     {
-        //         N++;
-        //     }
-        // }
-
         // Compute Essential Matrix from Fundamental Matrix
         // 利用『基礎矩陣Fundamental Matrix』計算『本質矩陣 Essential Matrix』
         cv::Mat E21 = K.t() * F21 * K;
@@ -741,14 +733,6 @@ namespace ORB_SLAM2
                 N++;
             }
         }
-
-        // for (size_t i = 0, iend = vbMatchesInliers.size(); i < iend; i++)
-        // {
-        //     if (vbMatchesInliers[i])
-        //     {
-        //         N++;
-        //     }
-        // }
 
         // We recover 8 motion hypotheses using the method of Faugeras et al.
         // Motion and structure from motion in a piecewise planar environment.

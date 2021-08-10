@@ -141,19 +141,22 @@ namespace ORB_SLAM2
 
             // 若未曾添加關鍵幀 pKF
             // mConnectedKeyFrameWeights：『關鍵幀』與『觀察到的地圖點個數』之對應關係
-            if (!mConnectedKeyFrameWeights.count(pKF)){
+            if (!mConnectedKeyFrameWeights.count(pKF))
+            {
                 // 加入字典管理
                 mConnectedKeyFrameWeights[pKF] = weight;
             }
 
             // 關鍵幀 pKF 已在字典中，但數值不同
-            else if (mConnectedKeyFrameWeights[pKF] != weight){
+            else if (mConnectedKeyFrameWeights[pKF] != weight)
+            {
                 // 更新字典數值（關鍵幀觀察到的地圖點數量）
                 mConnectedKeyFrameWeights[pKF] = weight;
             }
 
             // 關鍵幀 pKF 已在字典中，且數值相同 -> 重複添加，直接返回
-            else{
+            else
+            {
                 return;
             }
         }
@@ -174,12 +177,6 @@ namespace ORB_SLAM2
             vPairs.push_back(make_pair(kf_weight.second, kf_weight.first));
         }
 
-        // map<KeyFrame *, int>::iterator mit = mConnectedKeyFrameWeights.begin();
-        // map<KeyFrame *, int>::iterator mend = mConnectedKeyFrameWeights.end();
-        // for (; mit != mend; mit++){
-        //     vPairs.push_back(make_pair(mit->second, mit->first));
-        // }
-
         // 首先對『關鍵幀觀察到的地圖點數量（mit->second）』升序排序，若相同再對『KeyFrame *』升序排序
         sort(vPairs.begin(), vPairs.end());
         list<KeyFrame *> lKFs;
@@ -193,14 +190,6 @@ namespace ORB_SLAM2
             // 將『KeyFrame *』加入 lKFs 進行管理
             lKFs.push_front(weight_kf.second);
         }
-
-        // for (size_t i = 0, iend = vPairs.size(); i < iend; i++)
-        // {
-        //     // 將『KeyFrame *』加入 lKFs 進行管理
-        //     lKFs.push_front(vPairs[i].second);
-        //     // 將『關鍵幀觀察到的地圖點數量』加入 lWs 進行管理
-        //     lWs.push_front(vPairs[i].first);
-        // }
 
         /// NOTE: 將關鍵幀加到 lKFs 當中，再賦值給 mvpOrderedConnectedKeyFrames 的理由大概是，
         /// 可以各自在自己的執行續繼續操作，降低需要暫停執行續的需求
@@ -218,14 +207,10 @@ namespace ORB_SLAM2
         set<KeyFrame *> s;
 
         // mConnectedKeyFrameWeights：『關鍵幀』與『觀察到的地圖點個數』之對應關係
-        for(pair<KeyFrame *, int> kf_weight : mConnectedKeyFrameWeights){
+        for(pair<KeyFrame *, int> kf_weight : mConnectedKeyFrameWeights)
+        {
             s.insert(kf_weight.first);
         }
-
-        // map<KeyFrame *, int>::iterator mit = mConnectedKeyFrameWeights.begin();
-        // for (; mit != mConnectedKeyFrameWeights.end(); mit++){
-        //     s.insert(mit->first);
-        // }
 
         return s;
     }
@@ -244,12 +229,13 @@ namespace ORB_SLAM2
     {
         unique_lock<mutex> lock(mMutexConnections);
 
-        if ((int)mvpOrderedConnectedKeyFrames.size() < N){
-
+        if ((int)mvpOrderedConnectedKeyFrames.size() < N)
+        {
             // 根據觀察到的地圖點數量由大到小排序的共視關鍵幀
             return mvpOrderedConnectedKeyFrames;
         }
-        else{
+        else
+        {
             return vector<KeyFrame *>(mvpOrderedConnectedKeyFrames.begin(), 
                                       mvpOrderedConnectedKeyFrames.begin() + N);
         }
@@ -290,34 +276,18 @@ namespace ORB_SLAM2
         // 返回地圖點數量「大於」 w 的『已連結關鍵幀（根據觀察到的地圖點數量由大到小排序）』
         return vector<KeyFrame *>(mvpOrderedConnectedKeyFrames.begin(), 
                                   mvpOrderedConnectedKeyFrames.begin() + n);
-
-        // // 若 it 即為 mvOrderedWeights 尾端，表示 mvOrderedWeights 全部都大於 w
-        // if (it == mvOrderedWeights.end())
-        // {
-        //     return vector<KeyFrame *>(mvpOrderedConnectedKeyFrames);
-        //     // // 返回空 vector
-        //     // /// NOTE: 不是應該全部返回嗎？
-        //     // return vector<KeyFrame *>();
-        // }
-        // else
-        // {
-        //     // iterator 的個數
-        //     int n = it - mvOrderedWeights.begin();
-
-        //     // 返回地圖點數量「大於」 w 的『已連結關鍵幀（根據觀察到的地圖點數量由大到小排序）』
-        //     return vector<KeyFrame *>(mvpOrderedConnectedKeyFrames.begin(), 
-        //                               mvpOrderedConnectedKeyFrames.begin() + n);
-        // }
     }
 
     int KeyFrame::GetWeight(KeyFrame *pKF)
     {
         unique_lock<mutex> lock(mMutexConnections);
         
-        if (mConnectedKeyFrameWeights.count(pKF)){
+        if (mConnectedKeyFrameWeights.count(pKF))
+        {
             return mConnectedKeyFrameWeights[pKF];
         }
-        else{
+        else
+        {
             return 0;
         }
     }
@@ -345,7 +315,8 @@ namespace ORB_SLAM2
         // 『關鍵幀 this』的第幾個『關鍵點』觀察到『地圖點 pMP』的
         int idx = pMP->GetIndexInKeyFrame(this);
 
-        if (idx >= 0){
+        if (idx >= 0)
+        {
             // 移除當前關鍵幀觀察到的第 idx 個地圖點，表示其實沒有觀察到
             mvpMapPoints[idx] = static_cast<MapPoint *>(NULL);
         }
@@ -373,18 +344,7 @@ namespace ORB_SLAM2
                 }
             }
         }
-
-        // for (size_t i = 0, iend = mvpMapPoints.size(); i < iend; i++)
-        // {
-        //     if (!mvpMapPoints[i]){
-        //         continue;
-        //     }
-        //     MapPoint *pMP = mvpMapPoints[i];
-        //     if (!pMP->isBad()){
-        //         s.insert(pMP);
-        //     }
-        // }
-
+        
         return s;
     }
 
@@ -392,11 +352,11 @@ namespace ORB_SLAM2
     int KeyFrame::TrackedMapPoints(const int &minObs)
     {
         unique_lock<mutex> lock(mMutexFeatures);
-        int nPoints = 0;
         const bool bCheckObs = minObs > 0;
-
-        for(MapPoint *pMP : mvpMapPoints){
-
+        int nPoints = 0;
+        
+        for(MapPoint *pMP : mvpMapPoints)
+        {
             if (pMP)
             {
                 if (!pMP->isBad())
@@ -414,27 +374,6 @@ namespace ORB_SLAM2
                 }
             }
         }
-
-        // for (int i = 0; i < N; i++)
-        // {
-        //     MapPoint *pMP = mvpMapPoints[i];
-        //     if (pMP)
-        //     {
-        //         if (!pMP->isBad())
-        //         {
-        //             if (bCheckObs)
-        //             {
-        //                 // 這個地圖點被足過多的關鍵幀觀察到
-        //                 if (mvpMapPoints[i]->Observations() >= minObs){
-        //                     nPoints++;
-        //                 }
-        //             }
-        //             else{
-        //                 nPoints++;
-        //             }
-        //         }
-        //     }
-        // }
 
         return nPoints;
     }
@@ -468,8 +407,8 @@ namespace ORB_SLAM2
 
         //For all map points in keyframe check in which other keyframes are they seen
         //Increase counter for those keyframes
-        for(MapPoint *pMP : vpMP){
-
+        for(MapPoint *pMP : vpMP)
+        {
             if (!pMP)
             {
                 continue;
@@ -495,49 +434,9 @@ namespace ORB_SLAM2
 
                 // 累計關鍵幀 kf 觀察到地圖點的個數
                 KFcounter[kf]++;
-            }
-
-            // map<KeyFrame *, size_t>::iterator mit = observations.begin();
-            // map<KeyFrame *, size_t>::iterator mend = observations.end();
-            // for (; mit != mend; mit++)
-            // {
-            //     // 若 mnId 與當前關鍵幀相同則跳過
-            //     if (mit->first->mnId == mnId)
-            //     {
-            //         continue;
-            //     }
-            //     // 累計關鍵幀 mit->first 觀察到地圖點的個數
-            //     KFcounter[mit->first]++;
-            // }
+            }            
         }
-
-        // for (vector<MapPoint *>::iterator vit = vpMP.begin(), vend = vpMP.end(); vit != vend; vit++)
-        // {
-        //     MapPoint *pMP = *vit;
-        //     if (!pMP)
-        //     {
-        //         continue;
-        //     }
-        //     if (pMP->isBad())
-        //     {
-        //         continue;
-        //     }
-        //     // 地圖點被關鍵幀的第 idx 個關鍵點觀察到
-        //     map<KeyFrame *, size_t> observations = pMP->GetObservations();
-        //     map<KeyFrame *, size_t>::iterator mit = observations.begin();
-        //     map<KeyFrame *, size_t>::iterator mend = observations.end();
-        //     for (; mit != mend; mit++)
-        //     {
-        //         // 若 mnId 與當前關鍵幀相同則跳過
-        //         if (mit->first->mnId == mnId)
-        //         {
-        //             continue;
-        //         }
-        //         // 累計關鍵幀 mit->first 觀察到地圖點的個數
-        //         KFcounter[mit->first]++;
-        //     }
-        // }
-
+        
         // This should not happen
         if (KFcounter.empty())
         {
@@ -574,24 +473,6 @@ namespace ORB_SLAM2
             }
         }
 
-        // map<KeyFrame *, int>::iterator mit = KFcounter.begin();
-        // map<KeyFrame *, int>::iterator mend = KFcounter.end();
-        // for (; mit != mend; mit++)
-        // {
-        //     if (mit->second > nmax)
-        //     {
-        //         nmax = mit->second;
-        //         pKFmax = mit->first;
-        //     }
-        //     // 若關鍵幀觀察到的地圖點數量足夠多（大於所設門檻數量），應該表示『這個關鍵幀很重要』
-        //     if (mit->second >= th)
-        //     {
-        //         vPairs.push_back(make_pair(mit->second, mit->first));
-        //         // 和當前關鍵幀添加連結
-        //         (mit->first)->AddConnection(this, mit->second);
-        //     }
-        // }
-
         // 若沒有任一關鍵幀觀察到的地圖點數量足夠多，則將最多的那一關鍵幀和當前關鍵幀添加連結
         if (vPairs.empty())
         {
@@ -611,14 +492,6 @@ namespace ORB_SLAM2
             // 將『KeyFrame *』加入 lKFs 進行管理
             lKFs.push_front(count_kf.second);
         }
-
-        // for (size_t i = 0; i < vPairs.size(); i++)
-        // {
-        //     // 將『KeyFrame *』加入 lKFs 進行管理
-        //     lKFs.push_front(vPairs[i].second);
-        //     // 將『關鍵幀觀察到的地圖點數量』加入 lWs 進行管理
-        //     lWs.push_front(vPairs[i].first);
-        // }
 
         {
             unique_lock<mutex> lockCon(mMutexConnections);
@@ -746,16 +619,7 @@ namespace ORB_SLAM2
             // 並將共視關鍵幀根據觀察到的地圖點數量重新排序
             kf_weight.first->EraseConnection(this);
         }
-
-        // map<KeyFrame *, int>::iterator mit = mConnectedKeyFrameWeights.begin();
-        // map<KeyFrame *, int>::iterator mend = mConnectedKeyFrameWeights.end();
-        // for (; mit != mend; mit++)
-        // {
-        //     // 從『關鍵幀』與『觀察到的地圖點個數』之對應關係移除『關鍵幀 pKF』，
-        //     // 並將共視關鍵幀根據觀察到的地圖點數量重新排序
-        //     mit->first->EraseConnection(this);
-        // }
-
+        
         for(MapPoint* mp : mvpMapPoints)
         {
             if(mp)
@@ -765,16 +629,6 @@ namespace ORB_SLAM2
                 mp->EraseObservation(this);
             }
         }
-
-        // for (size_t i = 0; i < mvpMapPoints.size(); i++)
-        // {
-        //     if (mvpMapPoints[i])
-        //     {
-        //         // 移除『關鍵幀 pKF』，更新關鍵幀的計數，若『觀察到這個地圖點的關鍵幀』太少（少於 3 個），
-        //         // 則將地圖點與關鍵幀等全部移除
-        //         mvpMapPoints[i]->EraseObservation(this);
-        //     }
-        // }
 
         {
             unique_lock<mutex> lock(mMutexConnections);
@@ -839,48 +693,6 @@ namespace ORB_SLAM2
                     }
                 }
 
-                // set<KeyFrame *>::iterator sit = mspChildrens.begin();
-                // set<KeyFrame *>::iterator send = mspChildrens.end();
-                // // 從『子關鍵幀』當中挑選和『父關鍵幀』有高度共視關係的關鍵幀，提昇其層級到『父關鍵幀-候選』
-                // for (; sit != send; sit++)
-                // {
-                //     KeyFrame *pKF = *sit;
-                //     if (pKF->isBad())
-                //     {
-                //         continue;
-                //     }
-                //     // Check if a parent candidate is connected to the keyframe
-                //     // 根據和『子關鍵幀 pKF』共同觀察到的地圖點數量排序的共視關鍵幀
-                //     vector<KeyFrame *> vpConnected = pKF->GetVectorCovisibleKeyFrames();
-                //     // 遍歷『子關鍵幀 pKF』的共視關鍵幀
-                //     for (size_t i = 0, iend = vpConnected.size(); i < iend; i++)
-                //     {
-                //         set<KeyFrame *>::iterator spcit = sParentCandidates.begin();
-                //         set<KeyFrame *>::iterator spcend = sParentCandidates.end();
-                //         // 遍歷已加入 sParentCandidates 的關鍵幀
-                //         for (; spcit != spcend; spcit++)
-                //         {
-                //             // 『子關鍵幀 pKF』的共視關鍵幀 ＝＝ sParentCandidates 的關鍵幀
-                //             // 此種情況可能多次發生，
-                //             // 而共同觀察到的地圖點數量最多的才會被設為『子關鍵幀 pKF』的『父關鍵幀』
-                //             if (vpConnected[i]->mnId == (*spcit)->mnId)
-                //             {
-                //                 // 取得『子關鍵幀 pKF』和『關鍵幀 vpConnected[i]』共同觀察到的地圖點數量
-                //                 int w = pKF->GetWeight(vpConnected[i]);
-                //                 // 過濾最大值
-                //                 if (w > max)
-                //                 {
-                //                     pC = pKF;
-                //                     pP = vpConnected[i];
-                //                     // 最大的共同觀察到的地圖點數量
-                //                     max = w;
-                //                     bContinue = true;
-                //                 }
-                //             }
-                //         }
-                //     }
-                // }
-
                 if (bContinue)
                 {
                     // pC：『子關鍵幀 pKF』; pP：共同觀察到的地圖點數量最多的『子關鍵幀 pKF』的共視關鍵幀
@@ -909,15 +721,7 @@ namespace ORB_SLAM2
                     // 由於當前幀表現不佳，即將被移除，因此提昇『子關鍵幀』的層級，
                     // 將當前幀的『子關鍵幀』的『父關鍵幀』設為自己的『父關鍵幀』
                     child_kf->ChangeParent(mpParent);
-                }
-
-                // set<KeyFrame *>::iterator sit;
-                // for (sit = mspChildrens.begin(); sit != mspChildrens.end(); sit++)
-                // {
-                //     // 由於當前幀表現不佳，即將被移除，因此提昇『子關鍵幀』的層級，
-                //     // 將當前幀的『子關鍵幀』的『父關鍵幀』設為自己的『父關鍵幀』
-                //     (*sit)->ChangeParent(mpParent);
-                // }
+                }                
             }
 
             // 將自己從『父關鍵幀』的『子關鍵幀』當中除名
@@ -1091,21 +895,7 @@ namespace ORB_SLAM2
                 vDepths.push_back(z);
             }
         }
-
-        // for (int i = 0; i < N; i++)
-        // {
-        //     if (mvpMapPoints[i])
-        //     {
-        //         MapPoint *pMP = mvpMapPoints[i];
-        //         // 取出地圖點的位置
-        //         cv::Mat x3Dw = pMP->GetWorldPos();
-        //         // 將地圖點轉換到當前幀的座標系之下
-        //         float z = Rcw2.dot(x3Dw) + zcw;
-        //         // 取得當前幀的座標系之下，地圖點的深度
-        //         vDepths.push_back(z);
-        //     }
-        // }
-
+        
         sort(vDepths.begin(), vDepths.end());
 
         // 取出地圖點深度的中位數（當 q = 2）

@@ -511,18 +511,11 @@ namespace ORB_SLAM2
             // 灰階質心法，計算區塊 image 的角度
             keypoint.angle = IC_Angle(image, keypoint.pt, umax);
         }
-
-        // vector<KeyPoint>::iterator keypoint = keypoints.begin();
-        // vector<KeyPoint>::iterator keypointEnd = keypoints.end();
-        // for (; keypoint != keypointEnd; ++keypoint)
-        // {
-        //     // 灰階質心法，計算區塊 image 的角度
-        //     keypoint->angle = IC_Angle(image, keypoint->pt, umax);
-        // }
     }
 
     // 將 ExtractorNode 化分成田字型的 4 塊 ExtractorNode
-    void ExtractorNode::DivideNode(ExtractorNode &n1, ExtractorNode &n2, ExtractorNode &n3, ExtractorNode &n4)
+    void ExtractorNode::DivideNode(ExtractorNode &n1, ExtractorNode &n2, ExtractorNode &n3, 
+                                   ExtractorNode &n4)
     {
         const int halfX = ceil(static_cast<float>(UR.x - UL.x) / 2);
         const int halfY = ceil(static_cast<float>(BR.y - UL.y) / 2);
@@ -571,26 +564,6 @@ namespace ORB_SLAM2
                 n4.vKeys.push_back(kp);
             }
         }
-
-        // for (size_t i = 0; i < vKeys.size(); i++)
-        // {
-        //     const cv::KeyPoint &kp = vKeys[i];
-        //     if (kp.pt.x < n1.UR.x)
-        //     {
-        //         if (kp.pt.y < n1.BR.y){
-        //             n1.vKeys.push_back(kp);
-        //         }
-        //         else{
-        //             n3.vKeys.push_back(kp);
-        //         }
-        //     }
-        //     else if (kp.pt.y < n1.BR.y){
-        //         n2.vKeys.push_back(kp);
-        //     }
-        //     else{
-        //         n4.vKeys.push_back(kp);
-        //     }
-        // }
 
         if (n1.vKeys.size() == 1){
             n1.bNoMore = true;
@@ -646,15 +619,7 @@ namespace ORB_SLAM2
             // 根據特徵點所屬區域，計算索引值，將特徵點加入該 ExtractorNode 當中
             vpIniNodes[kp.pt.x / hX]->vKeys.push_back(kp);
         }
-
-        // for (size_t i = 0; i < vToDistributeKeys.size(); i++)
-        // {
-        //     // 取出特徵點
-        //     const cv::KeyPoint &kp = vToDistributeKeys[i];
-        //     // 根據特徵點所屬區域，計算索引值，將特徵點加入該 ExtractorNode 當中
-        //     vpIniNodes[kp.pt.x / hX]->vKeys.push_back(kp);
-        // }
-
+        
         list<ExtractorNode>::iterator lit = lNodes.begin();
 
         // 移除沒有特徵點的 ExtractorNode
@@ -708,61 +673,61 @@ namespace ORB_SLAM2
                     ExtractorNode n1, n2, n3, n4;
                     lit->DivideNode(n1, n2, n3, n4);
 
+                    // ExtractorNode &node
+                    // list<ExtractorNode> &list_node
+                    // int nToExpand
+                    // vector<pair<int, ExtractorNode *>> &size_node_list
+
                     // Add childs if they contain points
-                    if (n1.vKeys.size() > 0)
-                    {
-                        lNodes.push_front(n1);
-
-                        if (n1.vKeys.size() > 1)
-                        {
-                            nToExpand++;
-                            vSizeAndPointerToNode.push_back(
-                                make_pair(n1.vKeys.size(), &lNodes.front()));
-
-                            lNodes.front().lit = lNodes.begin();
-                        }
-                    }
-
-                    if (n2.vKeys.size() > 0)
-                    {
-                        lNodes.push_front(n2);
-
-                        if (n2.vKeys.size() > 1)
-                        {
-                            nToExpand++;
-                            vSizeAndPointerToNode.push_back(
-                                make_pair(n2.vKeys.size(), &lNodes.front()));
-                            lNodes.front().lit = lNodes.begin();
-                        }
-                    }
-
-                    if (n3.vKeys.size() > 0)
-                    {
-                        lNodes.push_front(n3);
-
-                        if (n3.vKeys.size() > 1)
-                        {
-                            nToExpand++;
-                            vSizeAndPointerToNode.push_back(
-                                make_pair(n3.vKeys.size(), &lNodes.front()));
-
-                            lNodes.front().lit = lNodes.begin();
-                        }
-                    }
-
-                    if (n4.vKeys.size() > 0)
-                    {
-                        lNodes.push_front(n4);
-
-                        if (n4.vKeys.size() > 1)
-                        {
-                            nToExpand++;
-                            vSizeAndPointerToNode.push_back(
-                                make_pair(n4.vKeys.size(), &lNodes.front()));
-
-                            lNodes.front().lit = lNodes.begin();
-                        }
-                    }
+                    nToExpand = addContainPoints(n1, lNodes, nToExpand, vSizeAndPointerToNode);
+                    nToExpand = addContainPoints(n2, lNodes, nToExpand, vSizeAndPointerToNode);
+                    nToExpand = addContainPoints(n3, lNodes, nToExpand, vSizeAndPointerToNode);
+                    nToExpand = addContainPoints(n4, lNodes, nToExpand, vSizeAndPointerToNode);
+                    
+                    // if (n1.vKeys.size() > 0)
+                    // {
+                    //     lNodes.push_front(n1);
+                    //     if (n1.vKeys.size() > 1)
+                    //     {
+                    //         nToExpand++;
+                    //         vSizeAndPointerToNode.push_back(
+                    //             make_pair(n1.vKeys.size(), &lNodes.front()));
+                    //         lNodes.front().lit = lNodes.begin();
+                    //     }
+                    // }
+                    // if (n2.vKeys.size() > 0)
+                    // {
+                    //     lNodes.push_front(n2);
+                    //     if (n2.vKeys.size() > 1)
+                    //     {
+                    //         nToExpand++;
+                    //         vSizeAndPointerToNode.push_back(
+                    //             make_pair(n2.vKeys.size(), &lNodes.front()));
+                    //         lNodes.front().lit = lNodes.begin();
+                    //     }
+                    // }
+                    // if (n3.vKeys.size() > 0)
+                    // {
+                    //     lNodes.push_front(n3);
+                    //     if (n3.vKeys.size() > 1)
+                    //     {
+                    //         nToExpand++;
+                    //         vSizeAndPointerToNode.push_back(
+                    //             make_pair(n3.vKeys.size(), &lNodes.front()));
+                    //         lNodes.front().lit = lNodes.begin();
+                    //     }
+                    // }
+                    // if (n4.vKeys.size() > 0)
+                    // {
+                    //     lNodes.push_front(n4);
+                    //     if (n4.vKeys.size() > 1)
+                    //     {
+                    //         nToExpand++;
+                    //         vSizeAndPointerToNode.push_back(
+                    //             make_pair(n4.vKeys.size(), &lNodes.front()));
+                    //         lNodes.front().lit = lNodes.begin();
+                    //     }
+                    // }
 
                     lit = lNodes.erase(lit);
                     continue;
@@ -795,49 +760,51 @@ namespace ORB_SLAM2
                         vPrevSizeAndPointerToNode[j].second->DivideNode(n1, n2, n3, n4);
 
                         // Add childs if they contain points
-                        if (n1.vKeys.size() > 0)
-                        {
-                            lNodes.push_front(n1);
-                            if (n1.vKeys.size() > 1)
-                            {
-                                vSizeAndPointerToNode.push_back(
-                                    make_pair(n1.vKeys.size(), &lNodes.front()));
-                                lNodes.front().lit = lNodes.begin();
-                            }
-                        }
-
-                        if (n2.vKeys.size() > 0)
-                        {
-                            lNodes.push_front(n2);
-                            if (n2.vKeys.size() > 1)
-                            {
-                                vSizeAndPointerToNode.push_back(
-                                    make_pair(n2.vKeys.size(), &lNodes.front()));
-                                lNodes.front().lit = lNodes.begin();
-                            }
-                        }
-
-                        if (n3.vKeys.size() > 0)
-                        {
-                            lNodes.push_front(n3);
-                            if (n3.vKeys.size() > 1)
-                            {
-                                vSizeAndPointerToNode.push_back(
-                                    make_pair(n3.vKeys.size(), &lNodes.front()));
-                                lNodes.front().lit = lNodes.begin();
-                            }
-                        }
-
-                        if (n4.vKeys.size() > 0)
-                        {
-                            lNodes.push_front(n4);
-                            if (n4.vKeys.size() > 1)
-                            {
-                                vSizeAndPointerToNode.push_back(
-                                    make_pair(n4.vKeys.size(), &lNodes.front()));
-                                lNodes.front().lit = lNodes.begin();
-                            }
-                        }
+                        addContainPoints(n1, lNodes, 0, vSizeAndPointerToNode);
+                        addContainPoints(n2, lNodes, 0, vSizeAndPointerToNode);
+                        addContainPoints(n3, lNodes, 0, vSizeAndPointerToNode);
+                        addContainPoints(n4, lNodes, 0, vSizeAndPointerToNode);
+                        
+                        // if (n1.vKeys.size() > 0)
+                        // {
+                        //     lNodes.push_front(n1);
+                        //     if (n1.vKeys.size() > 1)
+                        //     {
+                        //         vSizeAndPointerToNode.push_back(
+                        //             make_pair(n1.vKeys.size(), &lNodes.front()));
+                        //         lNodes.front().lit = lNodes.begin();
+                        //     }
+                        // }
+                        // if (n2.vKeys.size() > 0)
+                        // {
+                        //     lNodes.push_front(n2);
+                        //     if (n2.vKeys.size() > 1)
+                        //     {
+                        //         vSizeAndPointerToNode.push_back(
+                        //             make_pair(n2.vKeys.size(), &lNodes.front()));
+                        //         lNodes.front().lit = lNodes.begin();
+                        //     }
+                        // }
+                        // if (n3.vKeys.size() > 0)
+                        // {
+                        //     lNodes.push_front(n3);
+                        //     if (n3.vKeys.size() > 1)
+                        //     {
+                        //         vSizeAndPointerToNode.push_back(
+                        //             make_pair(n3.vKeys.size(), &lNodes.front()));
+                        //         lNodes.front().lit = lNodes.begin();
+                        //     }
+                        // }
+                        // if (n4.vKeys.size() > 0)
+                        // {
+                        //     lNodes.push_front(n4);
+                        //     if (n4.vKeys.size() > 1)
+                        //     {
+                        //         vSizeAndPointerToNode.push_back(
+                        //             make_pair(n4.vKeys.size(), &lNodes.front()));
+                        //         lNodes.front().lit = lNodes.begin();
+                        //     }
+                        // }
 
                         lNodes.erase(vPrevSizeAndPointerToNode[j].second->lit);
 
@@ -875,19 +842,33 @@ namespace ORB_SLAM2
                 }
             }
 
-            // for (size_t k = 1; k < vNodeKeys.size(); k++)
-            // {
-            //     if (vNodeKeys[k].response > maxResponse)
-            //     {
-            //         pKP = &vNodeKeys[k];
-            //         maxResponse = vNodeKeys[k].response;
-            //     }
-            // }
-
             vResultKeys.push_back(*pKP);
         }
 
         return vResultKeys;
+    }
+    
+    int ORBextractor::addContainPoints(ExtractorNode &node, std::list<ExtractorNode> &list_node, 
+                                       int n_to_expand, 
+                                       std::vector<std::pair<int, ExtractorNode *>> &size_node_list)
+    {
+        // ExtractorNode &node
+        // list<ExtractorNode> &list_node
+        // int nToExpand
+        // vector<pair<int, ExtractorNode *>> &size_node_list
+
+        if (node.vKeys.size() > 0)
+        {
+            list_node.push_front(node);
+
+            if (node.vKeys.size() > 1)
+            {
+                size_node_list.push_back(make_pair(node.vKeys.size(), &list_node.front()));
+                list_node.front().lit = list_node.begin();
+            }
+        }
+
+        return n_to_expand;
     }
 
     // 計算影像金字塔各層級的 ORB 特徵點(包含位置與角度，角度資訊儲存於 KeyPoint 當中)
@@ -969,16 +950,6 @@ namespace ORB_SLAM2
 
                             vToDistributeKeys.push_back(keypoint);
                         }
-
-                        // vector<cv::KeyPoint>::iterator vit = vKeysCell.begin();
-
-                        // for (; vit != vKeysCell.end(); vit++)
-                        // {
-                        //     // 將特徵點的位置，校正為各層級圖中的位置
-                        //     (*vit).pt.x += j * wCell;
-                        //     (*vit).pt.y += i * hCell;
-                        //     vToDistributeKeys.push_back(*vit);
-                        // }
                     }
                 }
             }

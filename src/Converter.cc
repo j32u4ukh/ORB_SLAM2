@@ -90,6 +90,7 @@ namespace ORB_SLAM2
         Eigen::Matrix3d eigR = Sim3.rotation().toRotationMatrix();
         Eigen::Vector3d eigt = Sim3.translation();
         double s = Sim3.scale();
+
         return toCvSE3(s * eigR, eigt);
     }
 
@@ -235,8 +236,8 @@ namespace ORB_SLAM2
         Eigen::Matrix<double, 3, 3> M;
 
         M << cvMat3.at<float>(0, 0), cvMat3.at<float>(0, 1), cvMat3.at<float>(0, 2),
-            cvMat3.at<float>(1, 0), cvMat3.at<float>(1, 1), cvMat3.at<float>(1, 2),
-            cvMat3.at<float>(2, 0), cvMat3.at<float>(2, 1), cvMat3.at<float>(2, 2);
+             cvMat3.at<float>(1, 0), cvMat3.at<float>(1, 1), cvMat3.at<float>(1, 2),
+             cvMat3.at<float>(2, 0), cvMat3.at<float>(2, 1), cvMat3.at<float>(2, 2);
 
         return M;
     }

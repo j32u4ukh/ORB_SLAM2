@@ -92,6 +92,13 @@ public:
 
     std::vector<cv::Mat> mvImagePyramid;
 
+    // ExtractorNode &node
+    // list<ExtractorNode> &list_node
+    // int nToExpand
+    // vector<pair<int, ExtractorNode *>> &size_node_list
+    int addContainPoints(ExtractorNode &node, std::list<ExtractorNode> &list_node, int n_to_expand, 
+                         std::vector<std::pair<int, ExtractorNode *>> &size_node_list);
+
 protected:
 
     void ComputePyramid(cv::Mat image);

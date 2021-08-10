@@ -33,6 +33,14 @@ using namespace std;
 void LoadImages(const string &strSequence, vector<string> &vstrImageFilenames,
                 vector<double> &vTimestamps);
 
+// ==================================================
+// 以上為管理執行續相關函式
+// ==================================================
+
+// ==================================================
+// 以下為非單目相關函式
+// ==================================================
+
 int main(int argc, char **argv)
 {
     if (argc != 4)
