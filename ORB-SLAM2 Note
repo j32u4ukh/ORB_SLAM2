@@ -39,8 +39,9 @@ mean tracking time: 0.0836848
 median tracking time: 0.0859725
 mean tracking time: 0.0943997
 
-median tracking time: 0.0724718
-mean tracking time: 0.0786032
+median tracking time: 0.103826
+mean tracking time: 0.111073
+
 
 
 DBoW2::FeatureVector kf_feature_vector = vFeatVecKF;
@@ -75,19 +76,35 @@ for (auto feature_vector : boost::combine(kf_feature_vector, f_feature_vector)) 
 
 [Optimizer]
 g2o::SparseOptimizer optimizer;
-g2o::BlockSolver_6_3::LinearSolverType *linearSolver;
-linearSolver = new g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType>();
+g2o::BlockSolver_6_3::LinearSolverType *linearSolver = new g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType>();
 g2o::BlockSolver_6_3 *solver_ptr = new g2o::BlockSolver_6_3(linearSolver);
 g2o::OptimizationAlgorithmLevenberg *solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
 optimizer.setAlgorithm(solver);
 
 
 g2o::SparseOptimizer optimizer;
-g2o::BlockSolver_6_3::LinearSolverType *linearSolver;
-linearSolver = new g2o::LinearSolverDense<g2o::BlockSolver_6_3::PoseMatrixType>();
-g2o::BlockSolver_6_3 *solver_ptr = new g2o::BlockSolver_6_3(linearSolver);
+optimizer.setVerbose(false);
+g2o::BlockSolver_7_3::LinearSolverType *linearSolver = new g2o::LinearSolverEigen<g2o::BlockSolver_7_3::PoseMatrixType>();
+g2o::BlockSolver_7_3 *solver_ptr = new g2o::BlockSolver_7_3(linearSolver);
+g2o::OptimizationAlgorithmLevenberg *solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
+solver->setUserLambdaInit(1e-16);
+optimizer.setAlgorithm(solver);
+
+
+g2o::SparseOptimizer optimizer;
+g2o::BlockSolverX::LinearSolverType *linearSolver = new g2o::LinearSolverDense<g2o::BlockSolverX::PoseMatrixType>();
+g2o::BlockSolverX *solver_ptr = new g2o::BlockSolverX(linearSolver);
 g2o::OptimizationAlgorithmLevenberg *solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
 optimizer.setAlgorithm(solver);
+
+
+[Vertex]
+g2o::EdgeSim3ProjectXYZ *e12 = new g2o::EdgeSim3ProjectXYZ();
+e12->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(id2)));
+e12->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(0)));
+e12->setMeasurement(obs1);
+
+
 
 
 

@@ -309,7 +309,7 @@ namespace ORB_SLAM2
         unique_lock<mutex> lock2(mMutexPos);
         return mbBad;
     }
-
+    
     // 增加對『能夠看到地圖點的關鍵幀數量』的估計
     void MapPoint::IncreaseVisible(int n)
     {

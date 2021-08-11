@@ -28,6 +28,16 @@ namespace ORB_SLAM2
 
     long unsigned int KeyFrame::nNextId = 0;
 
+    // ==================================================
+
+    // ==================================================
+    // 以上為管理執行續相關函式
+    // ==================================================
+
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
+
     KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB) : 
                        mnFrameId(F.mnId), mTimeStamp(F.mTimeStamp), mnGridCols(FRAME_GRID_COLS), 
                        mnGridRows(FRAME_GRID_ROWS), mfGridElementWidthInv(F.mfGridElementWidthInv), 
@@ -229,16 +239,21 @@ namespace ORB_SLAM2
     {
         unique_lock<mutex> lock(mMutexConnections);
 
-        if ((int)mvpOrderedConnectedKeyFrames.size() < N)
-        {
-            // 根據觀察到的地圖點數量由大到小排序的共視關鍵幀
-            return mvpOrderedConnectedKeyFrames;
-        }
-        else
-        {
-            return vector<KeyFrame *>(mvpOrderedConnectedKeyFrames.begin(), 
-                                      mvpOrderedConnectedKeyFrames.begin() + N);
-        }
+        int size = min((int)mvpOrderedConnectedKeyFrames.size(), N);
+
+        // 根據觀察到的地圖點數量由大到小排序的共視關鍵幀
+        return vector<KeyFrame *>(mvpOrderedConnectedKeyFrames.begin(), 
+                                  mvpOrderedConnectedKeyFrames.begin() + size);
+
+        // if ((int)mvpOrderedConnectedKeyFrames.size() < N)
+        // {
+        //     return mvpOrderedConnectedKeyFrames;
+        // }
+        // else
+        // {
+        //     return vector<KeyFrame *>(mvpOrderedConnectedKeyFrames.begin(), 
+        //                               mvpOrderedConnectedKeyFrames.begin() + N);
+        // }
     }
 
     // 取得『關鍵幀』的『已連結關鍵幀（根據觀察到的地圖點數量由大到小排序，且觀察到的地圖點數量「大於」 w）』
@@ -364,7 +379,8 @@ namespace ORB_SLAM2
                     if (bCheckObs)
                     {
                         // 這個地圖點被足過多的關鍵幀觀察到
-                        if (pMP->Observations() >= minObs){
+                        if (pMP->Observations() >= minObs)
+                        {
                             nPoints++;
                         }
                     }
@@ -762,11 +778,13 @@ namespace ORB_SLAM2
             {
                 // 從『關鍵幀』與『觀察到的地圖點個數』之對應關係移除『關鍵幀 pKF』
                 mConnectedKeyFrameWeights.erase(pKF);
+
                 bUpdate = true;
             }
         }
 
-        if (bUpdate){
+        if (bUpdate)
+        {
             // 將共視關鍵幀根據觀察到的地圖點數量排序，再存入 mvpOrderedConnectedKeyFrames
             UpdateBestCovisibles();
         }
@@ -804,14 +822,17 @@ namespace ORB_SLAM2
             return vIndices;
         }
 
-        for (int ix = nMinCellX; ix <= nMaxCellX; ix++)
+        int ix, iy;
+        size_t j, jend;
+
+        for (ix = nMinCellX; ix <= nMaxCellX; ix++)
         {
-            for (int iy = nMinCellY; iy <= nMaxCellY; iy++)
+            for (iy = nMinCellY; iy <= nMaxCellY; iy++)
             {
                 // 取得網格 mGrid[ix][iy] 所包含的關鍵點的索引值
                 const vector<size_t> vCell = mGrid[ix][iy];
 
-                for (size_t j = 0, jend = vCell.size(); j < jend; j++)
+                for (j = 0, jend = vCell.size(); j < jend; j++)
                 {
                     // vCell[j]：關鍵點的索引值
                     const cv::KeyPoint &kpUn = mvKeysUn[vCell[j]];
@@ -848,12 +869,15 @@ namespace ORB_SLAM2
             const float v = mvKeys[i].pt.y;
             const float x = (u - cx) * z * invfx;
             const float y = (v - cy) * z * invfy;
+
             cv::Mat x3Dc = (cv::Mat_<float>(3, 1) << x, y, z);
 
             unique_lock<mutex> lock(mMutexPose);
+
             return Twc.rowRange(0, 3).colRange(0, 3) * x3Dc + Twc.rowRange(0, 3).col(3);
         }
-        else{
+        else
+        {
             return cv::Mat();
         }
     }
@@ -883,8 +907,8 @@ namespace ORB_SLAM2
         // 計算當前幀的平移
         float zcw = Tcw_.at<float>(2, 3);
 
-        for(MapPoint *pMP : mvpMapPoints){
-
+        for(MapPoint *pMP : mvpMapPoints)
+        {
             if (pMP)
             {
                 // 取出地圖點的位置
