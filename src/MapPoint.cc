@@ -29,6 +29,14 @@ namespace ORB_SLAM2
     long unsigned int MapPoint::nNextId = 0;
     mutex MapPoint::mGlobalMutex;
 
+    // ==================================================
+    // 以上為管理執行續相關函式
+    // ==================================================
+
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
+
     MapPoint::MapPoint(const cv::Mat &Pos, KeyFrame *pRefKF, Map *pMap) : 
                        mnFirstKFid(pRefKF->mnId), mnFirstFrame(pRefKF->mnFrameId), nObs(0), 
                        mnTrackReferenceForFrame(0), mnLastFrameSeen(0), mnBALocalForKF(0), 
@@ -45,10 +53,13 @@ namespace ORB_SLAM2
         mnId = nNextId++;
     }
 
-    MapPoint::MapPoint(const cv::Mat &Pos, Map *pMap, Frame *pFrame, const int &idxF) : mnFirstKFid(-1), mnFirstFrame(pFrame->mnId), nObs(0), mnTrackReferenceForFrame(0), mnLastFrameSeen(0),
-                                                                                        mnBALocalForKF(0), mnFuseCandidateForKF(0), mnLoopPointForKF(0), mnCorrectedByKF(0),
-                                                                                        mnCorrectedReference(0), mnBAGlobalForKF(0), mpRefKF(static_cast<KeyFrame *>(NULL)), mnVisible(1),
-                                                                                        mnFound(1), mbBad(false), mpReplaced(NULL), mpMap(pMap)
+    MapPoint::MapPoint(const cv::Mat &Pos, Map *pMap, Frame *pFrame, const int &idxF) : 
+                       mnFirstKFid(-1), mnFirstFrame(pFrame->mnId), nObs(0), 
+                       mnTrackReferenceForFrame(0), mnLastFrameSeen(0), mnBALocalForKF(0), 
+                       mnFuseCandidateForKF(0), mnLoopPointForKF(0), mnCorrectedByKF(0), 
+                       mnCorrectedReference(0), mnBAGlobalForKF(0), 
+                       mpRefKF(static_cast<KeyFrame *>(NULL)), mnVisible(1), mnFound(1), mbBad(false), 
+                       mpReplaced(NULL), mpMap(pMap)
     {
         Pos.copyTo(mWorldPos);
         cv::Mat Ow = pFrame->GetCameraCenter();
@@ -150,14 +161,16 @@ namespace ORB_SLAM2
                 mObservations.erase(pKF);
 
                 // 若為當前地圖點的參考關鍵幀
-                if (mpRefKF == pKF){
+                if (mpRefKF == pKF)
+                {
                     // 以更新後的 mObservations 的第一個關鍵幀作為參考關鍵幀
                     mpRefKF = mObservations.begin()->first;
                 }
 
                 // If only 2 observations or less, discard point
                 // 若觀察到這個地圖點的關鍵幀太少（少於 3 個）
-                if (nObs <= 2){
+                if (nObs <= 2)
+                {
                     bBad = true;
                 }
             }
@@ -204,10 +217,9 @@ namespace ORB_SLAM2
             /// TODO: nObs = 0
         }
 
-        map<KeyFrame *, size_t>::iterator mit = obs.begin();
-        map<KeyFrame *, size_t>::iterator mend = obs.end();
+        map<KeyFrame *, size_t>::iterator mit, mend = obs.end();
 
-        for (; mit != mend; mit++)
+        for (mit = obs.begin(); mit != mend; mit++)
         {
             KeyFrame *pKF = mit->first;
 
@@ -236,8 +248,8 @@ namespace ORB_SLAM2
         }
 
         int nvisible, nfound;
-
         map<KeyFrame *, size_t> obs;
+
         {
             unique_lock<mutex> lock1(mMutexFeatures);
             unique_lock<mutex> lock2(mMutexPos);
@@ -277,27 +289,6 @@ namespace ORB_SLAM2
             }
         }
 
-        // map<KeyFrame *, size_t>::iterator mit = obs.begin();
-        // map<KeyFrame *, size_t>::iterator mend = obs.end();
-        // for (; mit != mend; mit++)
-        // {
-        //     // Replace measurement in keyframe
-        //     KeyFrame *pKF = mit->first;
-        //     // 檢查是否還沒被添加過『關鍵幀 pKF』到當前地圖中
-        //     if (!pMP->IsInKeyFrame(pKF))
-        //     {
-        //         // 關鍵幀的第 idx 個關鍵幀觀察到的地圖點汰換成『地圖點 pMP』
-        //         pKF->ReplaceMapPointMatch(mit->second, pMP);
-        //         // 『地圖點 pMP』被『關鍵幀 pKF』的第 (mit->second) 個關鍵點觀察到
-        //         pMP->AddObservation(pKF, mit->second);
-        //     }
-        //     else
-        //     {
-        //         // 『關鍵幀 pKF』第 (mit->second) 個關鍵點觀察到的『地圖點 pMP』，設為 NULL
-        //         pKF->EraseMapPointMatch(mit->second);
-        //     }
-        // }
-
         // 增加實際觀測到地圖點的關鍵幀數量
         pMP->IncreaseFound(nfound);
 
@@ -311,7 +302,7 @@ namespace ORB_SLAM2
         mpMap->EraseMapPoint(this);
     }
 
-    // 若觀察到這個地圖點的關鍵幀太少，移除當前地圖點
+    // 若觀察到這個地圖點的關鍵幀太少，移除當前地圖點(若可以就直接將不好的點排除，不要一直判斷它好不好)
     bool MapPoint::isBad()
     {
         unique_lock<mutex> lock(mMutexFeatures);
@@ -358,14 +349,16 @@ namespace ORB_SLAM2
         {
             unique_lock<mutex> lock1(mMutexFeatures);
 
-            if (mbBad){
+            if (mbBad)
+            {
                 return;
             }
 
             observations = mObservations;
         }
 
-        if (observations.empty()){
+        if (observations.empty())
+        {
             return;
         }
 
@@ -382,18 +375,6 @@ namespace ORB_SLAM2
                 vDescriptors.push_back(pKF->mDescriptors.row(obs.second));
             }
         }
-
-        // map<KeyFrame *, size_t>::iterator mit = observations.begin();
-        // map<KeyFrame *, size_t>::iterator mend = observations.end();
-        // for (; mit != mend; mit++)
-        // {
-        //     KeyFrame *pKF = mit->first;
-        //     if (!pKF->isBad()){
-        //         // 這個地圖點是被關鍵幀 pKF 的第 mit->second 個關鍵點觀察到，
-        //         // 因此取出第 mit->second 個關鍵點的描述子
-        //         vDescriptors.push_back(pKF->mDescriptors.row(mit->second));
-        //     }
-        // }
 
         if (vDescriptors.empty()){
             return;
@@ -462,11 +443,13 @@ namespace ORB_SLAM2
     {
         unique_lock<mutex> lock(mMutexFeatures);
 
-        if (mObservations.count(pKF)){
+        if (mObservations.count(pKF))
+        {
             // 『關鍵幀 pKF』的第幾個『關鍵點』觀察到這個地圖點的
             return mObservations[pKF];
         }
-        else{
+        else
+        {
             return -1;
         }
     }
@@ -491,7 +474,8 @@ namespace ORB_SLAM2
             unique_lock<mutex> lock1(mMutexFeatures);
             unique_lock<mutex> lock2(mMutexPos);
 
-            if (mbBad){
+            if (mbBad)
+            {
                 return;
             }
 
@@ -509,8 +493,8 @@ namespace ORB_SLAM2
 
         int n = 0;
 
-        for(pair<KeyFrame *, size_t> obs : observations){
-
+        for(pair<KeyFrame *, size_t> obs : observations)
+        {
             KeyFrame *pKF = obs.first;
             cv::Mat Owi = pKF->GetCameraCenter();
 
@@ -523,19 +507,6 @@ namespace ORB_SLAM2
             n++;
         }
         
-        // map<KeyFrame *, size_t>::iterator mit = observations.begin();
-        // map<KeyFrame *, size_t>::iterator mend = observations.end();
-        // for (; mit != mend; mit++)
-        // {
-        //     KeyFrame *pKF = mit->first;
-        //     cv::Mat Owi = pKF->GetCameraCenter();
-        //     // 相機中心 指向 地圖點 的向量
-        //     cv::Mat normali = mWorldPos - Owi;
-        //     // normal 為正歸化後的 normali 的累加
-        //     normal = normal + normali / cv::norm(normali);
-        //     n++;
-        // }
-
         // 相機中心 指向 地圖點 的向量
         cv::Mat PC = Pos - pRefKF->GetCameraCenter();
 
@@ -573,45 +544,66 @@ namespace ORB_SLAM2
     // 『關鍵幀 pKF』根據當前『地圖點 pMP』的深度，估計場景規模
     int MapPoint::PredictScale(const float &currentDist, KeyFrame *pKF)
     {
-        float ratio;
+        return predictScale(currentDist, pKF->mfLogScaleFactor, pKF->mnScaleLevels);
 
-        {
-            unique_lock<mutex> lock(mMutexPos);
-            ratio = mfMaxDistance / currentDist;
-        }
-
-        int nScale = ceil(log(ratio) / pKF->mfLogScaleFactor);
-
-        if (nScale < 0){
-            nScale = 0;
-        }
-        else if (nScale >= pKF->mnScaleLevels){
-            nScale = pKF->mnScaleLevels - 1;
-        }
-
-        return nScale;
+        // float ratio;
+        // {
+        //     unique_lock<mutex> lock(mMutexPos);
+        //     ratio = mfMaxDistance / currentDist;
+        // }
+        // int nScale = ceil(log(ratio) / pKF->mfLogScaleFactor);
+        // if (nScale < 0)
+        // {
+        //     nScale = 0;
+        // }
+        // else if (nScale >= pKF->mnScaleLevels){
+        //     nScale = pKF->mnScaleLevels - 1;
+        // }
+        // return nScale;
     }
 
     // 根據當前距離與最遠可能距離，換算出當前尺度
     int MapPoint::PredictScale(const float &currentDist, Frame *pF)
     {
+        return predictScale(currentDist, pF->mfLogScaleFactor, pF->mnScaleLevels);
+
+        // float ratio;
+        // {
+        //     unique_lock<mutex> lock(mMutexPos);
+        //     ratio = mfMaxDistance / currentDist;
+        // }
+        // int nScale = ceil(log(ratio) / pF->mfLogScaleFactor);
+        // if (nScale < 0)
+        // {
+        //     nScale = 0;
+        // }
+        // else if (nScale >= pF->mnScaleLevels){
+        //     nScale = pF->mnScaleLevels - 1;
+        // }
+        // return nScale;
+    }
+
+    int MapPoint::predictScale(const float &distance, const float scale_factor, const int scale_level)
+    {
         float ratio;
 
         {
             unique_lock<mutex> lock(mMutexPos);
-            ratio = mfMaxDistance / currentDist;
+            ratio = mfMaxDistance / distance;
         }
 
-        int nScale = ceil(log(ratio) / pF->mfLogScaleFactor);
+        int scale = ceil(log(ratio) / scale_factor);
 
-        if (nScale < 0){
-            nScale = 0;
+        if (scale < 0)
+        {
+            scale = 0;
         }
-        else if (nScale >= pF->mnScaleLevels){
-            nScale = pF->mnScaleLevels - 1;
+        else if (scale >= scale_level)
+        {
+            scale = scale_level - 1;
         }
 
-        return nScale;
+        return scale;
     }
 
 } //namespace ORB_SLAM
