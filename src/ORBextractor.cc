@@ -426,33 +426,43 @@ namespace ORB_SLAM2
             -1, -6, 0, -11 /*mean (0.127148), correlation (0.547401)*/
     };
 
-    ORBextractor::ORBextractor(int _nfeatures, float _scaleFactor, int _nlevels,
-         int _iniThFAST, int _minThFAST):
-    nfeatures(_nfeatures), scaleFactor(_scaleFactor), nlevels(_nlevels),
-    iniThFAST(_iniThFAST), minThFAST(_minThFAST)
+    ORBextractor::ORBextractor(int _nfeatures, float _scaleFactor, int _nlevels, int _iniThFAST, 
+                               int _minThFAST): 
+                               nfeatures(_nfeatures), scaleFactor(_scaleFactor), nlevels(_nlevels), 
+                               iniThFAST(_iniThFAST), minThFAST(_minThFAST)
     {
         mvScaleFactor.resize(nlevels);
         mvLevelSigma2.resize(nlevels);
+
+        mvInvScaleFactor.resize(nlevels);
+        mvInvLevelSigma2.resize(nlevels);
+
         mvScaleFactor[0] = 1.0f;
         mvLevelSigma2[0] = 1.0f;
+
+        mvInvScaleFactor[0] = 1.0f;
+        mvInvLevelSigma2[0] = 1.0f;
 
         for (int i = 1; i < nlevels; i++)
         {
             // 影像金字塔各層的縮放尺度
             mvScaleFactor[i] = mvScaleFactor[i - 1] * scaleFactor;
 
+            // Inv版本 縮放尺度
+            mvInvScaleFactor[i] = 1.0f / mvScaleFactor[i];
+
             // 影像金字塔各層的變異數
             mvLevelSigma2[i] = mvScaleFactor[i] * mvScaleFactor[i];
-        }
 
-        mvInvScaleFactor.resize(nlevels);
-        mvInvLevelSigma2.resize(nlevels);
-
-        for (int i = 0; i < nlevels; i++)
-        {
-            mvInvScaleFactor[i] = 1.0f / mvScaleFactor[i];
+            // Inv版本 變異數
             mvInvLevelSigma2[i] = 1.0f / mvLevelSigma2[i];
         }
+
+        // for (int i = 0; i < nlevels; i++)
+        // {
+        //     mvInvScaleFactor[i] = 1.0f / mvScaleFactor[i];
+        //     mvInvLevelSigma2[i] = 1.0f / mvLevelSigma2[i];
+        // }
 
         mvImagePyramid.resize(nlevels);
 
@@ -462,16 +472,19 @@ namespace ORB_SLAM2
                                                     (1 - (float)pow((double)factor, (double)nlevels));
 
         int sumFeatures = 0;
+        int end_level = nlevels - 1;
 
-        for (int level = 0; level < nlevels - 1; level++)
+        // for (int level = 0; level < nlevels - 1; level++)
+        for (int level = 0; level < end_level; level++)
         {
             mnFeaturesPerLevel[level] = cvRound(nDesiredFeaturesPerScale);
             sumFeatures += mnFeaturesPerLevel[level];
             nDesiredFeaturesPerScale *= factor;
         }
 
-        mnFeaturesPerLevel[nlevels - 1] = std::max(nfeatures - sumFeatures, 0);
-
+        // mnFeaturesPerLevel[nlevels - 1] = std::max(nfeatures - sumFeatures, 0);
+        mnFeaturesPerLevel[end_level] = std::max(nfeatures - sumFeatures, 0);
+        
         const int npoints = 512;
         const Point *pattern0 = (const Point *)bit_pattern_31_;
 
@@ -486,19 +499,19 @@ namespace ORB_SLAM2
         int vmin = cvCeil(HALF_PATCH_SIZE * sqrt(2.f) / 2);
         const double hp2 = HALF_PATCH_SIZE * HALF_PATCH_SIZE;
 
-        for (v = 0; v <= vmax; ++v){
+        for (v = 0; v <= vmax; v++){
             umax[v] = cvRound(sqrt(hp2 - v * v));
         }
 
         // Make sure we are symmetric
-        for (v = HALF_PATCH_SIZE, v0 = 0; v >= vmin; --v)
+        for (v = HALF_PATCH_SIZE, v0 = 0; v >= vmin; v--)
         {
             while (umax[v0] == umax[v0 + 1]){
-                ++v0;
+                v0++;
             }
 
             umax[v] = v0;
-            ++v0;
+            v0++;
         }
     }
 
