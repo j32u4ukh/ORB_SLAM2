@@ -31,8 +31,19 @@
 
 namespace ORB_SLAM2
 {
+    // ==================================================
 
-    Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2, const vector<MapPoint *> &vpMatched12, const bool bFixScale) : mnIterations(0), mnBestInliers(0), mbFixScale(bFixScale)
+    // ==================================================
+    // 以上為管理執行續相關函式
+    // ==================================================
+
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
+
+    Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2, const vector<MapPoint *> &vpMatched12, 
+                           const bool bFixScale) : 
+                           mnIterations(0), mnBestInliers(0), mbFixScale(bFixScale)
     {
         mpKF1 = pKF1;
         mpKF2 = pKF2;
@@ -56,13 +67,16 @@ namespace ORB_SLAM2
         mvAllIndices.reserve(mN1);
 
         size_t idx = 0;
+        int i1, indexKF1, indexKF2;
+        MapPoint *pMP1, *pMP2;
+        cv::Mat X3D1w, X3D2w;
 
-        for (int i1 = 0; i1 < mN1; i1++)
+        for (i1 = 0; i1 < mN1; i1++)
         {
             if (vpMatched12[i1])
             {
-                MapPoint *pMP1 = vpKeyFrameMP1[i1];
-                MapPoint *pMP2 = vpMatched12[i1];
+                pMP1 = vpKeyFrameMP1[i1];
+                pMP2 = vpMatched12[i1];
 
                 if (!pMP1){
                     continue;
@@ -72,8 +86,8 @@ namespace ORB_SLAM2
                     continue;
                 }
 
-                int indexKF1 = pMP1->GetIndexInKeyFrame(pKF1);
-                int indexKF2 = pMP2->GetIndexInKeyFrame(pKF2);
+                indexKF1 = pMP1->GetIndexInKeyFrame(pKF1);
+                indexKF2 = pMP2->GetIndexInKeyFrame(pKF2);
 
                 if (indexKF1 < 0 || indexKF2 < 0){
                     continue;
@@ -92,10 +106,10 @@ namespace ORB_SLAM2
                 mvpMapPoints2.push_back(pMP2);
                 mvnIndices1.push_back(i1);
 
-                cv::Mat X3D1w = pMP1->GetWorldPos();
+                X3D1w = pMP1->GetWorldPos();
                 mvX3Dc1.push_back(Rcw1 * X3D1w + tcw1);
 
-                cv::Mat X3D2w = pMP2->GetWorldPos();
+                X3D2w = pMP2->GetWorldPos();
                 mvX3Dc2.push_back(Rcw2 * X3D2w + tcw2);
 
                 mvAllIndices.push_back(idx);
@@ -162,7 +176,8 @@ namespace ORB_SLAM2
         cv::Mat P3Dc1i(3, 3, CV_32F);
         cv::Mat P3Dc2i(3, 3, CV_32F);
 
-        int nCurrentIterations = 0;
+        int nCurrentIterations = 0, randi, idx, i;
+        short si;
 
         while (mnIterations < mRansacMaxIts && nCurrentIterations < nIterations)
         {
@@ -172,14 +187,14 @@ namespace ORB_SLAM2
             vAvailableIndices = mvAllIndices;
 
             // Get min set of points
-            for (short i = 0; i < 3; ++i)
+            for (si = 0; si < 3; si++)
             {
-                int randi = DUtils::Random::RandomInt(0, vAvailableIndices.size() - 1);
+                randi = DUtils::Random::RandomInt(0, vAvailableIndices.size() - 1);
 
-                int idx = vAvailableIndices[randi];
+                idx = vAvailableIndices[randi];
 
-                mvX3Dc1[idx].copyTo(P3Dc1i.col(i));
-                mvX3Dc2[idx].copyTo(P3Dc2i.col(i));
+                mvX3Dc1[idx].copyTo(P3Dc1i.col(si));
+                mvX3Dc2[idx].copyTo(P3Dc2i.col(si));
 
                 vAvailableIndices[randi] = vAvailableIndices.back();
                 vAvailableIndices.pop_back();
@@ -208,7 +223,7 @@ namespace ORB_SLAM2
                 {
                     nInliers = mnInliersi;
 
-                    for (int i = 0; i < N; i++)
+                    for (i = 0; i < N; i++)
                     {
                         if (mvbInliersi[i])
                         {
@@ -232,6 +247,7 @@ namespace ORB_SLAM2
     cv::Mat Sim3Solver::find(vector<bool> &vbInliers12, int &nInliers)
     {
         bool bFlag;
+
         return iterate(mRansacMaxIts, bFlag, vbInliers12, nInliers);
     }
 
@@ -351,9 +367,11 @@ namespace ORB_SLAM2
             cv::pow(P3, 2, aux_P3);
             double den = 0;
 
-            for (int i = 0; i < aux_P3.rows; i++)
+            int i, j;
+
+            for (i = 0; i < aux_P3.rows; i++)
             {
-                for (int j = 0; j < aux_P3.cols; j++)
+                for (j = 0; j < aux_P3.cols; j++)
                 {
                     den += aux_P3.at<float>(i, j);
                 }
@@ -406,10 +424,12 @@ namespace ORB_SLAM2
 
         mnInliersi = 0;
 
+        cv::Mat dist1, dist2;
+
         for (size_t i = 0; i < mvP1im1.size(); i++)
         {
-            cv::Mat dist1 = mvP1im1[i] - vP2im1[i];
-            cv::Mat dist2 = vP1im2[i] - mvP2im2[i];
+            dist1 = mvP1im1[i] - vP2im1[i];
+            dist2 = vP1im2[i] - mvP2im2[i];
 
             const float err1 = dist1.dot(dist1);
             const float err2 = dist2.dot(dist2);
@@ -454,25 +474,17 @@ namespace ORB_SLAM2
         vP2D.clear();
         vP2D.reserve(vP3Dw.size());
 
+        cv::Mat P3Dc;
+
         for(cv::Mat p3dw : vP3Dw){
             
-            cv::Mat P3Dc = Rcw * p3dw + tcw;
+            P3Dc = Rcw * p3dw + tcw;
             const float invz = 1 / (P3Dc.at<float>(2));
             const float x = P3Dc.at<float>(0) * invz;
             const float y = P3Dc.at<float>(1) * invz;
 
             vP2D.push_back((cv::Mat_<float>(2, 1) << fx * x + cx, fy * y + cy));
         }
-
-        // for (size_t i = 0, iend = vP3Dw.size(); i < iend; i++)
-        // {
-        //     cv::Mat P3Dc = Rcw * vP3Dw[i] + tcw;
-        //     const float invz = 1 / (P3Dc.at<float>(2));
-        //     const float x = P3Dc.at<float>(0) * invz;
-        //     const float y = P3Dc.at<float>(1) * invz;
-
-        //     vP2D.push_back((cv::Mat_<float>(2, 1) << fx * x + cx, fy * y + cy));
-        // }
     }
 
     // 利用『相機內參 K』將『空間點 vP3Dc』由世界座標轉換到『成像平面座標 vP2D』
@@ -494,14 +506,6 @@ namespace ORB_SLAM2
 
             vP2D.push_back((cv::Mat_<float>(2, 1) << fx * x + cx, fy * y + cy));
         }
-
-        // for (size_t i = 0, iend = vP3Dc.size(); i < iend; i++)
-        // {
-        //     const float invz = 1 / (vP3Dc[i].at<float>(2));
-        //     const float x = vP3Dc[i].at<float>(0) * invz;
-        //     const float y = vP3Dc[i].at<float>(1) * invz;
-        //     vP2D.push_back((cv::Mat_<float>(2, 1) << fx * x + cx, fy * y + cy));
-        // }
     }
 
 } //namespace ORB_SLAM
