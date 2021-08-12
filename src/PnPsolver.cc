@@ -213,11 +213,13 @@ namespace ORB_SLAM2
       vAvailableIndices = mvAllIndices;
 
       // Get min set of points
+      int randi, idx;
+
       for (short i = 0; i < mRansacMinSet; ++i)
       {
-        int randi = DUtils::Random::RandomInt(0, vAvailableIndices.size() - 1);
+        randi = DUtils::Random::RandomInt(0, vAvailableIndices.size() - 1);
 
-        int idx = vAvailableIndices[randi];
+        idx = vAvailableIndices[randi];
 
         // 空間點依序加入 pws，關鍵點依序加入 us。
         // pws 和 us 的空間在 set_maximum_number_of_correspondences 已配置完成
@@ -264,6 +266,7 @@ namespace ORB_SLAM2
               vbInliers[mvKeyPointIndices[i]] = true;
             }
           }
+
           return mRefinedTcw.clone();
         }
       }
@@ -343,26 +346,32 @@ namespace ORB_SLAM2
   {
     mnInliersi = 0;
 
+    cv::Point3f P3Dw;
+    cv::Point2f P2D;
+
+    float Xc, Yc, invZc, distX, distY, error2;
+    double ue, ve;
+
     for (int i = 0; i < N; i++)
     {
-      cv::Point3f P3Dw = mvP3Dw[i];
-      cv::Point2f P2D = mvP2D[i];
+      P3Dw = mvP3Dw[i];
+      P2D = mvP2D[i];
 
       // 利用旋轉矩陣和平移向量，將空間點轉換到相機座標系下
-      float Xc = mRi[0][0] * P3Dw.x + mRi[0][1] * P3Dw.y + mRi[0][2] * P3Dw.z + mti[0];
-      float Yc = mRi[1][0] * P3Dw.x + mRi[1][1] * P3Dw.y + mRi[1][2] * P3Dw.z + mti[1];
-      float invZc = 1 / (mRi[2][0] * P3Dw.x + mRi[2][1] * P3Dw.y + mRi[2][2] * P3Dw.z + mti[2]);
+      Xc = mRi[0][0] * P3Dw.x + mRi[0][1] * P3Dw.y + mRi[0][2] * P3Dw.z + mti[0];
+      Yc = mRi[1][0] * P3Dw.x + mRi[1][1] * P3Dw.y + mRi[1][2] * P3Dw.z + mti[1];
+      invZc = 1 / (mRi[2][0] * P3Dw.x + mRi[2][1] * P3Dw.y + mRi[2][2] * P3Dw.z + mti[2]);
 
       // 從相機座標系轉換到像素座標系
-      double ue = uc + fu * Xc * invZc;
-      double ve = vc + fv * Yc * invZc;
+      ue = uc + fu * Xc * invZc;
+      ve = vc + fv * Yc * invZc;
 
       // 計算特徵點和轉換後的點的位置，之間的差距
-      float distX = P2D.x - ue;
-      float distY = P2D.y - ve;
+      distX = P2D.x - ue;
+      distY = P2D.y - ve;
 
       // 綜合衡量上方差距
-      float error2 = distX * distX + distY * distY;
+      error2 = distX * distX + distY * distY;
 
       // 若差距足夠小
       if (error2 < mvMaxError[i])
@@ -433,15 +442,17 @@ namespace ORB_SLAM2
     // 存放 pws 座標點的中心位置
     cws[0][0] = cws[0][1] = cws[0][2] = 0;
 
-    for (int i = 0; i < number_of_correspondences; i++)
+    int i, j;
+
+    for (i = 0; i < number_of_correspondences; i++)
     {
-      for (int j = 0; j < 3; j++)
+      for (j = 0; j < 3; j++)
       {
         cws[0][j] += pws[3 * i + j];
       }
     }
 
-    for (int j = 0; j < 3; j++)
+    for (j = 0; j < 3; j++)
     {
       cws[0][j] /= number_of_correspondences;
     }
@@ -454,9 +465,9 @@ namespace ORB_SLAM2
     CvMat DC = cvMat(3, 1, CV_64F, dc);
     CvMat UCt = cvMat(3, 3, CV_64F, uct);
 
-    for (int i = 0; i < number_of_correspondences; i++)
+    for (i = 0; i < number_of_correspondences; i++)
     {
-      for (int j = 0; j < 3; j++)
+      for (j = 0; j < 3; j++)
       {
         // pws 各點與中心點的差距
         PW0->data.db[3 * i + j] = pws[3 * i + j] - cws[0][j];
@@ -486,12 +497,14 @@ namespace ORB_SLAM2
     // 釋放記憶體空間
     cvReleaseMat(&PW0);
 
-    for (int i = 1; i < 4; i++)
+    double k;
+
+    for (i = 1; i < 4; i++)
     {
       // dc 0, 1, 2
-      double k = sqrt(dc[i - 1] / number_of_correspondences);
+      k = sqrt(dc[i - 1] / number_of_correspondences);
 
-      for (int j = 0; j < 3; j++)
+      for (j = 0; j < 3; j++)
       {
         cws[i][j] = cws[0][j] + k * uct[3 * (i - 1) + j];
       }
@@ -514,12 +527,12 @@ namespace ORB_SLAM2
     }
 
     cvInvert(&CC, &CC_inv, CV_SVD);
-    double *ci = cc_inv;
+    double *ci = cc_inv, *pi, *a;
 
     for (i = 0; i < number_of_correspondences; i++)
     {
-      double *pi = pws + 3 * i;
-      double *a = alphas + 4 * i;
+      pi = pws + 3 * i;
+      a = alphas + 4 * i;
 
       for (j = 0; j < 3; j++)
       {
@@ -553,18 +566,20 @@ namespace ORB_SLAM2
 
   void PnPsolver::compute_ccs(const double *betas, const double *ut)
   {
-    for (int i = 0; i < 4; i++)
+    int i, j, k;
+
+    for (i = 0; i < 4; i++)
     {
       ccs[i][0] = ccs[i][1] = ccs[i][2] = 0.0f;
     }
 
-    for (int i = 0; i < 4; i++)
+    for (i = 0; i < 4; i++)
     {
       const double *v = ut + 12 * (11 - i);
 
-      for (int j = 0; j < 4; j++)
+      for (j = 0; j < 4; j++)
       {
-        for (int k = 0; k < 3; k++)
+        for (k = 0; k < 3; k++)
         {
           ccs[j][k] += betas[i] * v[3 * j + k];
         }
@@ -574,12 +589,15 @@ namespace ORB_SLAM2
 
   void PnPsolver::compute_pcs(void)
   {
-    for (int i = 0; i < number_of_correspondences; i++)
-    {
-      double *a = alphas + 4 * i;
-      double *pc = pcs + 3 * i;
+    int i, j;
+    double *a, *pc;
 
-      for (int j = 0; j < 3; j++)
+    for (i = 0; i < number_of_correspondences; i++)
+    {
+      a = alphas + 4 * i;
+      pc = pcs + 3 * i;
+
+      for (j = 0; j < 3; j++)
       {
         pc[j] = a[0] * ccs[0][j] + a[1] * ccs[1][j] + a[2] * ccs[2][j] + a[3] * ccs[3][j];
       }
@@ -649,9 +667,11 @@ namespace ORB_SLAM2
   void PnPsolver::copy_R_and_t(const double R_src[3][3], const double t_src[3],
                                double R_dst[3][3], double t_dst[3])
   {
-    for (int i = 0; i < 3; i++)
+    int i, j;
+
+    for (i = 0; i < 3; i++)
     {
-      for (int j = 0; j < 3; j++)
+      for (j = 0; j < 3; j++)
       {
         R_dst[i][j] = R_src[i][j];
       }
@@ -674,17 +694,19 @@ namespace ORB_SLAM2
 
   double PnPsolver::reprojection_error(const double R[3][3], const double t[3])
   {
-    double sum2 = 0.0;
+    double sum2 = 0.0, Xc, Yc, inv_Zc, ue, ve, u, v, *pw;
 
     for (int i = 0; i < number_of_correspondences; i++)
     {
-      double *pw = pws + 3 * i;
-      double Xc = dot(R[0], pw) + t[0];
-      double Yc = dot(R[1], pw) + t[1];
-      double inv_Zc = 1.0 / (dot(R[2], pw) + t[2]);
-      double ue = uc + fu * Xc * inv_Zc;
-      double ve = vc + fv * Yc * inv_Zc;
-      double u = us[2 * i], v = us[2 * i + 1];
+      pw = pws + 3 * i;
+      Xc = dot(R[0], pw) + t[0];
+      Yc = dot(R[1], pw) + t[1];
+      inv_Zc = 1.0 / (dot(R[2], pw) + t[2]);
+      ue = uc + fu * Xc * inv_Zc;
+      ve = vc + fv * Yc * inv_Zc;
+
+      u = us[2 * i];
+      v = us[2 * i + 1];
 
       sum2 += sqrt((u - ue) * (u - ue) + (v - ve) * (v - ve));
     }
@@ -695,23 +717,24 @@ namespace ORB_SLAM2
   void PnPsolver::estimate_R_and_t(double R[3][3], double t[3])
   {
     double pc0[3], pw0[3];
+    int i, j;
 
     pc0[0] = pc0[1] = pc0[2] = 0.0;
     pw0[0] = pw0[1] = pw0[2] = 0.0;
 
-    for (int i = 0; i < number_of_correspondences; i++)
+    for (i = 0; i < number_of_correspondences; i++)
     {
       const double *pc = pcs + 3 * i;
       const double *pw = pws + 3 * i;
 
-      for (int j = 0; j < 3; j++)
+      for (j = 0; j < 3; j++)
       {
         pc0[j] += pc[j];
         pw0[j] += pw[j];
       }
     }
 
-    for (int j = 0; j < 3; j++)
+    for (j = 0; j < 3; j++)
     {
       pc0[j] /= number_of_correspondences;
       pw0[j] /= number_of_correspondences;
@@ -725,12 +748,14 @@ namespace ORB_SLAM2
 
     cvSetZero(&ABt);
 
-    for (int i = 0; i < number_of_correspondences; i++)
-    {
-      double *pc = pcs + 3 * i;
-      double *pw = pws + 3 * i;
+    double *pc, *pw;
 
-      for (int j = 0; j < 3; j++)
+    for (i = 0; i < number_of_correspondences; i++)
+    {
+      pc = pcs + 3 * i;
+      pw = pws + 3 * i;
+
+      for (j = 0; j < 3; j++)
       {
         abt[3 * j] += (pc[j] - pc0[j]) * (pw[0] - pw0[0]);
         abt[3 * j + 1] += (pc[j] - pc0[j]) * (pw[1] - pw0[1]);
@@ -740,9 +765,9 @@ namespace ORB_SLAM2
 
     cvSVD(&ABt, &ABt_D, &ABt_U, &ABt_V, CV_SVD_MODIFY_A);
 
-    for (int i = 0; i < 3; i++)
+    for (i = 0; i < 3; i++)
     {
-      for (int j = 0; j < 3; j++)
+      for (j = 0; j < 3; j++)
       {
         R[i][j] = dot(abt_u + 3 * i, abt_v + 3 * j);
       }
@@ -775,15 +800,17 @@ namespace ORB_SLAM2
   {
     if (pcs[2] < 0.0)
     {
-      for (int i = 0; i < 4; i++)
+      int i, j;
+
+      for (i = 0; i < 4; i++)
       {
-        for (int j = 0; j < 3; j++)
+        for (j = 0; j < 3; j++)
         {
           ccs[i][j] = -ccs[i][j];
         }
       }
 
-      for (int i = 0; i < number_of_correspondences; i++)
+      for (i = 0; i < number_of_correspondences; i++)
       {
         pcs[3 * i] = -pcs[3 * i];
         pcs[3 * i + 1] = -pcs[3 * i + 1];
@@ -931,12 +958,14 @@ namespace ORB_SLAM2
     v[3] = ut + 12 * 8;
 
     double dv[4][6][3];
+    int i, j, a, b;
 
-    for (int i = 0; i < 4; i++)
+    for (i = 0; i < 4; i++)
     {
-      int a = 0, b = 1;
+      a = 0;
+      b = 1;
 
-      for (int j = 0; j < 6; j++)
+      for (j = 0; j < 6; j++)
       {
         dv[i][j][0] = v[i][3 * a] - v[i][3 * b];
         dv[i][j][1] = v[i][3 * a + 1] - v[i][3 * b + 1];
@@ -952,9 +981,11 @@ namespace ORB_SLAM2
       }
     }
 
-    for (int i = 0; i < 6; i++)
+    double *row;
+
+    for (i = 0; i < 6; i++)
     {
-      double *row = l_6x10 + 10 * i;
+      row = l_6x10 + 10 * i;
 
       row[0] = dot(dv[0][i], dv[0][i]);
       row[1] = 2.0f * dot(dv[0][i], dv[1][i]);
@@ -982,17 +1013,23 @@ namespace ORB_SLAM2
   void PnPsolver::compute_A_and_b_gauss_newton(const double *l_6x10, const double *rho,
                                                double betas[4], CvMat *A, CvMat *b)
   {
+    double *rowA;
+
     for (int i = 0; i < 6; i++)
     {
       const double *rowL = l_6x10 + i * 10;
-      double *rowA = A->data.db + i * 4;
+      rowA = A->data.db + i * 4;
 
       rowA[0] = 2 * rowL[0] * betas[0] + rowL[1] * betas[1] + rowL[3] * betas[2] + rowL[6] * betas[3];
       rowA[1] = rowL[1] * betas[0] + 2 * rowL[2] * betas[1] + rowL[4] * betas[2] + rowL[7] * betas[3];
       rowA[2] = rowL[3] * betas[0] + rowL[4] * betas[1] + 2 * rowL[5] * betas[2] + rowL[8] * betas[3];
       rowA[3] = rowL[6] * betas[0] + rowL[7] * betas[1] + rowL[8] * betas[2] + 2 * rowL[9] * betas[3];
 
-      cvmSet(b, i, 0, rho[i] - (rowL[0] * betas[0] * betas[0] + rowL[1] * betas[0] * betas[1] + rowL[2] * betas[1] * betas[1] + rowL[3] * betas[0] * betas[2] + rowL[4] * betas[1] * betas[2] + rowL[5] * betas[2] * betas[2] + rowL[6] * betas[0] * betas[3] + rowL[7] * betas[1] * betas[3] + rowL[8] * betas[2] * betas[3] + rowL[9] * betas[3] * betas[3]));
+      cvmSet(b, i, 0, rho[i] - (rowL[0] * betas[0] * betas[0] + rowL[1] * betas[0] * betas[1] + 
+                                rowL[2] * betas[1] * betas[1] + rowL[3] * betas[0] * betas[2] + 
+                                rowL[4] * betas[1] * betas[2] + rowL[5] * betas[2] * betas[2] + 
+                                rowL[6] * betas[0] * betas[3] + rowL[7] * betas[1] * betas[3] + 
+                                rowL[8] * betas[2] * betas[3] + rowL[9] * betas[3] * betas[3]));
     }
   }
 
@@ -1006,13 +1043,15 @@ namespace ORB_SLAM2
     CvMat B = cvMat(6, 1, CV_64F, b);
     CvMat X = cvMat(4, 1, CV_64F, x);
 
-    for (int k = 0; k < iterations_number; k++)
+    int i, k;
+
+    for (k = 0; k < iterations_number; k++)
     {
       compute_A_and_b_gauss_newton(L_6x10->data.db, Rho->data.db,
                                    betas, &A, &B);
       qr_solve(&A, &B, &X);
 
-      for (int i = 0; i < 4; i++)
+      for (i = 0; i < 4; i++)
       {
         betas[i] += x[i];
       }
@@ -1040,15 +1079,17 @@ namespace ORB_SLAM2
       A2 = new double[nr];
     }
 
-    double *pA = A->data.db, *ppAkk = pA;
+    double *pA = A->data.db, *ppAkk = pA, *ppAik, eta, elt, sum, inv_eta, sigma, tau, *ppAij, *pX;
+    int i, j, k;
 
-    for (int k = 0; k < nc; k++)
+    for (k = 0; k < nc; k++)
     {
-      double *ppAik = ppAkk, eta = fabs(*ppAik);
+      ppAik = ppAkk;
+      eta = fabs(*ppAik);
 
-      for (int i = k + 1; i < nr; i++)
+      for (i = k + 1; i < nr; i++)
       {
-        double elt = fabs(*ppAik);
+        elt = fabs(*ppAik);
 
         if (eta < elt)
         {
@@ -1066,16 +1107,18 @@ namespace ORB_SLAM2
       }
       else
       {
-        double *ppAik = ppAkk, sum = 0.0, inv_eta = 1. / eta;
+        ppAik = ppAkk;
+        sum = 0.0;
+        inv_eta = 1. / eta;
 
-        for (int i = k; i < nr; i++)
+        for (i = k; i < nr; i++)
         {
           *ppAik *= inv_eta;
           sum += *ppAik * *ppAik;
           ppAik += nc;
         }
 
-        double sigma = sqrt(sum);
+        sigma = sqrt(sum);
 
         if (*ppAkk < 0)
         {
@@ -1086,20 +1129,20 @@ namespace ORB_SLAM2
         A1[k] = sigma * *ppAkk;
         A2[k] = -eta * sigma;
 
-        for (int j = k + 1; j < nc; j++)
+        for (j = k + 1; j < nc; j++)
         {
-          double *ppAik = ppAkk, sum = 0;
+          ppAik = ppAkk, sum = 0;
 
-          for (int i = k; i < nr; i++)
+          for (i = k; i < nr; i++)
           {
             sum += *ppAik * ppAik[j - k];
             ppAik += nc;
           }
 
-          double tau = sum / A1[k];
+          tau = sum / A1[k];
           ppAik = ppAkk;
 
-          for (int i = k; i < nr; i++)
+          for (i = k; i < nr; i++)
           {
             ppAik[j - k] -= tau * *ppAik;
             ppAik += nc;
@@ -1112,11 +1155,11 @@ namespace ORB_SLAM2
     // b <- Qt b
     double *ppAjj = pA, *pb = b->data.db;
 
-    for (int j = 0; j < nc; j++)
+    for (j = 0; j < nc; j++)
     {
-      double *ppAij = ppAjj, tau = 0;
+      ppAij = ppAjj, tau = 0;
 
-      for (int i = j; i < nr; i++)
+      for (i = j; i < nr; i++)
       {
         tau += *ppAij * pb[i];
         ppAij += nc;
@@ -1125,7 +1168,7 @@ namespace ORB_SLAM2
       tau /= A1[j];
       ppAij = ppAjj;
 
-      for (int i = j; i < nr; i++)
+      for (i = j; i < nr; i++)
       {
         pb[i] -= tau * *ppAij;
         ppAij += nc;
@@ -1135,12 +1178,12 @@ namespace ORB_SLAM2
     }
 
     // X = R-1 b
-    double *pX = X->data.db;
+    pX = X->data.db;
     pX[nc - 1] = pb[nc - 1] / A2[nc - 1];
 
-    for (int i = nc - 2; i >= 0; i--)
+    for (i = nc - 2; i >= 0; i--)
     {
-      double *ppAij = pA + i * nc + (i + 1), sum = 0;
+      ppAij = pA + i * nc + (i + 1), sum = 0;
 
       for (int j = i + 1; j < nc; j++)
       {
