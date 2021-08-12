@@ -63,8 +63,9 @@ using namespace std;
 namespace ORB_SLAM2
 {
 
-  PnPsolver::PnPsolver(const Frame &F, const vector<MapPoint *> &vpMapPointMatches) : pws(0), us(0), alphas(0), pcs(0), maximum_number_of_correspondences(0), N(0),
-                                                                                      number_of_correspondences(0), mnInliersi(0), mnIterations(0), mnBestInliers(0)
+  PnPsolver::PnPsolver(const Frame &F, const vector<MapPoint *> &vpMapPointMatches) : 
+                       pws(0), us(0), alphas(0), pcs(0), maximum_number_of_correspondences(0), N(0),
+                       number_of_correspondences(0), mnInliersi(0), mnIterations(0), mnBestInliers(0)
   {
     mvpMapPointMatches = vpMapPointMatches;
     mvP2D.reserve(F.mvpMapPoints.size());
@@ -76,10 +77,12 @@ namespace ORB_SLAM2
     mvAllIndices.reserve(F.mvpMapPoints.size());
 
     int idx = 0;
+    MapPoint *pMP;
+    cv::Mat Pos;
 
     for (size_t i = 0, iend = vpMapPointMatches.size(); i < iend; i++)
     {
-      MapPoint *pMP = vpMapPointMatches[i];
+      pMP = vpMapPointMatches[i];
 
       if (pMP)
       {
@@ -90,7 +93,7 @@ namespace ORB_SLAM2
           mvP2D.push_back(kp.pt);
           mvSigma2.push_back(F.mvLevelSigma2[kp.octave]);
 
-          cv::Mat Pos = pMP->GetWorldPos();
+          Pos = pMP->GetWorldPos();
           mvP3Dw.push_back(cv::Point3f(Pos.at<float>(0), Pos.at<float>(1), Pos.at<float>(2)));
 
           mvKeyPointIndices.push_back(i);
@@ -177,6 +180,7 @@ namespace ORB_SLAM2
   cv::Mat PnPsolver::find(vector<bool> &vbInliers, int &nInliers)
   {
     bool bFlag;
+
     return iterate(mRansacMaxIts, bFlag, vbInliers, nInliers);
   }
 
@@ -310,12 +314,6 @@ namespace ORB_SLAM2
     {
       add_correspondence(mvP3Dw[idx].x, mvP3Dw[idx].y, mvP3Dw[idx].z, mvP2D[idx].x, mvP2D[idx].y);
     }
-
-    // for (size_t i = 0; i < vIndices.size(); i++)
-    // {
-    //   int idx = vIndices[i];
-    //   add_correspondence(mvP3Dw[idx].x, mvP3Dw[idx].y, mvP3Dw[idx].z, mvP2D[idx].x, mvP2D[idx].y);
-    // }
 
     // Compute camera pose
     compute_pose(mRi, mti);
@@ -505,10 +503,11 @@ namespace ORB_SLAM2
     double cc[3 * 3], cc_inv[3 * 3];
     CvMat CC = cvMat(3, 3, CV_64F, cc);
     CvMat CC_inv = cvMat(3, 3, CV_64F, cc_inv);
+    int i, j;
 
-    for (int i = 0; i < 3; i++)
+    for (i = 0; i < 3; i++)
     {
-      for (int j = 1; j < 4; j++)
+      for (j = 1; j < 4; j++)
       {
         cc[3 * i + j - 1] = cws[j][i] - cws[0][i];
       }
@@ -517,12 +516,12 @@ namespace ORB_SLAM2
     cvInvert(&CC, &CC_inv, CV_SVD);
     double *ci = cc_inv;
 
-    for (int i = 0; i < number_of_correspondences; i++)
+    for (i = 0; i < number_of_correspondences; i++)
     {
       double *pi = pws + 3 * i;
       double *a = alphas + 4 * i;
 
-      for (int j = 0; j < 3; j++)
+      for (j = 0; j < 3; j++)
       {
         a[1 + j] =
             ci[3 * j] * (pi[0] - cws[0][0]) +

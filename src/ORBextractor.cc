@@ -922,7 +922,8 @@ namespace ORB_SLAM2
         }
 
         // compute orientations
-        for (int level = 0; level < nlevels; ++level){
+        for (int level = 0; level < nlevels; ++level)
+        {
             // 利用灰階質心法計算特徵點的角度（角度資訊儲存於 KeyPoint 當中）
             computeOrientation(mvImagePyramid[level], allKeypoints[level], umax);
         }
