@@ -70,7 +70,8 @@ namespace ORB_SLAM2
     const int PATCH_SIZE = 31;
     const int HALF_PATCH_SIZE = 15;
     const int EDGE_THRESHOLD = 19;
-
+    const float factorPI = (float)(CV_PI / 180.f);
+    
     // 灰階質心法，計算區塊 image 的角度
     static float IC_Angle(const Mat &image, Point2f pt, const vector<int> &u_max)
     {
@@ -104,8 +105,6 @@ namespace ORB_SLAM2
 
         return fastAtan2((float)m_01, (float)m_10);
     }
-
-    const float factorPI = (float)(CV_PI / 180.f);
 
     // 計算 KeyPoint &kpt 的 ORB 描述子，更新 descriptors[row_i] 的數值
     // uchar *desc 為 Mat &descriptors row_i 的指標（參考 computeDescriptors）
@@ -465,8 +464,8 @@ namespace ORB_SLAM2
         // }
 
         mvImagePyramid.resize(nlevels);
-
         mnFeaturesPerLevel.resize(nlevels);
+
         float factor = 1.0f / scaleFactor;
         float nDesiredFeaturesPerScale = nfeatures * (1 - factor) / 
                                                     (1 - (float)pow((double)factor, (double)nlevels));
@@ -519,8 +518,8 @@ namespace ORB_SLAM2
     static void computeOrientation(const Mat &image, vector<KeyPoint> &keypoints, 
                                    const vector<int> &umax)
     {
-        for(cv::KeyPoint keypoint : keypoints){
-
+        for(cv::KeyPoint keypoint : keypoints)
+        {
             // 灰階質心法，計算區塊 image 的角度
             keypoint.angle = IC_Angle(image, keypoint.pt, umax);
         }
@@ -559,38 +558,46 @@ namespace ORB_SLAM2
         n4.vKeys.reserve(vKeys.size());
 
         //Associate points to childs
-        for(const cv::KeyPoint &kp : vKeys){
-
+        for(const cv::KeyPoint &kp : vKeys)
+        {
             if (kp.pt.x < n1.UR.x)
             {
-                if (kp.pt.y < n1.BR.y){
+                if (kp.pt.y < n1.BR.y)
+                {
                     n1.vKeys.push_back(kp);
                 }
-                else{
+                else
+                {
                     n3.vKeys.push_back(kp);
                 }
             }
-            else if (kp.pt.y < n1.BR.y){
+            else if (kp.pt.y < n1.BR.y)
+            {
                 n2.vKeys.push_back(kp);
             }
-            else{
+            else
+            {
                 n4.vKeys.push_back(kp);
             }
         }
 
-        if (n1.vKeys.size() == 1){
+        if (n1.vKeys.size() == 1)
+        {
             n1.bNoMore = true;
         }
 
-        if (n2.vKeys.size() == 1){
+        if (n2.vKeys.size() == 1)
+        {
             n2.bNoMore = true;
         }
 
-        if (n3.vKeys.size() == 1){
+        if (n3.vKeys.size() == 1)
+        {
             n3.bNoMore = true;
         }
             
-        if (n4.vKeys.size() == 1){
+        if (n4.vKeys.size() == 1)
+        {
             n4.bNoMore = true;
         }
     }
@@ -627,8 +634,8 @@ namespace ORB_SLAM2
         }
 
         // Associate points to childs
-        for(const cv::KeyPoint &kp : vToDistributeKeys){
-
+        for(const cv::KeyPoint &kp : vToDistributeKeys)
+        {
             // 根據特徵點所屬區域，計算索引值，將特徵點加入該 ExtractorNode 當中
             vpIniNodes[kp.pt.x / hX]->vKeys.push_back(kp);
         }
@@ -638,18 +645,33 @@ namespace ORB_SLAM2
         // 移除沒有特徵點的 ExtractorNode
         while (lit != lNodes.end())
         {
-            if (lit->vKeys.size() == 1)
+            if (lit->vKeys.empty())
             {
-                // 標注這個 ExtractorNode 只有 1 個特徵
-                lit->bNoMore = true;
+                lit = lNodes.erase(lit);
+            }
+            else
+            {
+                if (lit->vKeys.size() == 1)
+                {
+                    // 標注這個 ExtractorNode 只有 1 個特徵
+                    lit->bNoMore = true;
+                }
+
                 lit++;
             }
-            else if (lit->vKeys.empty()){
-                lit = lNodes.erase(lit);
-            }                
-            else{
-                lit++;
-            }                
+
+            // if (lit->vKeys.size() == 1)
+            // {
+            //     // 標注這個 ExtractorNode 只有 1 個特徵
+            //     lit->bNoMore = true;
+            //     lit++;
+            // }
+            // else if (lit->vKeys.empty()){
+            //     lit = lNodes.erase(lit);
+            // }                
+            // else{
+            //     lit++;
+            // }                
         }
 
         // <ExtractorNode 當中含有的特徵數量, ExtractorNode *>
@@ -678,7 +700,7 @@ namespace ORB_SLAM2
                 {
                     // If node only contains one point do not subdivide and continue
                     lit++;
-                    continue;
+                    // continue;
                 }
                 else
                 {
@@ -686,64 +708,14 @@ namespace ORB_SLAM2
                     ExtractorNode n1, n2, n3, n4;
                     lit->DivideNode(n1, n2, n3, n4);
 
-                    // ExtractorNode &node
-                    // list<ExtractorNode> &list_node
-                    // int nToExpand
-                    // vector<pair<int, ExtractorNode *>> &size_node_list
-
                     // Add childs if they contain points
                     nToExpand = addContainPoints(n1, lNodes, nToExpand, vSizeAndPointerToNode);
                     nToExpand = addContainPoints(n2, lNodes, nToExpand, vSizeAndPointerToNode);
                     nToExpand = addContainPoints(n3, lNodes, nToExpand, vSizeAndPointerToNode);
                     nToExpand = addContainPoints(n4, lNodes, nToExpand, vSizeAndPointerToNode);
                     
-                    // if (n1.vKeys.size() > 0)
-                    // {
-                    //     lNodes.push_front(n1);
-                    //     if (n1.vKeys.size() > 1)
-                    //     {
-                    //         nToExpand++;
-                    //         vSizeAndPointerToNode.push_back(
-                    //             make_pair(n1.vKeys.size(), &lNodes.front()));
-                    //         lNodes.front().lit = lNodes.begin();
-                    //     }
-                    // }
-                    // if (n2.vKeys.size() > 0)
-                    // {
-                    //     lNodes.push_front(n2);
-                    //     if (n2.vKeys.size() > 1)
-                    //     {
-                    //         nToExpand++;
-                    //         vSizeAndPointerToNode.push_back(
-                    //             make_pair(n2.vKeys.size(), &lNodes.front()));
-                    //         lNodes.front().lit = lNodes.begin();
-                    //     }
-                    // }
-                    // if (n3.vKeys.size() > 0)
-                    // {
-                    //     lNodes.push_front(n3);
-                    //     if (n3.vKeys.size() > 1)
-                    //     {
-                    //         nToExpand++;
-                    //         vSizeAndPointerToNode.push_back(
-                    //             make_pair(n3.vKeys.size(), &lNodes.front()));
-                    //         lNodes.front().lit = lNodes.begin();
-                    //     }
-                    // }
-                    // if (n4.vKeys.size() > 0)
-                    // {
-                    //     lNodes.push_front(n4);
-                    //     if (n4.vKeys.size() > 1)
-                    //     {
-                    //         nToExpand++;
-                    //         vSizeAndPointerToNode.push_back(
-                    //             make_pair(n4.vKeys.size(), &lNodes.front()));
-                    //         lNodes.front().lit = lNodes.begin();
-                    //     }
-                    // }
-
                     lit = lNodes.erase(lit);
-                    continue;
+                    // continue;
                 }
             }
 
@@ -778,47 +750,6 @@ namespace ORB_SLAM2
                         addContainPoints(n3, lNodes, 0, vSizeAndPointerToNode);
                         addContainPoints(n4, lNodes, 0, vSizeAndPointerToNode);
                         
-                        // if (n1.vKeys.size() > 0)
-                        // {
-                        //     lNodes.push_front(n1);
-                        //     if (n1.vKeys.size() > 1)
-                        //     {
-                        //         vSizeAndPointerToNode.push_back(
-                        //             make_pair(n1.vKeys.size(), &lNodes.front()));
-                        //         lNodes.front().lit = lNodes.begin();
-                        //     }
-                        // }
-                        // if (n2.vKeys.size() > 0)
-                        // {
-                        //     lNodes.push_front(n2);
-                        //     if (n2.vKeys.size() > 1)
-                        //     {
-                        //         vSizeAndPointerToNode.push_back(
-                        //             make_pair(n2.vKeys.size(), &lNodes.front()));
-                        //         lNodes.front().lit = lNodes.begin();
-                        //     }
-                        // }
-                        // if (n3.vKeys.size() > 0)
-                        // {
-                        //     lNodes.push_front(n3);
-                        //     if (n3.vKeys.size() > 1)
-                        //     {
-                        //         vSizeAndPointerToNode.push_back(
-                        //             make_pair(n3.vKeys.size(), &lNodes.front()));
-                        //         lNodes.front().lit = lNodes.begin();
-                        //     }
-                        // }
-                        // if (n4.vKeys.size() > 0)
-                        // {
-                        //     lNodes.push_front(n4);
-                        //     if (n4.vKeys.size() > 1)
-                        //     {
-                        //         vSizeAndPointerToNode.push_back(
-                        //             make_pair(n4.vKeys.size(), &lNodes.front()));
-                        //         lNodes.front().lit = lNodes.begin();
-                        //     }
-                        // }
-
                         lNodes.erase(vPrevSizeAndPointerToNode[j].second->lit);
 
                         // 若 ExtractorNode 的數量大於 N，則結束當前迴圈
