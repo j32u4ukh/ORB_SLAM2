@@ -150,12 +150,7 @@ int main(int argc, char **argv)
 
         totaltime += time;
     }
-
-    // for (int ni = 0; ni < nImages; ni++)
-    // {
-    //     totaltime += vTimesTrack[ni];
-    // }
-
+    
     cout << "-------" << endl
          << endl;
     cout << "median tracking time: " << vTimesTrack[nImages / 2] << endl;

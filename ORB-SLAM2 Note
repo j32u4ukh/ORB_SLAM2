@@ -36,11 +36,20 @@ mean tracking time: 0.0836848
 建圖 10:16.31
 
 [函式封裝]
+New Map created with 508 points
 median tracking time: 0.0859725
 mean tracking time: 0.0943997
 
-median tracking time: 0.0867413
-mean tracking time: 0.107822
+median tracking time: 0.0926839
+mean tracking time: 0.0984873
+#KeyFrame: 642
+#MapPoint: 76626
+
+
+virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()
+沒有頂點的可能原因：
+* 都被標注為 isBad 導致沒有被加入
+* 數據沒有被確實加到陣列中
 
 
 

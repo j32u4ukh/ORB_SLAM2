@@ -1283,8 +1283,9 @@ namespace ORB_SLAM2
         mCurrentFrame.SetPose(mVelocity * mLastFrame.mTcw);
 
         // 將當前幀的地圖點設置為 NULL
-        fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(),
-             static_cast<MapPoint *>(NULL));
+        // fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(),
+        //      static_cast<MapPoint *>(NULL));
+        mCurrentFrame.resetMappoints();
 
         // Project points seen in previous frame
         int th;
@@ -1309,8 +1310,9 @@ namespace ORB_SLAM2
         // 如果找不到足夠多的匹配特征點，就適當的放大搜索半徑(th -> 2 * th)。
         if (nmatches < 20)
         {
-            fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(),
-                 static_cast<MapPoint *>(NULL));
+            // fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(),
+            //      static_cast<MapPoint *>(NULL));
+            mCurrentFrame.resetMappoints();
             nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2 * th,
                                                   mSensor == System::MONOCULAR);
         }

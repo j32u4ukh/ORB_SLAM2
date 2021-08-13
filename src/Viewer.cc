@@ -97,6 +97,7 @@ namespace ORB_SLAM2
 
         bool bFollow = true;
         bool bLocalizationMode = false;
+        cv::Mat im;
 
         while (1)
         {
@@ -161,7 +162,7 @@ namespace ORB_SLAM2
             pangolin::FinishFrame();
 
             // 在灰階圖片上標注出特徵點的位置，並根據當前狀態，將文字寫在下方的黑色區域
-            cv::Mat im = mpFrameDrawer->DrawFrame();
+            im = mpFrameDrawer->DrawFrame();
 
             cv::imshow("ORB-SLAM2: Current Frame", im);
             cv::waitKey(mT);

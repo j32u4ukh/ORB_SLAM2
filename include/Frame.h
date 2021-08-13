@@ -69,6 +69,10 @@ public:
     // Computes rotation, translation and camera center matrices from the camera pose.
     void UpdatePoseMatrices();
 
+    inline void resetMappoints(){
+        fill(mvpMapPoints.begin(), mvpMapPoints.end(), static_cast<MapPoint *>(NULL));
+    }
+
     // Returns the camera center.
     inline cv::Mat GetCameraCenter(){
         return mOw.clone();

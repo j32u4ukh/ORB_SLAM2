@@ -379,6 +379,11 @@ namespace ORB_SLAM2
         {
             pangolin::BindToContext("ORB-SLAM2: Map Viewer");
         }
+
+        int n_kf = mpMap->KeyFramesInMap();
+        int n_mappoint = mpMap->MapPointsInMap();
+        cout << "#KeyFrame: " << n_kf << endl;
+        cout << "#MapPoint: " << n_mappoint << endl;
     }
 
     void System::SaveTrajectoryTUM(const string &filename)
@@ -477,20 +482,6 @@ namespace ORB_SLAM2
               << setprecision(7) << " " << t.at<float>(0) << " " << t.at<float>(1) << " " 
               << t.at<float>(2) << " " << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << endl;
         }
-
-        // for (size_t i = 0; i < vpKFs.size(); i++)
-        // {
-        //     KeyFrame *pKF = vpKFs[i];
-        //     if (pKF->isBad()){
-        //         continue;
-        //     }
-        //     cv::Mat R = pKF->GetRotation().t();
-        //     vector<float> q = Converter::toQuaternion(R);
-        //     cv::Mat t = pKF->GetCameraCenter();
-        //     f << setprecision(6) << pKF->mTimeStamp 
-        //       << setprecision(7) << " " << t.at<float>(0) << " " << t.at<float>(1) << " " 
-        //       << t.at<float>(2) << " " << q[0] << " " << q[1] << " " << q[2] << " " << q[3] << endl;
-        // }
 
         f.close();
         cout << endl << "trajectory saved!" << endl;
