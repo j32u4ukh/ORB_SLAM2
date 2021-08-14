@@ -870,8 +870,14 @@ namespace ORB_SLAM2
 
                     vector<cv::KeyPoint> vKeysCell;
 
-                    // 將找到的特徵點存入 vKeysCell
-                    // iniThFAST：中心像素強度與該像素周圍圓圈像素之間差異的閾值。
+                    /*void FAST( InputArray image, CV_OUT std::vector<KeyPoint>& keypoints,
+                      int threshold, bool nonmaxSuppression=true )
+                    
+                    image：在此圖片中尋找特徵點
+                    vKeysCell： 存入找到的特徵點之容器
+                    iniThFAST：中心像素強度與該像素周圍圓圈像素之間差異的閾值。
+                    true: 對鄰近得分較低的點的抑制。
+                    */
                     FAST(mvImagePyramid[level].rowRange(iniY, maxY).colRange(iniX, maxX),
                          vKeysCell, iniThFAST, true);
 
