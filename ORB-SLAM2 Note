@@ -39,16 +39,16 @@ mean tracking time: 0.0836848
 New Map created with 508 points
 median tracking time: 0.0859725
 mean tracking time: 0.0943997
-
-median tracking time: 0.0926839
-mean tracking time: 0.0984873
 #KeyFrame: 642
 #MapPoint: 76626
 
-median tracking time: 0.0773859
-mean tracking time: 0.0883065
-#KeyFrame: 744
-#MapPoint: 89222
+New Map created with 508 points
+#KeyFrame: 700
+#MapPoint: 86723
+Total time: 7:3.12997
+Median tracking time: 0.08644
+Mean tracking time: 0.0931799
+
 
 
 virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()

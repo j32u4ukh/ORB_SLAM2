@@ -73,6 +73,14 @@ namespace ORB_SLAM2
         cout << endl
              << "Loading ORB Vocabulary. This could take a while..." << endl;
 
+#ifdef COMPILEDWITHC11
+        std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+#else
+        // 此問題為 C++ 版本兼容問題，可利用上方 COMPILEDWITHC11 根據 C++ 版本不同使用不同程式碼
+        // COMPILEDWITHC11 則在 CMakeLists.txt 當中作定義
+        std::chrono::monotonic_clock::time_point t1 = std::chrono::monotonic_clock::now();
+#endif
+
         // typedef DBoW2::TemplatedVocabulary<DBoW2::FORB::TDescriptor, DBoW2::FORB> ORBVocabulary;
         mpVocabulary = new ORBVocabulary();
         bool bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
@@ -84,8 +92,15 @@ namespace ORB_SLAM2
             exit(-1);
         }
 
-        cout << "Vocabulary loaded!" << endl
-             << endl;
+#ifdef COMPILEDWITHC11
+        std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+#else
+        std::chrono::monotonic_clock::time_point t2 = std::chrono::monotonic_clock::now();
+#endif
+
+        double loading_time = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
+
+        cout << "Vocabulary loaded! Cost " << loading_time << " s." << endl << endl;
 
         // Create KeyFrame Database
         mpKeyFrameDatabase = new KeyFrameDatabase(*mpVocabulary);

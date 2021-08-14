@@ -144,17 +144,19 @@ int main(int argc, char **argv)
 
     // 排序每一幀花費的時間，將用於找出中位數，以衡量每幀追蹤時間
     sort(vTimesTrack.begin(), vTimesTrack.end());
-    float totaltime = 0;
+    float total_time = 0;
 
     for(float time : vTimesTrack){
 
-        totaltime += time;
+        total_time += time;
     }
-    
-    cout << "-------" << endl
-         << endl;
-    cout << "median tracking time: " << vTimesTrack[nImages / 2] << endl;
-    cout << "mean tracking time: " << totaltime / nImages << endl;
+
+    int minute = (int)(total_time / 60.0f);
+    float second = total_time - 60.0f * minute;
+
+    cout << "Total time: " << minute << ":" << second << endl;
+    cout << "Median tracking time: " << vTimesTrack[nImages / 2] << endl;
+    cout << "Mean tracking time: " << total_time / nImages << endl;
 
     // Save camera trajectory
     SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");
