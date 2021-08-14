@@ -1050,16 +1050,6 @@ namespace ORB_SLAM2
             }
         }
 
-        // for (size_t iMP = 0; iMP < vpAllMapPoints.size(); iMP++)
-        // {
-        //     if (vpAllMapPoints[iMP])
-        //     {
-        //         MapPoint *pMP = vpAllMapPoints[iMP];
-        //         // 地圖點的位置 乘上 深度中位數的倒數，用於控制地圖規模
-        //         pMP->SetWorldPos(pMP->GetWorldPos() * invMedianDepth);
-        //     }
-        // }
-
         mpLocalMapper->InsertKeyFrame(pKFini);
         mpLocalMapper->InsertKeyFrame(pKFcur);
 
@@ -1107,20 +1097,6 @@ namespace ORB_SLAM2
                 }
             }
         }
-
-        // for (int i = 0; i < mLastFrame.N; i++)
-        // {
-        //     MapPoint *pMP = mLastFrame.mvpMapPoints[i];
-        //     if (pMP)
-        //     {
-        //         // 更換為被較多關鍵幀觀察到的地圖點
-        //         MapPoint *pRep = pMP->GetReplaced();
-        //         if (pRep)
-        //         {
-        //             mLastFrame.mvpMapPoints[i] = pRep;
-        //         }
-        //     }
-        // }
     }
 
     // 利用詞袋模型，快速將『當前幀』與『參考關鍵幀』進行特徵點匹配，更新『當前幀』匹配的地圖點，並返回數量是否足夠多
@@ -1157,6 +1133,7 @@ namespace ORB_SLAM2
 
         // Discard outliers
         int nmatchesMap = 0;
+        MapPoint *pMP;
 
         // 對野點(Outlier)進行篩選
         for (int i = 0; i < mCurrentFrame.N; i++)
@@ -1166,7 +1143,7 @@ namespace ORB_SLAM2
                 // 若地圖點為 Outlier
                 if (mCurrentFrame.mvbOutlier[i])
                 {
-                    MapPoint *pMP = mCurrentFrame.mvpMapPoints[i];
+                    pMP = mCurrentFrame.mvpMapPoints[i];
 
                     mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint *>(NULL);
                     mCurrentFrame.mvbOutlier[i] = false;
@@ -1409,20 +1386,21 @@ namespace ORB_SLAM2
                     // 相應的調用地圖點接口 IncreaseFound 增加 mnFound 計數（實際能觀察到該地圖點的特徵點數）。
                     mCurrentFrame.mvpMapPoints[i]->IncreaseFound();
 
+                    // 純定位模式
+                    if (mbOnlyTracking)
+                    {
+                        mnMatchesInliers++;
+                    }
+
                     // 建圖模式
-                    if (!mbOnlyTracking)
+                    else
                     {
                         // 若這個地圖點，至少被 1 個關鍵幀觀察到
                         if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
                         {
                             mnMatchesInliers++;
                         }
-                    }
-
-                    // 純定位模式
-                    else
-                    {
-                        mnMatchesInliers++;
+                        
                     }
                 }
                 else if (mSensor == System::STEREO)
@@ -1441,11 +1419,6 @@ namespace ORB_SLAM2
         {
             return false;
         }
-
-        // if (mnMatchesInliers < 30)
-        //     return false;
-        // else
-        //     return true;
 
         // 內點至少 30 點，才算重定位成功
         return mnMatchesInliers >= 30;
@@ -1589,21 +1562,11 @@ namespace ORB_SLAM2
                     {
                         return true;
                     }
-                    else
-                    {
-                        return false;
-                    }
-                }
-                else
-                {
-                    return false;
                 }
             }
         }
-        else
-        {
-            return false;
-        }
+        
+        return false;
     }
 
     // 生成關鍵幀
@@ -1645,8 +1608,8 @@ namespace ORB_SLAM2
             if (!vDepthIdx.empty())
             {
                 sort(vDepthIdx.begin(), vDepthIdx.end());
-
                 int nPoints = 0;
+
                 for (size_t j = 0; j < vDepthIdx.size(); j++)
                 {
                     int i = vDepthIdx[j].second;
@@ -1701,7 +1664,7 @@ namespace ORB_SLAM2
         // Do not search map points already matched
         vector<MapPoint *>::iterator vit = mCurrentFrame.mvpMapPoints.begin();
         vector<MapPoint *>::iterator vend = mCurrentFrame.mvpMapPoints.end();
-
+        
         /* 遍歷了當前幀的所有地圖點，增加可視幀計數，同時更新其成員變量 mnLastFrameSeen。
         這些地圖點是位姿估計時得到的與當前幀匹配的地圖點，它們有可能出現在局部地圖關鍵幀集合 K1、K2 中。 
         由於它們已經是匹配的了，所以不再需要進行投影篩選了，因此更新其成員變量 mnLastFrameSeen。*/
@@ -1751,32 +1714,6 @@ namespace ORB_SLAM2
                 nToMatch++;
             }
         }
-
-        // vit = mvpLocalMapPoints.begin();
-        // vend = mvpLocalMapPoints.end();
-        // /* 接下來。
-        // */
-        // for (; vit != vend; vit++)
-        // {
-        //     MapPoint *pMP = *vit;
-        //     if (pMP->mnLastFrameSeen == mCurrentFrame.mnId)
-        //     {
-        //         continue;
-        //     }
-        //     if (pMP->isBad())
-        //     {
-        //         continue;
-        //     }
-        //     // Project (this fills MapPoint variables for matching)
-        //     /* 通過當前幀的接口函數 isInFrustum 完成實際的投影篩選工作。
-        //     這個函數有兩個參數，第一個參數就是待篩的地圖點指針，
-        //     第二個參數則是拒絕待篩地圖點的視角余弦閾值，這里是 0.5 = cos60◦。*/
-        //     if (mCurrentFrame.isInFrustum(pMP, 0.5))
-        //     {
-        //         pMP->IncreaseVisible();
-        //         nToMatch++;
-        //     }
-        // }
 
         // 如果最後發現有地圖點通過了篩選，就對當前幀進行一次投影特征匹配，擴展匹配地圖點。
         if (nToMatch > 0)
@@ -1854,57 +1791,7 @@ namespace ORB_SLAM2
                     pMP->mnTrackReferenceForFrame = mCurrentFrame.mnId;
                 }
             }
-
-            // vector<MapPoint *>::const_iterator itMP = vpMPs.begin();
-            // vector<MapPoint *>::const_iterator itEndMP = vpMPs.end();
-            // for (; itMP != itEndMP; itMP++)
-            // {
-            //     MapPoint *pMP = *itMP;
-            //     if (!pMP)
-            //     {
-            //         continue;
-            //     }
-            //     if (pMP->mnTrackReferenceForFrame == mCurrentFrame.mnId)
-            //     {
-            //         continue;
-            //     }
-            //     if (!pMP->isBad())
-            //     {
-            //         mvpLocalMapPoints.push_back(pMP);
-            //         pMP->mnTrackReferenceForFrame = mCurrentFrame.mnId;
-            //     }
-            // }
         }
-        
-        // vector<KeyFrame *>::const_iterator itKF = mvpLocalKeyFrames.begin();
-        // vector<KeyFrame *>::const_iterator itEndKF = mvpLocalKeyFrames.end();
-        // for (; itKF != itEndKF; itKF++)
-        // {
-        //     // 『共視關鍵幀 pKF』
-        //     KeyFrame *pKF = *itKF;
-        //     // 『共視關鍵幀 pKF』的已配對地圖點
-        //     const vector<MapPoint *> vpMPs = pKF->GetMapPointMatches();
-        //     vector<MapPoint *>::const_iterator itMP = vpMPs.begin();
-        //     vector<MapPoint *>::const_iterator itEndMP = vpMPs.end();
-        //     // 遍歷『共視關鍵幀 pKF』的已配對地圖點
-        //     for (; itMP != itEndMP; itMP++)
-        //     {
-        //         MapPoint *pMP = *itMP;
-        //         if (!pMP)
-        //         {
-        //             continue;
-        //         }
-        //         if (pMP->mnTrackReferenceForFrame == mCurrentFrame.mnId)
-        //         {
-        //             continue;
-        //         }
-        //         if (!pMP->isBad())
-        //         {
-        //             mvpLocalMapPoints.push_back(pMP);
-        //             pMP->mnTrackReferenceForFrame = mCurrentFrame.mnId;
-        //         }
-        //     }
-        // }
     }
 
     // 更新 mvpLocalKeyFrames 為當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』
@@ -1914,12 +1801,14 @@ namespace ORB_SLAM2
         // 紀錄各『關鍵幀』分別觀察到幾次『當前幀』的地圖點，描述了共視關係
         map<KeyFrame *, int> keyframeCounter;
 
+        MapPoint *pMP;
+
         // 遍歷了當前幀的每一個地圖點
         for (int i = 0; i < mCurrentFrame.N; i++)
         {
             if (mCurrentFrame.mvpMapPoints[i])
             {
-                MapPoint *pMP = mCurrentFrame.mvpMapPoints[i];
+                pMP = mCurrentFrame.mvpMapPoints[i];
 
                 if (!pMP->isBad())
                 {
@@ -1931,14 +1820,6 @@ namespace ORB_SLAM2
 
                         keyframeCounter[obs.first]++;
                     }
-
-                    // map<KeyFrame *, size_t>::const_iterator it = observations.begin();
-                    // map<KeyFrame *, size_t>::const_iterator itend = observations.end();
-                    // // 遍歷這些關鍵幀，累積共視地圖點數量。
-                    // for (; it != itend; it++)
-                    // {
-                    //     keyframeCounter[it->first]++;
-                    // }
                 }
                 else
                 {
@@ -1990,33 +1871,13 @@ namespace ORB_SLAM2
             pKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
         }
 
-        // map<KeyFrame *, int>::const_iterator it = keyframeCounter.begin();
-        // map<KeyFrame *, int>::const_iterator itEnd = keyframeCounter.end();
-        // for (; it != itEnd; it++)
-        // {
-        //     KeyFrame *pKF = it->first;
-        //     if (pKF->isBad()){
-        //         continue;
-        //     }
-        //     // it->second：觀察到當前幀地圖點的次數
-        //     // 更新觀察到最多次的關鍵幀，及其次數
-        //     if (it->second > max)
-        //     {
-        //         // 更新 pKFmax 和 max
-        //         max = it->second;
-        //         pKFmax = pKF;
-        //     }
-        //     // 取出有觀察到相同點的關鍵幀
-        //     mvpLocalKeyFrames.push_back(it->first);
-        //     // 紀錄『提供哪一幀作為參考幀』
-        //     pKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
-        // }
-
         // Include also some not-already-included keyframes that are neighbors to
         // already-included keyframes
         // 計算集合 K2，遍歷集合 K1 中的所有元素，獲取它們在共視圖中的臨接節點。
         vector<KeyFrame *>::const_iterator itKF = mvpLocalKeyFrames.begin();
         vector<KeyFrame *>::const_iterator itEndKF = mvpLocalKeyFrames.end();
+
+        KeyFrame *pParent;
 
         // 遍歷共視關鍵幀
         for (; itKF != itEndKF; itKF++)
@@ -2053,27 +1914,6 @@ namespace ORB_SLAM2
                 }
             }
 
-            // vector<KeyFrame *>::const_iterator itNeighKF = vNeighs.begin();
-            // vector<KeyFrame *>::const_iterator itEndNeighKF = vNeighs.end();
-            // // 遍歷根據觀察到的地圖點數量排序的共視關鍵幀
-            // for (; itNeighKF != itEndNeighKF; itNeighKF++)
-            // {
-            //     KeyFrame *pNeighKF = *itNeighKF;
-            //     if (!pNeighKF->isBad())
-            //     {
-            //         // 若未曾作為當前幀的『參考關鍵幀』
-            //         if (pNeighKF->mnTrackReferenceForFrame != mCurrentFrame.mnId)
-            //         {
-            //             // 把共視關鍵幀放入容器 mvpLocalKeyFrames 中
-            //             mvpLocalKeyFrames.push_back(pNeighKF);
-            //             // 更新每個關鍵幀的成員變量 mnTrackReferenceForFrame 為當前幀的 ID，
-            //             // 以防止重覆添加某個關鍵幀
-            //             pNeighKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
-            //             break;
-            //         }
-            //     }
-            // }
-
             // 取出與『共視關鍵幀 pKF』有高度共視程度的關鍵幀
             const set<KeyFrame *> spChilds = pKF->GetChilds();
 
@@ -2092,26 +1932,8 @@ namespace ORB_SLAM2
                 }
             }
 
-            // set<KeyFrame *>::const_iterator sit = spChilds.begin();
-            // set<KeyFrame *>::const_iterator send = spChilds.end();
-            // // 遍歷有高度共視程度的關鍵幀
-            // for (; sit != send; sit++)
-            // {
-            //     KeyFrame *pChildKF = *sit;
-            //     if (!pChildKF->isBad())
-            //     {
-            //         if (pChildKF->mnTrackReferenceForFrame != mCurrentFrame.mnId)
-            //         {
-            //             // 將有高度共視程度的關鍵幀加入 mvpLocalKeyFrames 進行管理
-            //             mvpLocalKeyFrames.push_back(pChildKF);
-            //             pChildKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
-            //             break;
-            //         }
-            //     }
-            // }
-
             // 取得『共視關鍵幀 pKF』的父關鍵幀
-            KeyFrame *pParent = pKF->GetParent();
+            pParent = pKF->GetParent();
 
             if (pParent)
             {
@@ -2173,7 +1995,8 @@ namespace ORB_SLAM2
         vector<bool> vbDiscarded;
         vbDiscarded.resize(nKFs);
 
-        int nCandidates = 0;
+        int nCandidates = 0, nmatches;
+        KeyFrame *pKF;
 
         /* 用 ORB 匹配器遍歷一下所有的候選關鍵幀，容器 vpPnPsolvers 就是用來記錄各個候選幀的求解器的，
         vvpMapPointMatches 則用於保存各個候選幀與當前幀的匹配關鍵點，vbDiscarded 標記了對應候選幀
@@ -2181,7 +2004,7 @@ namespace ORB_SLAM2
         for (int i = 0; i < nKFs; i++)
         {
             // 取出第 i 個共視關鍵幀
-            KeyFrame *pKF = vpCandidateKFs[i];
+            pKF = vpCandidateKFs[i];
 
             if (pKF->isBad())
             {
@@ -2190,7 +2013,7 @@ namespace ORB_SLAM2
             else
             {
                 // 利用詞袋模型，快速匹配兩幀同時觀察到的地圖點 vector<MapPoint *> vvpMapPointMatches[i]
-                int nmatches = matcher.SearchByBoW(pKF, mCurrentFrame, vvpMapPointMatches[i]);
+                nmatches = matcher.SearchByBoW(pKF, mCurrentFrame, vvpMapPointMatches[i]);
 
                 // 配對數量不足（少於 15 點），標記該關鍵幀為要丟棄
                 if (nmatches < 15)
@@ -2359,16 +2182,6 @@ namespace ORB_SLAM2
             }
         }
 
-        // if (!bMatch)
-        // {
-        //     return false;
-        // }
-        // else
-        // {
-        //     mnLastRelocFrameId = mCurrentFrame.mnId;
-        //     return true;
-        // }
-
         // 最後根據是否成功找到匹配關鍵幀返回重定位是否成功。
         if (bMatch)
         {
@@ -2412,7 +2225,4 @@ namespace ORB_SLAM2
 
         Frame::mbInitialComputations = true;
     }
-
-    
-
 } //namespace ORB_SLAM
