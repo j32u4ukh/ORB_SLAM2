@@ -37,10 +37,6 @@ namespace ORB_SLAM2
     // 以上為管理執行續相關函式
     // ==================================================
 
-    // ==================================================
-    // 以下為非單目相關函式
-    // ==================================================
-
     Sim3Solver::Sim3Solver(KeyFrame *pKF1, KeyFrame *pKF2, const vector<MapPoint *> &vpMatched12, 
                            const bool bFixScale) : 
                            mnIterations(0), mnBestInliers(0), mbFixScale(bFixScale)
@@ -129,6 +125,27 @@ namespace ORB_SLAM2
         SetRansacParameters();
     }
 
+    // 利用『相機內參 K』將『空間點 vP3Dc』由世界座標轉換到『成像平面座標 vP2D』
+    void Sim3Solver::FromCameraToImage(const vector<cv::Mat> &vP3Dc, vector<cv::Mat> &vP2D, cv::Mat K)
+    {
+        const float &fx = K.at<float>(0, 0);
+        const float &fy = K.at<float>(1, 1);
+        const float &cx = K.at<float>(0, 2);
+        const float &cy = K.at<float>(1, 2);
+
+        vP2D.clear();
+        vP2D.reserve(vP3Dc.size());
+
+        for(cv::Mat p3dc : vP3Dc)
+        {
+            const float invz = 1 / (p3dc.at<float>(2));
+            const float x = p3dc.at<float>(0) * invz;
+            const float y = p3dc.at<float>(1) * invz;
+
+            vP2D.push_back((cv::Mat_<float>(2, 1) << fx * x + cx, fy * y + cy));
+        }
+    }
+    
     void Sim3Solver::SetRansacParameters(double probability, int minInliers, int maxIterations)
     {
         mRansacProb = probability;
@@ -146,7 +163,8 @@ namespace ORB_SLAM2
         // Set RANSAC iterations according to probability, epsilon, and max iterations
         int nIterations;
 
-        if (mRansacMinInliers == N){
+        if (mRansacMinInliers == N)
+        {
             nIterations = 1;
         }
         else{
@@ -242,41 +260,6 @@ namespace ORB_SLAM2
         }
 
         return cv::Mat();
-    }
-
-    cv::Mat Sim3Solver::find(vector<bool> &vbInliers12, int &nInliers)
-    {
-        bool bFlag;
-
-        return iterate(mRansacMaxIts, bFlag, vbInliers12, nInliers);
-    }
-
-    // C 為 P 每一列的平均，Pr 為 P 各列分別減掉列平均（即 C）
-    void Sim3Solver::ComputeCentroid(cv::Mat &P, cv::Mat &Pr, cv::Mat &C)
-    {
-        /* cv::reduce 將二維數組轉化為向量。
-        參數說明：
-        * src：輸入矩陣
-        * dst：通過處理輸入矩陣的所有 行/列 而得到的單 行/列 向量
-        * dim：矩陣被簡化後的維數索引.0 意味著矩陣被處理成一行,1 意味著矩陣被處理成為一列,
-               -1 時維數將根據輸出向量的大小自動選擇.
-
-        * op：簡化操作的方式,可以有以下幾種取值:
-        cv::REDUCE_SUM(or CV_REDUCE_SUM)	輸出是矩陣的所有行/列的和
-        cv::REDUCE_AVG(or CV_REDUCE_AVG)	輸出是矩陣的所有行/列的平均向量
-        cv::REDUCE_MAX(or CV_REDUCE_MAX)	輸出是矩陣的所有行/列的最大值
-        cv::REDUCE_MIN(or CV_REDUCE_MIN)	輸出是矩陣的所有行/列的最小值 */        
-
-        // C 是矩陣 P 的『所有列』的和，因為 dim 為 1
-        cv::reduce(P, C, 1, CV_REDUCE_SUM);
-
-        // C 除以 P 的列數，變成每一列的平均
-        C = C / P.cols;
-
-        for (int i = 0; i < P.cols; i++)
-        {
-            Pr.col(i) = P.col(i) - C;
-        }
     }
 
     // 計算『相似轉換 mT21i（Sim3）』
@@ -411,6 +394,34 @@ namespace ORB_SLAM2
         tinv.copyTo(mT21i.rowRange(0, 3).col(3));
     }
 
+    // C 為 P 每一列的平均，Pr 為 P 各列分別減掉列平均（即 C）
+    void Sim3Solver::ComputeCentroid(cv::Mat &P, cv::Mat &Pr, cv::Mat &C)
+    {
+        /* cv::reduce 將二維數組轉化為向量。
+        參數說明：
+        * src：輸入矩陣
+        * dst：通過處理輸入矩陣的所有 行/列 而得到的單 行/列 向量
+        * dim：矩陣被簡化後的維數索引.0 意味著矩陣被處理成一行,1 意味著矩陣被處理成為一列,
+               -1 時維數將根據輸出向量的大小自動選擇.
+
+        * op：簡化操作的方式,可以有以下幾種取值:
+        cv::REDUCE_SUM(or CV_REDUCE_SUM)	輸出是矩陣的所有行/列的和
+        cv::REDUCE_AVG(or CV_REDUCE_AVG)	輸出是矩陣的所有行/列的平均向量
+        cv::REDUCE_MAX(or CV_REDUCE_MAX)	輸出是矩陣的所有行/列的最大值
+        cv::REDUCE_MIN(or CV_REDUCE_MIN)	輸出是矩陣的所有行/列的最小值 */        
+
+        // C 是矩陣 P 的『所有列』的和，因為 dim 為 1
+        cv::reduce(P, C, 1, CV_REDUCE_SUM);
+
+        // C 除以 P 的列數，變成每一列的平均
+        C = C / P.cols;
+
+        for (int i = 0; i < P.cols; i++)
+        {
+            Pr.col(i) = P.col(i) - C;
+        }
+    }
+
     // 利用『相似轉換矩陣』和『相機內參』將『空間點』投影到『成像平面座標』，計算與原本的成像座標的誤差，判斷哪些是內點
     void Sim3Solver::CheckInliers()
     {
@@ -445,21 +456,6 @@ namespace ORB_SLAM2
         }
     }
 
-    cv::Mat Sim3Solver::GetEstimatedRotation()
-    {
-        return mBestRotation.clone();
-    }
-
-    cv::Mat Sim3Solver::GetEstimatedTranslation()
-    {
-        return mBestTranslation.clone();
-    }
-
-    float Sim3Solver::GetEstimatedScale()
-    {
-        return mBestScale;
-    }
-
     // 利用『相似轉換矩陣 Tcw』和『相機內參 K』將『空間點 vP3Dw』投影到『成像平面座標 vP2D』
     void Sim3Solver::Project(const vector<cv::Mat> &vP3Dw, vector<cv::Mat> &vP2D, cv::Mat Tcw, cv::Mat K)
     {
@@ -487,25 +483,31 @@ namespace ORB_SLAM2
         }
     }
 
-    // 利用『相機內參 K』將『空間點 vP3Dc』由世界座標轉換到『成像平面座標 vP2D』
-    void Sim3Solver::FromCameraToImage(const vector<cv::Mat> &vP3Dc, vector<cv::Mat> &vP2D, cv::Mat K)
+    cv::Mat Sim3Solver::GetEstimatedRotation()
     {
-        const float &fx = K.at<float>(0, 0);
-        const float &fy = K.at<float>(1, 1);
-        const float &cx = K.at<float>(0, 2);
-        const float &cy = K.at<float>(1, 2);
-
-        vP2D.clear();
-        vP2D.reserve(vP3Dc.size());
-
-        for(cv::Mat p3dc : vP3Dc)
-        {
-            const float invz = 1 / (p3dc.at<float>(2));
-            const float x = p3dc.at<float>(0) * invz;
-            const float y = p3dc.at<float>(1) * invz;
-
-            vP2D.push_back((cv::Mat_<float>(2, 1) << fx * x + cx, fy * y + cy));
-        }
+        return mBestRotation.clone();
     }
 
+    cv::Mat Sim3Solver::GetEstimatedTranslation()
+    {
+        return mBestTranslation.clone();
+    }
+
+    float Sim3Solver::GetEstimatedScale()
+    {
+        return mBestScale;
+    }
+
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
+
+    cv::Mat Sim3Solver::find(vector<bool> &vbInliers12, int &nInliers)
+    {
+        bool bFlag;
+
+        return iterate(mRansacMaxIts, bFlag, vbInliers12, nInliers);
+    }
+
+    
 } //namespace ORB_SLAM

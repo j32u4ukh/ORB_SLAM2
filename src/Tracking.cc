@@ -178,8 +178,21 @@ namespace ORB_SLAM2
         }
     }
 
-    // **************************************************
-    
+    void Tracking::SetViewer(Viewer *pViewer)
+    {
+        mpViewer = pViewer;
+    }
+
+    void Tracking::SetLocalMapper(LocalMapping *pLocalMapper)
+    {
+        mpLocalMapper = pLocalMapper;
+    }
+
+    void Tracking::SetLoopClosing(LoopClosing *pLoopClosing)
+    {
+        mpLoopClosing = pLoopClosing;
+    }
+
     // 設置是否僅追蹤不建圖
     void Tracking::InformOnlyTracking(const bool &flag)
     {
@@ -248,7 +261,7 @@ namespace ORB_SLAM2
             mpViewer->Release();
         }
     }
-
+    
     cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
     {
         mImGray = im;
@@ -291,117 +304,6 @@ namespace ORB_SLAM2
         }
 
         // 進行初始化
-        Track();
-
-        return mCurrentFrame.mTcw.clone();
-    }
-
-    // ==================================================
-    // 以下為非單目相關函式
-    // ==================================================
-
-    void Tracking::SetLocalMapper(LocalMapping *pLocalMapper)
-    {
-        mpLocalMapper = pLocalMapper;
-    }
-
-    void Tracking::SetLoopClosing(LoopClosing *pLoopClosing)
-    {
-        mpLoopClosing = pLoopClosing;
-    }
-
-    void Tracking::SetViewer(Viewer *pViewer)
-    {
-        mpViewer = pViewer;
-    }
-
-    cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRectRight, 
-                                      const double &timestamp)
-    {
-        mImGray = imRectLeft;
-        cv::Mat imGrayRight = imRectRight;
-
-        if (mImGray.channels() == 3)
-        {
-            if (mbRGB)
-            {
-                cvtColor(mImGray, mImGray, CV_RGB2GRAY);
-                cvtColor(imGrayRight, imGrayRight, CV_RGB2GRAY);
-            }
-            else
-            {
-                cvtColor(mImGray, mImGray, CV_BGR2GRAY);
-                cvtColor(imGrayRight, imGrayRight, CV_BGR2GRAY);
-            }
-        }
-        else if (mImGray.channels() == 4)
-        {
-            if (mbRGB)
-            {
-                cvtColor(mImGray, mImGray, CV_RGBA2GRAY);
-                cvtColor(imGrayRight, imGrayRight, CV_RGBA2GRAY);
-            }
-            else
-            {
-                cvtColor(mImGray, mImGray, CV_BGRA2GRAY);
-                cvtColor(imGrayRight, imGrayRight, CV_BGRA2GRAY);
-            }
-        }
-
-        mCurrentFrame = Frame(mImGray, 
-                              imGrayRight, 
-                              timestamp, 
-                              mpORBextractorLeft, 
-                              mpORBextractorRight, 
-                              mpORBVocabulary, 
-                              mK, 
-                              mDistCoef, 
-                              mbf, 
-                              mThDepth);
-
-        Track();
-
-        return mCurrentFrame.mTcw.clone();
-    }
-
-    cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const double &timestamp)
-    {
-        mImGray = imRGB;
-        cv::Mat imDepth = imD;
-
-        if (mImGray.channels() == 3)
-        {
-            if (mbRGB){
-                cvtColor(mImGray, mImGray, CV_RGB2GRAY);
-            }
-            else{
-                cvtColor(mImGray, mImGray, CV_BGR2GRAY);
-            }
-        }
-        else if (mImGray.channels() == 4)
-        {
-            if (mbRGB){
-                cvtColor(mImGray, mImGray, CV_RGBA2GRAY);
-            }
-            else{
-                cvtColor(mImGray, mImGray, CV_BGRA2GRAY);
-            }
-        }
-
-        if ((fabs(mDepthMapFactor - 1.0f) > 1e-5) || imDepth.type() != CV_32F){
-            imDepth.convertTo(imDepth, CV_32F, mDepthMapFactor);
-        }
-
-        mCurrentFrame = Frame(mImGray, 
-                              imDepth, 
-                              timestamp, 
-                              mpORBextractorLeft, 
-                              mpORBVocabulary, 
-                              mK, 
-                              mDistCoef, 
-                              mbf, 
-                              mThDepth);
-
         Track();
 
         return mCurrentFrame.mTcw.clone();
@@ -756,68 +658,6 @@ namespace ORB_SLAM2
         }
     }
 
-    void Tracking::StereoInitialization()
-    {
-        // 檢查當前幀的特征點數量，如果太少就放棄了
-        if (mCurrentFrame.N > 500)
-        {
-            // Set Frame pose to the origin
-            // 將當前幀的姿態設定到原點上，並以此構建關鍵幀添加到地圖對象 mpMap 中。
-            mCurrentFrame.SetPose(cv::Mat::eye(4, 4, CV_32F));
-
-            // Create KeyFrame
-            KeyFrame *pKFini = new KeyFrame(mCurrentFrame, mpMap, mpKeyFrameDB);
-
-            // Insert KeyFrame in the map
-            mpMap->AddKeyFrame(pKFini);
-
-            // Create MapPoints and asscoiate to KeyFrame
-            // 檢查當前幀的特征點，如果有深度信息，就依此信息將之還原到 3D 物理世界中，新建地圖點並將之與關鍵幀關聯上。
-            for (int i = 0; i < mCurrentFrame.N; i++)
-            {
-                float z = mCurrentFrame.mvDepth[i];
-
-                if (z > 0)
-                {
-                    cv::Mat x3D = mCurrentFrame.UnprojectStereo(i);
-                    MapPoint *pNewMP = new MapPoint(x3D, pKFini, mpMap);
-                    pNewMP->AddObservation(pKFini, i);
-                    pKFini->AddMapPoint(pNewMP, i);
-                    pNewMP->ComputeDistinctiveDescriptors();
-                    pNewMP->UpdateNormalAndDepth();
-                    mpMap->AddMapPoint(pNewMP);
-
-                    mCurrentFrame.mvpMapPoints[i] = pNewMP;
-                }
-            }
-
-            cout << "New map created with " << mpMap->MapPointsInMap() << " points" << endl;
-
-            // ==================================================
-            // ===== 更新系統的相關變量和狀態 =====
-            mpLocalMapper->InsertKeyFrame(pKFini);
-
-            mLastFrame = Frame(mCurrentFrame);
-            mnLastKeyFrameId = mCurrentFrame.mnId;
-            mpLastKeyFrame = pKFini;
-
-            mvpLocalKeyFrames.push_back(pKFini);
-            mvpLocalMapPoints = mpMap->GetAllMapPoints();
-            mpReferenceKF = pKFini;
-            mCurrentFrame.mpReferenceKF = pKFini;
-
-            // 將 mvpLocalMapPoints 設置為參考用地圖點
-            mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
-
-            mpMap->mvpKeyFrameOrigins.push_back(pKFini);
-
-            mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.mTcw);
-
-            mState = OK;
-            // ==================================================
-        }
-    }
-
     void Tracking::MonocularInitialization()
     {
         /* 單目相機整個初始化過程可以總結為六個步驟：
@@ -1167,82 +1007,6 @@ namespace ORB_SLAM2
         return nmatchesMap >= 10;
     }
 
-    // 和『單目模式』與『建圖模式』無關，暫時跳過
-    void Tracking::UpdateLastFrame()
-    {
-        // Update pose according to reference keyframe
-        // 取出前一幀的參考關鍵幀
-        KeyFrame *pRef = mLastFrame.mpReferenceKF;
-
-        // 取出『前一幀和其參考關鍵幀之間的位姿轉換』，即轉換矩陣
-        cv::Mat Tlr = mlRelativeFramePoses.back();
-
-        // 參考關鍵幀位姿 乘上 『參考關鍵幀到前一幀的轉換矩陣』，得到前一幀的位姿
-        mLastFrame.SetPose(Tlr * pRef->GetPose());
-
-        // 若為單目模式，直接返回
-        if (mnLastKeyFrameId == mLastFrame.mnId || mSensor == System::MONOCULAR || !mbOnlyTracking){
-            return;
-        }
-
-        // Create "visual odometry" MapPoints
-        // We sort points according to their measured depth by the stereo/RGB-D sensor
-        vector<pair<float, int>> vDepthIdx;
-        vDepthIdx.reserve(mLastFrame.N);
-
-        for (int i = 0; i < mLastFrame.N; i++)
-        {
-            float z = mLastFrame.mvDepth[i];
-
-            if (z > 0)
-            {
-                vDepthIdx.push_back(make_pair(z, i));
-            }
-        }
-
-        if (vDepthIdx.empty())
-            return;
-
-        sort(vDepthIdx.begin(), vDepthIdx.end());
-
-        // We insert all close points (depth<mThDepth)
-        // If less than 100 close points, we insert the 100 closest ones.
-        int nPoints = 0;
-
-        for (size_t j = 0; j < vDepthIdx.size(); j++)
-        {
-            int i = vDepthIdx[j].second;
-
-            bool bCreateNew = false;
-
-            MapPoint *pMP = mLastFrame.mvpMapPoints[i];
-            if (!pMP)
-                bCreateNew = true;
-            else if (pMP->Observations() < 1)
-            {
-                bCreateNew = true;
-            }
-
-            if (bCreateNew)
-            {
-                cv::Mat x3D = mLastFrame.UnprojectStereo(i);
-                MapPoint *pNewMP = new MapPoint(x3D, mpMap, &mLastFrame, i);
-
-                mLastFrame.mvpMapPoints[i] = pNewMP;
-
-                mlpTemporalPoints.push_back(pNewMP);
-                nPoints++;
-            }
-            else
-            {
-                nPoints++;
-            }
-
-            if (vDepthIdx[j].first > mThDepth && nPoints > 100)
-                break;
-        }
-    }
-
     // 實現了基於勻速運動模型的跟蹤定位方法，假設當前幀的特徵點和前一幀位於差不多的位置，進行兩幀之間特徵點的匹配，
     // 將匹配到的地圖點設置給當前幀，並返回是否匹配到足夠的點數
     bool Tracking::TrackWithMotionModel()
@@ -1251,10 +1015,10 @@ namespace ORB_SLAM2
         // 第二個參數表示匹配特征點時是否考慮方向。
         ORBmatcher matcher(0.9, true);
 
+        // 「和『單目模式』與『建圖模式』無關，暫時跳過」
+        // 在純定位模式下構建一個視覺里程計，對於建圖模式作用不大
         // Update last frame pose according to its reference keyframe
         // Create "visual odometry" points if in Localization Mode
-        // 在純定位模式下構建一個視覺里程計，對於建圖模式作用不大
-        // 和『單目模式』與『建圖模式』無關，暫時跳過
         UpdateLastFrame();
 
         /* 如果上一幀圖像成功的跟上了相機的運動，並成功的估計了速度，就以勻速運動模型來估計相機的位姿。
@@ -1354,6 +1118,240 @@ namespace ORB_SLAM2
         return nmatchesMap >= 10;
     }
 
+    // 將有相同『重定位詞』的關鍵幀篩選出來後，選取有足夠多內點的作為重定位的參考關鍵幀，並返回是否成功重定位
+    bool Tracking::Relocalization()
+    {
+        // Compute Bag of Words Vector
+        // 將當前幀轉換成詞袋
+        mCurrentFrame.ComputeBoW();
+
+        // Relocalization is performed when tracking is lost
+        // Track Lost: Query KeyFrame Database for keyframe candidates for relocalisation
+        // 先遍歷一下所有的關鍵幀篩選出具有共享詞的那些，再通過共享詞的數量以及 BoW 相似性得分，在數據庫粗選幾個候選幀
+        // 當前幀的詞袋模型包含的所有關鍵幀（擁有相同的『重定位詞』）
+        // 篩選出『重定位詞較多』、『BoW 相似性得分較高』的關鍵幀
+        // 這裡的分數同時考慮了其他觀察到相同地圖點的關鍵幀的 BoW 相似性得分
+        vector<KeyFrame *> vpCandidateKFs =
+            mpKeyFrameDB->DetectRelocalizationCandidates(&mCurrentFrame);
+
+        if (vpCandidateKFs.empty())
+        {
+            return false;
+        }
+
+        const int nKFs = vpCandidateKFs.size();
+
+        // We perform first an ORB matching with each candidate
+        // If enough matches are found we setup a PnP solver
+        ORBmatcher matcher(0.75, true);
+
+        // 各個共視關鍵幀的 PnP 求解器
+        vector<PnPsolver *> vpPnPsolvers;
+        vpPnPsolvers.resize(nKFs);
+
+        vector<vector<MapPoint *>> vvpMapPointMatches;
+        vvpMapPointMatches.resize(nKFs);
+
+        // 是否丟棄
+        vector<bool> vbDiscarded;
+        vbDiscarded.resize(nKFs);
+
+        int nCandidates = 0, nmatches;
+        KeyFrame *pKF;
+
+        /* 用 ORB 匹配器遍歷一下所有的候選關鍵幀，容器 vpPnPsolvers 就是用來記錄各個候選幀的求解器的，
+        vvpMapPointMatches 則用於保存各個候選幀與當前幀的匹配關鍵點，vbDiscarded 標記了對應候選幀
+        是否因為匹配點數量不足而被拋棄。*/
+        for (int i = 0; i < nKFs; i++)
+        {
+            // 取出第 i 個共視關鍵幀
+            pKF = vpCandidateKFs[i];
+
+            if (pKF->isBad())
+            {
+                vbDiscarded[i] = true;
+            }
+            else
+            {
+                // 利用詞袋模型，快速匹配兩幀同時觀察到的地圖點 vector<MapPoint *> vvpMapPointMatches[i]
+                nmatches = matcher.SearchByBoW(pKF, mCurrentFrame, vvpMapPointMatches[i]);
+
+                // 配對數量不足（少於 15 點），標記該關鍵幀為要丟棄
+                if (nmatches < 15)
+                {
+                    vbDiscarded[i] = true;
+                    continue;
+                }
+
+                // 當有足夠多的匹配點時為之創建一個 PnP 求解器
+                else
+                {
+                    // vvpMapPointMatches[i]：當前幀與『第 i 個共視關鍵幀』共同觀察到的地圖點
+                    // 利用 PnP 求解當前幀與『第 i 個共視關鍵幀』之間的位姿轉換
+                    PnPsolver *pSolver = new PnPsolver(mCurrentFrame, vvpMapPointMatches[i]);
+                    pSolver->SetRansacParameters(0.99, 10, 300, 4, 0.5, 5.991);
+                    vpPnPsolvers[i] = pSolver;
+                    nCandidates++;
+                }
+            }
+        }
+
+        // Alternatively perform some iterations of P4P RANSAC
+        // Until we found a camera pose supported by enough inliers
+        // 在進行新的篩選之前，先創建了一個標識重定位是否成功的布爾變量 bMatch，
+        // 和一個用於對候選幀的關鍵點進行投影匹配的 ORB 匹配器 matcher2。
+        bool bMatch = false;
+        ORBmatcher matcher2(0.9, true);
+
+        // while 循環用於推進位姿估計的優化叠代，for 循環用於遍歷候選關鍵幀。
+        while (nCandidates > 0 && !bMatch)
+        {
+            for (int i = 0; i < nKFs; i++)
+            {
+                if (vbDiscarded[i])
+                {
+                    continue;
+                }
+
+                // 記錄了候選幀中成功匹配上的地圖點
+                vector<bool> vbInliers;
+
+                // 記錄了匹配點的數量
+                int nInliers;
+
+                // 用於標記 PnP 求解是否達到了最大叠代次數
+                bool bNoMore;
+
+                // Perform 5 Ransac Iterations
+                // 針對每個關鍵幀先通過 PnP 求解器估計相機的位姿，結果保存在局部變量 Tcw 中。
+                PnPsolver *pSolver = vpPnPsolvers[i];
+                cv::Mat Tcw = pSolver->iterate(5, bNoMore, vbInliers, nInliers);
+
+                // If Ransac reachs max. iterations discard keyframe
+                // 如果達到了最大叠代次數，那麽意味著通過 PnP 算法無法得到一個比較合理的位姿估計，
+                // 所以才會叠代了那麽多次。因此需要拋棄該候選幀。
+                if (bNoMore)
+                {
+                    vbDiscarded[i] = true;
+                    nCandidates--;
+                }
+
+                // If a Camera Pose is computed, optimize
+                // 如果成功的求解了 PnP 問題，並得到了相機的位姿估計，那麽就進一步的對該估計進行優化
+                if (!Tcw.empty())
+                {
+                    // 用剛剛計算得到的位姿估計（Tcw）來更新當前幀的位姿
+                    Tcw.copyTo(mCurrentFrame.mTcw);
+
+                    set<MapPoint *> sFound;
+
+                    const int np = vbInliers.size();
+
+                    for (int j = 0; j < np; j++)
+                    {
+                        // 若為內點，則加入當前幀進行管理
+                        if (vbInliers[j])
+                        {
+                            mCurrentFrame.mvpMapPoints[j] = vvpMapPointMatches[i][j];
+                            sFound.insert(vvpMapPointMatches[i][j]);
+                        }
+                        else{
+                            mCurrentFrame.mvpMapPoints[j] = NULL;
+                        }
+                    }
+                    
+                    // 優化『pFrame 觀察到的地圖點』的位置，以及 pFrame 的位姿估計，並返回優化後的內點個數
+                    int nGood = Optimizer::PoseOptimization(&mCurrentFrame);
+
+                    // 局部變量 nGood 評價了匹配程度，如果太低就結束當此叠代。
+                    if (nGood < 10)
+                    {
+                        continue;
+                    }
+
+                    for (int io = 0; io < mCurrentFrame.N; io++)
+                    {
+                        if (mCurrentFrame.mvbOutlier[io])
+                        {
+                            mCurrentFrame.mvpMapPoints[io] = static_cast<MapPoint *>(NULL);
+                        }
+                    }
+
+                    // If few inliers, search by projection in a coarse window and optimize again
+                    // 如果內點數量比較少，就以一個較大的窗口將候選幀的地圖點投影到當前幀上獲取更多的可能匹配點，
+                    // 並重新進行優化。
+                    if (nGood < 50)
+                    {
+                        // 利用較大的搜索半徑 10 進行再次配對
+                        // 尋找 CurrentFrame 當中和『關鍵幀 vpCandidateKFs[i]』的特徵點對應的位置，
+                        // 形成 CurrentFrame 的地圖點，並返回匹配成功的個數
+                        int nadditional = matcher2.SearchByProjection(mCurrentFrame, vpCandidateKFs[i],
+                                                                      sFound, 10, 100);
+
+                        if (nadditional + nGood >= 50)
+                        {
+                            nGood = Optimizer::PoseOptimization(&mCurrentFrame);
+
+                            // If many inliers but still not enough, search by projection again in
+                            // a narrower window the camera has been already optimized with many points
+                            // 如果內點數量得到了增加但仍然不夠多，就。。
+                            if (nGood > 30 && nGood < 50)
+                            {
+                                sFound.clear();
+
+                                for (int ip = 0; ip < mCurrentFrame.N; ip++)
+                                {
+                                    if (mCurrentFrame.mvpMapPoints[ip])
+                                    {
+                                        sFound.insert(mCurrentFrame.mvpMapPoints[ip]);
+                                    }
+                                }
+
+                                // 再次將候選幀的地圖點投影到當前幀上搜索匹配點，只是這次投影的窗口（64）比較小
+                                // 窗口小，形成的候選網格則會增加，也就是搜索細緻度增加了
+                                nadditional = matcher2.SearchByProjection(mCurrentFrame, 
+                                                                          vpCandidateKFs[i], 
+                                                                          sFound, 3, 64);
+
+                                // Final optimization
+                                // 產生足夠的配對點
+                                if (nGood + nadditional >= 50)
+                                {
+                                    // 再進行一次優化
+                                    nGood = Optimizer::PoseOptimization(&mCurrentFrame);
+
+                                    for (int io = 0; io < mCurrentFrame.N; io++)
+                                    {
+                                        if (mCurrentFrame.mvbOutlier[io])
+                                        {
+                                            mCurrentFrame.mvpMapPoints[io] = NULL;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // If the pose is supported by enough inliers stop ransacs and continue
+                    // 如果找到一個候選幀經過一次次的優化之後，具有足夠多的匹配點，就認為重定位成功，退出循環叠代。
+                    if (nGood >= 50)
+                    {
+                        bMatch = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 最後根據是否成功找到匹配關鍵幀返回重定位是否成功。
+        if (bMatch)
+        {
+            mnLastRelocFrameId = mCurrentFrame.mnId;
+        }
+
+        return bMatch;
+    }
+
     // 找出當前幀的『共視關鍵幀』以及其『已配對地圖點』，確保這些地圖點至少被 1 個關鍵幀觀察到，且重投影後的內點足夠多
     bool Tracking::TrackLocalMap()
     {
@@ -1425,6 +1423,304 @@ namespace ORB_SLAM2
 
         // 內點至少 30 點，才算重定位成功
         return mnMatchesInliers >= 30;
+    }
+
+    // 設置參考用地圖點，更新當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』，以及其『已配對地圖點』
+    void Tracking::UpdateLocalMap()
+    {
+        /* 要更新的這個局部地圖包含了兩個關鍵幀集合 K1、K2，
+        K1 中的關鍵幀都與當前幀有共視的地圖點，
+        K2 則是 K1 的元素在共視圖中的臨接節點。
+        可以通過遍歷共視圖的臨接表來計算局部地圖*/
+
+        // 將 mvpLocalMapPoints 設置為參考用地圖點
+        mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
+
+        // 計算關鍵幀集合K1、K2
+        // 更新 mvpLocalKeyFrames 為當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』
+        UpdateLocalKeyFrames();
+
+        // 搜索局部地圖中的地圖點
+        // 更新當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』的『已配對地圖點』
+        UpdateLocalPoints();
+    }
+
+    // 更新 mvpLocalKeyFrames 為當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』
+    void Tracking::UpdateLocalKeyFrames()
+    {
+        // Each map point vote for the keyframes in which it has been observed
+        // 紀錄各『關鍵幀』分別觀察到幾次『當前幀』的地圖點，描述了共視關係
+        map<KeyFrame *, int> keyframeCounter;
+
+        MapPoint *pMP;
+
+        // 遍歷了當前幀的每一個地圖點
+        for (int i = 0; i < mCurrentFrame.N; i++)
+        {
+            if (mCurrentFrame.mvpMapPoints[i])
+            {
+                pMP = mCurrentFrame.mvpMapPoints[i];
+
+                if (!pMP->isBad())
+                {
+                    // 取得觀察到『地圖點 pMP』的關鍵幀，以及是與該關鍵幀的哪個特徵點相對應
+                    const map<KeyFrame *, size_t> observations = pMP->GetObservations();
+
+                    // 遍歷這些關鍵幀，累積共視地圖點數量。
+                    for(pair<KeyFrame *, size_t> obs : observations){
+
+                        keyframeCounter[obs.first]++;
+                    }
+                }
+                else
+                {
+                    mCurrentFrame.mvpMapPoints[i] = NULL;
+                }
+            }
+        }
+
+        // 如果容器 keyframeCounter 為空，意味著沒有找到與當前幀具有共視關系的關鍵幀，集合 K1、K2 為空，直接返回。
+        if (keyframeCounter.empty())
+        {
+            return;
+        }
+
+        // 創建了臨時變量 pKFmax 和 max 用於記錄與當前幀具有最多共視地圖點的關鍵幀和共視地圖點數量
+        int max = 0;
+        KeyFrame *pKFmax = static_cast<KeyFrame *>(NULL);
+
+        // 紀錄有觀察到相同點的關鍵幀
+        mvpLocalKeyFrames.clear();
+        mvpLocalKeyFrames.reserve(3 * keyframeCounter.size());
+
+        // All keyframes that observe a map point are included in the local map.
+        // Also check which keyframe shares most points
+        // 遍歷局部 map 容器 keyframeCounter 中的所有關鍵幀，將之保存到成員容器 mvpLocalKeyFrames 中
+        for(pair<KeyFrame *, int> kf_counter : keyframeCounter){
+
+            KeyFrame *pKF = kf_counter.first;
+
+            if (pKF->isBad()){
+                continue;
+            }
+
+            int counter = kf_counter.second;
+
+            // it->second：觀察到當前幀地圖點的次數
+            // 更新觀察到最多次的關鍵幀，及其次數
+            if (counter > max)
+            {
+                // 更新 pKFmax 和 max
+                max = counter;
+                pKFmax = pKF;
+            }
+
+            // 取出有觀察到相同點的關鍵幀
+            mvpLocalKeyFrames.push_back(pKF);
+
+            // 紀錄『提供哪一幀作為參考幀』
+            pKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
+        }
+
+        // Include also some not-already-included keyframes that are neighbors to
+        // already-included keyframes
+        // 計算集合 K2，遍歷集合 K1 中的所有元素，獲取它們在共視圖中的臨接節點。
+        vector<KeyFrame *>::const_iterator itKF = mvpLocalKeyFrames.begin();
+        vector<KeyFrame *>::const_iterator itEndKF = mvpLocalKeyFrames.end();
+
+        KeyFrame *pParent;
+
+        // 遍歷共視關鍵幀
+        for (; itKF != itEndKF; itKF++)
+        {
+            // Limit the number of keyframes
+            // 為了節約計算資源，ORB-SLAM2 將集合 K1、K2 中的關鍵幀數量限制在了 80 幀。
+            if (mvpLocalKeyFrames.size() > 80)
+            {
+                break;
+            }
+
+            // 共視關鍵幀 pKF
+            KeyFrame *pKF = *itKF;
+
+            // 獲取考察關鍵幀的共視圖臨接節點，在調用的時候為之傳遞了一個參數 10，表示獲取最多 10 個臨接關鍵幀
+            // GetBestCovisibilityKeyFrames：根據觀察到的地圖點數量排序的共視關鍵幀
+            const vector<KeyFrame *> vNeighs = pKF->GetBestCovisibilityKeyFrames(10);
+
+            for(KeyFrame *pNeighKF : vNeighs){
+
+                if (!pNeighKF->isBad())
+                {
+                    // 若未曾作為當前幀的『參考關鍵幀』
+                    if (pNeighKF->mnTrackReferenceForFrame != mCurrentFrame.mnId)
+                    {
+                        // 把共視關鍵幀放入容器 mvpLocalKeyFrames 中
+                        mvpLocalKeyFrames.push_back(pNeighKF);
+
+                        // 更新每個關鍵幀的成員變量 mnTrackReferenceForFrame 為當前幀的 ID，
+                        // 以防止重覆添加某個關鍵幀
+                        pNeighKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
+                        break;
+                    }
+                }
+            }
+
+            // 取出與『共視關鍵幀 pKF』有高度共視程度的關鍵幀
+            const set<KeyFrame *> spChilds = pKF->GetChilds();
+
+            for(KeyFrame *pChildKF : spChilds){
+
+                if (!pChildKF->isBad())
+                {
+                    if (pChildKF->mnTrackReferenceForFrame != mCurrentFrame.mnId)
+                    {
+                        // 將有高度共視程度的關鍵幀加入 mvpLocalKeyFrames 進行管理
+                        mvpLocalKeyFrames.push_back(pChildKF);
+
+                        pChildKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
+                        break;
+                    }
+                }
+            }
+
+            // 取得『共視關鍵幀 pKF』的父關鍵幀
+            pParent = pKF->GetParent();
+
+            if (pParent)
+            {
+                if (pParent->mnTrackReferenceForFrame != mCurrentFrame.mnId)
+                {
+                    // 將父關鍵幀加入 mvpLocalKeyFrames 進行管理
+                    mvpLocalKeyFrames.push_back(pParent);
+
+                    pParent->mnTrackReferenceForFrame = mCurrentFrame.mnId;
+
+                    break;
+                }
+            }
+        }
+
+        // 更新當前幀的參考關鍵幀為 K1 中具有最多共視地圖點的關鍵幀
+        if (pKFmax)
+        {
+            mpReferenceKF = pKFmax;
+            mCurrentFrame.mpReferenceKF = mpReferenceKF;
+        }
+    }
+
+    // 更新當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』的『已配對地圖點』
+    void Tracking::UpdateLocalPoints()
+    {
+        mvpLocalMapPoints.clear();
+
+        // UpdateLocalKeyFrames 當中更新的當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』
+        /* 遍歷剛剛計算的關鍵幀集合 K1、K2，把它們的地圖點一個個的都給摳出來，放到容器 mvpLocalMapPoints 中。
+        通過地圖點的成員變量 mnTrackReferenceForFrame 來防止重覆添加地圖點。*/
+        for(KeyFrame *pKF : mvpLocalKeyFrames){
+
+            // 『共視關鍵幀 pKF』的已配對地圖點
+            const vector<MapPoint *> vpMPs = pKF->GetMapPointMatches();
+
+            // 遍歷『共視關鍵幀 pKF』的已配對地圖點
+            for(MapPoint *pMP : vpMPs){
+
+                if (!pMP)
+                {
+                    continue;
+                }
+
+                if (pMP->mnTrackReferenceForFrame == mCurrentFrame.mnId)
+                {
+                    continue;
+                }
+
+                if (!pMP->isBad())
+                {
+                    mvpLocalMapPoints.push_back(pMP);
+                    pMP->mnTrackReferenceForFrame = mCurrentFrame.mnId;
+                }
+            }
+        }
+    }
+
+    void Tracking::SearchLocalPoints()
+    {
+        // Do not search map points already matched
+        vector<MapPoint *>::iterator vit = mCurrentFrame.mvpMapPoints.begin();
+        vector<MapPoint *>::iterator vend = mCurrentFrame.mvpMapPoints.end();
+        
+        /* 遍歷了當前幀的所有地圖點，增加可視幀計數，同時更新其成員變量 mnLastFrameSeen。
+        這些地圖點是位姿估計時得到的與當前幀匹配的地圖點，它們有可能出現在局部地圖關鍵幀集合 K1、K2 中。 
+        由於它們已經是匹配的了，所以不再需要進行投影篩選了，因此更新其成員變量 mnLastFrameSeen。*/
+        for (; vit != vend; vit++)
+        {
+            MapPoint *pMP = *vit;
+
+            if (pMP)
+            {
+                if (pMP->isBad())
+                {
+                    *vit = static_cast<MapPoint *>(NULL);
+                }
+                else
+                {
+                    pMP->IncreaseVisible();
+                    pMP->mnLastFrameSeen = mCurrentFrame.mnId;
+                    pMP->mbTrackInView = false;
+                }
+            }
+        }
+
+        // 記錄了通過篩選的地圖點數量
+        int nToMatch = 0;
+
+        // Project points in frame and check its visibility
+        // 對局部地圖中的地圖點進行投影篩選
+        for(MapPoint *pMP : mvpLocalMapPoints){
+
+            if (pMP->mnLastFrameSeen == mCurrentFrame.mnId)
+            {
+                continue;
+            }
+
+            if (pMP->isBad())
+            {
+                continue;
+            }
+
+            // Project (this fills MapPoint variables for matching)
+            /* 通過當前幀的接口函數 isInFrustum 完成實際的投影篩選工作。
+            這個函數有兩個參數，第一個參數就是待篩的地圖點指針，
+            第二個參數則是拒絕待篩地圖點的視角余弦閾值，這里是 0.5 = cos60◦。*/
+            if (mCurrentFrame.isInFrustum(pMP, 0.5))
+            {
+                pMP->IncreaseVisible();
+                nToMatch++;
+            }
+        }
+
+        // 如果最後發現有地圖點通過了篩選，就對當前幀進行一次投影特征匹配，擴展匹配地圖點。
+        if (nToMatch > 0)
+        {
+            ORBmatcher matcher(0.8);
+
+            // 這里定義的局部參數 th 限定了投影搜索範圍，該值越大則搜索範圍就越大。
+            int th = 1;
+
+            if (mSensor == System::RGBD)
+            {
+                th = 3;
+            }
+
+            // If the camera has been relocalised recently, perform a coarser search
+            // 發生了重定位，此時需要適當的放大搜索範圍
+            if (mCurrentFrame.mnId < mnLastRelocFrameId + 2)
+            {
+                th = 5;
+            }
+
+            matcher.SearchByProjection(mCurrentFrame, mvpLocalMapPoints, th);
+        }
     }
 
     // 判定是否生成關鍵幀
@@ -1662,536 +1958,238 @@ namespace ORB_SLAM2
         mpLastKeyFrame = pKF;
     }
 
-    void Tracking::SearchLocalPoints()
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
+
+    cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRectRight, 
+                                      const double &timestamp)
     {
-        // Do not search map points already matched
-        vector<MapPoint *>::iterator vit = mCurrentFrame.mvpMapPoints.begin();
-        vector<MapPoint *>::iterator vend = mCurrentFrame.mvpMapPoints.end();
-        
-        /* 遍歷了當前幀的所有地圖點，增加可視幀計數，同時更新其成員變量 mnLastFrameSeen。
-        這些地圖點是位姿估計時得到的與當前幀匹配的地圖點，它們有可能出現在局部地圖關鍵幀集合 K1、K2 中。 
-        由於它們已經是匹配的了，所以不再需要進行投影篩選了，因此更新其成員變量 mnLastFrameSeen。*/
-        for (; vit != vend; vit++)
+        mImGray = imRectLeft;
+        cv::Mat imGrayRight = imRectRight;
+
+        if (mImGray.channels() == 3)
         {
-            MapPoint *pMP = *vit;
-
-            if (pMP)
+            if (mbRGB)
             {
-                if (pMP->isBad())
-                {
-                    *vit = static_cast<MapPoint *>(NULL);
-                }
-                else
-                {
-                    pMP->IncreaseVisible();
-                    pMP->mnLastFrameSeen = mCurrentFrame.mnId;
-                    pMP->mbTrackInView = false;
-                }
-            }
-        }
-
-        // 記錄了通過篩選的地圖點數量
-        int nToMatch = 0;
-
-        // Project points in frame and check its visibility
-        // 對局部地圖中的地圖點進行投影篩選
-        for(MapPoint *pMP : mvpLocalMapPoints){
-
-            if (pMP->mnLastFrameSeen == mCurrentFrame.mnId)
-            {
-                continue;
-            }
-
-            if (pMP->isBad())
-            {
-                continue;
-            }
-
-            // Project (this fills MapPoint variables for matching)
-            /* 通過當前幀的接口函數 isInFrustum 完成實際的投影篩選工作。
-            這個函數有兩個參數，第一個參數就是待篩的地圖點指針，
-            第二個參數則是拒絕待篩地圖點的視角余弦閾值，這里是 0.5 = cos60◦。*/
-            if (mCurrentFrame.isInFrustum(pMP, 0.5))
-            {
-                pMP->IncreaseVisible();
-                nToMatch++;
-            }
-        }
-
-        // 如果最後發現有地圖點通過了篩選，就對當前幀進行一次投影特征匹配，擴展匹配地圖點。
-        if (nToMatch > 0)
-        {
-            ORBmatcher matcher(0.8);
-
-            // 這里定義的局部參數 th 限定了投影搜索範圍，該值越大則搜索範圍就越大。
-            int th = 1;
-
-            if (mSensor == System::RGBD)
-            {
-                th = 3;
-            }
-
-            // If the camera has been relocalised recently, perform a coarser search
-            // 發生了重定位，此時需要適當的放大搜索範圍
-            if (mCurrentFrame.mnId < mnLastRelocFrameId + 2)
-            {
-                th = 5;
-            }
-
-            matcher.SearchByProjection(mCurrentFrame, mvpLocalMapPoints, th);
-        }
-    }
-
-    // 設置參考用地圖點，更新當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』，以及其『已配對地圖點』
-    void Tracking::UpdateLocalMap()
-    {
-        /* 要更新的這個局部地圖包含了兩個關鍵幀集合 K1、K2，
-        K1 中的關鍵幀都與當前幀有共視的地圖點，
-        K2 則是 K1 的元素在共視圖中的臨接節點。
-        可以通過遍歷共視圖的臨接表來計算局部地圖*/
-
-        // 將 mvpLocalMapPoints 設置為參考用地圖點
-        mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
-
-        // 計算關鍵幀集合K1、K2
-        // 更新 mvpLocalKeyFrames 為當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』
-        UpdateLocalKeyFrames();
-
-        // 搜索局部地圖中的地圖點
-        // 更新當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』的『已配對地圖點』
-        UpdateLocalPoints();
-    }
-
-    // 更新當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』的『已配對地圖點』
-    void Tracking::UpdateLocalPoints()
-    {
-        mvpLocalMapPoints.clear();
-
-        // UpdateLocalKeyFrames 當中更新的當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』
-        /* 遍歷剛剛計算的關鍵幀集合 K1、K2，把它們的地圖點一個個的都給摳出來，放到容器 mvpLocalMapPoints 中。
-        通過地圖點的成員變量 mnTrackReferenceForFrame 來防止重覆添加地圖點。*/
-        for(KeyFrame *pKF : mvpLocalKeyFrames){
-
-            // 『共視關鍵幀 pKF』的已配對地圖點
-            const vector<MapPoint *> vpMPs = pKF->GetMapPointMatches();
-
-            // 遍歷『共視關鍵幀 pKF』的已配對地圖點
-            for(MapPoint *pMP : vpMPs){
-
-                if (!pMP)
-                {
-                    continue;
-                }
-
-                if (pMP->mnTrackReferenceForFrame == mCurrentFrame.mnId)
-                {
-                    continue;
-                }
-
-                if (!pMP->isBad())
-                {
-                    mvpLocalMapPoints.push_back(pMP);
-                    pMP->mnTrackReferenceForFrame = mCurrentFrame.mnId;
-                }
-            }
-        }
-    }
-
-    // 更新 mvpLocalKeyFrames 為當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』
-    void Tracking::UpdateLocalKeyFrames()
-    {
-        // Each map point vote for the keyframes in which it has been observed
-        // 紀錄各『關鍵幀』分別觀察到幾次『當前幀』的地圖點，描述了共視關係
-        map<KeyFrame *, int> keyframeCounter;
-
-        MapPoint *pMP;
-
-        // 遍歷了當前幀的每一個地圖點
-        for (int i = 0; i < mCurrentFrame.N; i++)
-        {
-            if (mCurrentFrame.mvpMapPoints[i])
-            {
-                pMP = mCurrentFrame.mvpMapPoints[i];
-
-                if (!pMP->isBad())
-                {
-                    // 取得觀察到『地圖點 pMP』的關鍵幀，以及是與該關鍵幀的哪個特徵點相對應
-                    const map<KeyFrame *, size_t> observations = pMP->GetObservations();
-
-                    // 遍歷這些關鍵幀，累積共視地圖點數量。
-                    for(pair<KeyFrame *, size_t> obs : observations){
-
-                        keyframeCounter[obs.first]++;
-                    }
-                }
-                else
-                {
-                    mCurrentFrame.mvpMapPoints[i] = NULL;
-                }
-            }
-        }
-
-        // 如果容器 keyframeCounter 為空，意味著沒有找到與當前幀具有共視關系的關鍵幀，集合 K1、K2 為空，直接返回。
-        if (keyframeCounter.empty())
-        {
-            return;
-        }
-
-        // 創建了臨時變量 pKFmax 和 max 用於記錄與當前幀具有最多共視地圖點的關鍵幀和共視地圖點數量
-        int max = 0;
-        KeyFrame *pKFmax = static_cast<KeyFrame *>(NULL);
-
-        // 紀錄有觀察到相同點的關鍵幀
-        mvpLocalKeyFrames.clear();
-        mvpLocalKeyFrames.reserve(3 * keyframeCounter.size());
-
-        // All keyframes that observe a map point are included in the local map.
-        // Also check which keyframe shares most points
-        // 遍歷局部 map 容器 keyframeCounter 中的所有關鍵幀，將之保存到成員容器 mvpLocalKeyFrames 中
-        for(pair<KeyFrame *, int> kf_counter : keyframeCounter){
-
-            KeyFrame *pKF = kf_counter.first;
-
-            if (pKF->isBad()){
-                continue;
-            }
-
-            int counter = kf_counter.second;
-
-            // it->second：觀察到當前幀地圖點的次數
-            // 更新觀察到最多次的關鍵幀，及其次數
-            if (counter > max)
-            {
-                // 更新 pKFmax 和 max
-                max = counter;
-                pKFmax = pKF;
-            }
-
-            // 取出有觀察到相同點的關鍵幀
-            mvpLocalKeyFrames.push_back(pKF);
-
-            // 紀錄『提供哪一幀作為參考幀』
-            pKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
-        }
-
-        // Include also some not-already-included keyframes that are neighbors to
-        // already-included keyframes
-        // 計算集合 K2，遍歷集合 K1 中的所有元素，獲取它們在共視圖中的臨接節點。
-        vector<KeyFrame *>::const_iterator itKF = mvpLocalKeyFrames.begin();
-        vector<KeyFrame *>::const_iterator itEndKF = mvpLocalKeyFrames.end();
-
-        KeyFrame *pParent;
-
-        // 遍歷共視關鍵幀
-        for (; itKF != itEndKF; itKF++)
-        {
-            // Limit the number of keyframes
-            // 為了節約計算資源，ORB-SLAM2 將集合 K1、K2 中的關鍵幀數量限制在了 80 幀。
-            if (mvpLocalKeyFrames.size() > 80)
-            {
-                break;
-            }
-
-            // 共視關鍵幀 pKF
-            KeyFrame *pKF = *itKF;
-
-            // 獲取考察關鍵幀的共視圖臨接節點，在調用的時候為之傳遞了一個參數 10，表示獲取最多 10 個臨接關鍵幀
-            // GetBestCovisibilityKeyFrames：根據觀察到的地圖點數量排序的共視關鍵幀
-            const vector<KeyFrame *> vNeighs = pKF->GetBestCovisibilityKeyFrames(10);
-
-            for(KeyFrame *pNeighKF : vNeighs){
-
-                if (!pNeighKF->isBad())
-                {
-                    // 若未曾作為當前幀的『參考關鍵幀』
-                    if (pNeighKF->mnTrackReferenceForFrame != mCurrentFrame.mnId)
-                    {
-                        // 把共視關鍵幀放入容器 mvpLocalKeyFrames 中
-                        mvpLocalKeyFrames.push_back(pNeighKF);
-
-                        // 更新每個關鍵幀的成員變量 mnTrackReferenceForFrame 為當前幀的 ID，
-                        // 以防止重覆添加某個關鍵幀
-                        pNeighKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
-                        break;
-                    }
-                }
-            }
-
-            // 取出與『共視關鍵幀 pKF』有高度共視程度的關鍵幀
-            const set<KeyFrame *> spChilds = pKF->GetChilds();
-
-            for(KeyFrame *pChildKF : spChilds){
-
-                if (!pChildKF->isBad())
-                {
-                    if (pChildKF->mnTrackReferenceForFrame != mCurrentFrame.mnId)
-                    {
-                        // 將有高度共視程度的關鍵幀加入 mvpLocalKeyFrames 進行管理
-                        mvpLocalKeyFrames.push_back(pChildKF);
-
-                        pChildKF->mnTrackReferenceForFrame = mCurrentFrame.mnId;
-                        break;
-                    }
-                }
-            }
-
-            // 取得『共視關鍵幀 pKF』的父關鍵幀
-            pParent = pKF->GetParent();
-
-            if (pParent)
-            {
-                if (pParent->mnTrackReferenceForFrame != mCurrentFrame.mnId)
-                {
-                    // 將父關鍵幀加入 mvpLocalKeyFrames 進行管理
-                    mvpLocalKeyFrames.push_back(pParent);
-
-                    pParent->mnTrackReferenceForFrame = mCurrentFrame.mnId;
-
-                    break;
-                }
-            }
-        }
-
-        // 更新當前幀的參考關鍵幀為 K1 中具有最多共視地圖點的關鍵幀
-        if (pKFmax)
-        {
-            mpReferenceKF = pKFmax;
-            mCurrentFrame.mpReferenceKF = mpReferenceKF;
-        }
-    }
-
-    // 將有相同『重定位詞』的關鍵幀篩選出來後，選取有足夠多內點的作為重定位的參考關鍵幀，並返回是否成功重定位
-    bool Tracking::Relocalization()
-    {
-        // Compute Bag of Words Vector
-        // 將當前幀轉換成詞袋
-        mCurrentFrame.ComputeBoW();
-
-        // Relocalization is performed when tracking is lost
-        // Track Lost: Query KeyFrame Database for keyframe candidates for relocalisation
-        // 先遍歷一下所有的關鍵幀篩選出具有共享詞的那些，再通過共享詞的數量以及 BoW 相似性得分，在數據庫粗選幾個候選幀
-        // 當前幀的詞袋模型包含的所有關鍵幀（擁有相同的『重定位詞』）
-        // 篩選出『重定位詞較多』、『BoW 相似性得分較高』的關鍵幀
-        // 這裡的分數同時考慮了其他觀察到相同地圖點的關鍵幀的 BoW 相似性得分
-        vector<KeyFrame *> vpCandidateKFs =
-            mpKeyFrameDB->DetectRelocalizationCandidates(&mCurrentFrame);
-
-        if (vpCandidateKFs.empty())
-        {
-            return false;
-        }
-
-        const int nKFs = vpCandidateKFs.size();
-
-        // We perform first an ORB matching with each candidate
-        // If enough matches are found we setup a PnP solver
-        ORBmatcher matcher(0.75, true);
-
-        // 各個共視關鍵幀的 PnP 求解器
-        vector<PnPsolver *> vpPnPsolvers;
-        vpPnPsolvers.resize(nKFs);
-
-        vector<vector<MapPoint *>> vvpMapPointMatches;
-        vvpMapPointMatches.resize(nKFs);
-
-        // 是否丟棄
-        vector<bool> vbDiscarded;
-        vbDiscarded.resize(nKFs);
-
-        int nCandidates = 0, nmatches;
-        KeyFrame *pKF;
-
-        /* 用 ORB 匹配器遍歷一下所有的候選關鍵幀，容器 vpPnPsolvers 就是用來記錄各個候選幀的求解器的，
-        vvpMapPointMatches 則用於保存各個候選幀與當前幀的匹配關鍵點，vbDiscarded 標記了對應候選幀
-        是否因為匹配點數量不足而被拋棄。*/
-        for (int i = 0; i < nKFs; i++)
-        {
-            // 取出第 i 個共視關鍵幀
-            pKF = vpCandidateKFs[i];
-
-            if (pKF->isBad())
-            {
-                vbDiscarded[i] = true;
+                cvtColor(mImGray, mImGray, CV_RGB2GRAY);
+                cvtColor(imGrayRight, imGrayRight, CV_RGB2GRAY);
             }
             else
             {
-                // 利用詞袋模型，快速匹配兩幀同時觀察到的地圖點 vector<MapPoint *> vvpMapPointMatches[i]
-                nmatches = matcher.SearchByBoW(pKF, mCurrentFrame, vvpMapPointMatches[i]);
-
-                // 配對數量不足（少於 15 點），標記該關鍵幀為要丟棄
-                if (nmatches < 15)
-                {
-                    vbDiscarded[i] = true;
-                    continue;
-                }
-
-                // 當有足夠多的匹配點時為之創建一個 PnP 求解器
-                else
-                {
-                    // vvpMapPointMatches[i]：當前幀與『第 i 個共視關鍵幀』共同觀察到的地圖點
-                    // 利用 PnP 求解當前幀與『第 i 個共視關鍵幀』之間的位姿轉換
-                    PnPsolver *pSolver = new PnPsolver(mCurrentFrame, vvpMapPointMatches[i]);
-                    pSolver->SetRansacParameters(0.99, 10, 300, 4, 0.5, 5.991);
-                    vpPnPsolvers[i] = pSolver;
-                    nCandidates++;
-                }
+                cvtColor(mImGray, mImGray, CV_BGR2GRAY);
+                cvtColor(imGrayRight, imGrayRight, CV_BGR2GRAY);
             }
         }
-
-        // Alternatively perform some iterations of P4P RANSAC
-        // Until we found a camera pose supported by enough inliers
-        // 在進行新的篩選之前，先創建了一個標識重定位是否成功的布爾變量 bMatch，
-        // 和一個用於對候選幀的關鍵點進行投影匹配的 ORB 匹配器 matcher2。
-        bool bMatch = false;
-        ORBmatcher matcher2(0.9, true);
-
-        // while 循環用於推進位姿估計的優化叠代，for 循環用於遍歷候選關鍵幀。
-        while (nCandidates > 0 && !bMatch)
+        else if (mImGray.channels() == 4)
         {
-            for (int i = 0; i < nKFs; i++)
+            if (mbRGB)
             {
-                if (vbDiscarded[i])
-                {
-                    continue;
-                }
-
-                // 記錄了候選幀中成功匹配上的地圖點
-                vector<bool> vbInliers;
-
-                // 記錄了匹配點的數量
-                int nInliers;
-
-                // 用於標記 PnP 求解是否達到了最大叠代次數
-                bool bNoMore;
-
-                // Perform 5 Ransac Iterations
-                // 針對每個關鍵幀先通過 PnP 求解器估計相機的位姿，結果保存在局部變量 Tcw 中。
-                PnPsolver *pSolver = vpPnPsolvers[i];
-                cv::Mat Tcw = pSolver->iterate(5, bNoMore, vbInliers, nInliers);
-
-                // If Ransac reachs max. iterations discard keyframe
-                // 如果達到了最大叠代次數，那麽意味著通過 PnP 算法無法得到一個比較合理的位姿估計，
-                // 所以才會叠代了那麽多次。因此需要拋棄該候選幀。
-                if (bNoMore)
-                {
-                    vbDiscarded[i] = true;
-                    nCandidates--;
-                }
-
-                // If a Camera Pose is computed, optimize
-                // 如果成功的求解了 PnP 問題，並得到了相機的位姿估計，那麽就進一步的對該估計進行優化
-                if (!Tcw.empty())
-                {
-                    // 用剛剛計算得到的位姿估計（Tcw）來更新當前幀的位姿
-                    Tcw.copyTo(mCurrentFrame.mTcw);
-
-                    set<MapPoint *> sFound;
-
-                    const int np = vbInliers.size();
-
-                    for (int j = 0; j < np; j++)
-                    {
-                        // 若為內點，則加入當前幀進行管理
-                        if (vbInliers[j])
-                        {
-                            mCurrentFrame.mvpMapPoints[j] = vvpMapPointMatches[i][j];
-                            sFound.insert(vvpMapPointMatches[i][j]);
-                        }
-                        else{
-                            mCurrentFrame.mvpMapPoints[j] = NULL;
-                        }
-                    }
-                    
-                    // 優化『pFrame 觀察到的地圖點』的位置，以及 pFrame 的位姿估計，並返回優化後的內點個數
-                    int nGood = Optimizer::PoseOptimization(&mCurrentFrame);
-
-                    // 局部變量 nGood 評價了匹配程度，如果太低就結束當此叠代。
-                    if (nGood < 10)
-                    {
-                        continue;
-                    }
-
-                    for (int io = 0; io < mCurrentFrame.N; io++)
-                    {
-                        if (mCurrentFrame.mvbOutlier[io])
-                        {
-                            mCurrentFrame.mvpMapPoints[io] = static_cast<MapPoint *>(NULL);
-                        }
-                    }
-
-                    // If few inliers, search by projection in a coarse window and optimize again
-                    // 如果內點數量比較少，就以一個較大的窗口將候選幀的地圖點投影到當前幀上獲取更多的可能匹配點，
-                    // 並重新進行優化。
-                    if (nGood < 50)
-                    {
-                        // 利用較大的搜索半徑 10 進行再次配對
-                        // 尋找 CurrentFrame 當中和『關鍵幀 vpCandidateKFs[i]』的特徵點對應的位置，
-                        // 形成 CurrentFrame 的地圖點，並返回匹配成功的個數
-                        int nadditional = matcher2.SearchByProjection(mCurrentFrame, vpCandidateKFs[i],
-                                                                      sFound, 10, 100);
-
-                        if (nadditional + nGood >= 50)
-                        {
-                            nGood = Optimizer::PoseOptimization(&mCurrentFrame);
-
-                            // If many inliers but still not enough, search by projection again in
-                            // a narrower window the camera has been already optimized with many points
-                            // 如果內點數量得到了增加但仍然不夠多，就。。
-                            if (nGood > 30 && nGood < 50)
-                            {
-                                sFound.clear();
-
-                                for (int ip = 0; ip < mCurrentFrame.N; ip++)
-                                {
-                                    if (mCurrentFrame.mvpMapPoints[ip])
-                                    {
-                                        sFound.insert(mCurrentFrame.mvpMapPoints[ip]);
-                                    }
-                                }
-
-                                // 再次將候選幀的地圖點投影到當前幀上搜索匹配點，只是這次投影的窗口（64）比較小
-                                // 窗口小，形成的候選網格則會增加，也就是搜索細緻度增加了
-                                nadditional = matcher2.SearchByProjection(mCurrentFrame, 
-                                                                          vpCandidateKFs[i], 
-                                                                          sFound, 3, 64);
-
-                                // Final optimization
-                                // 產生足夠的配對點
-                                if (nGood + nadditional >= 50)
-                                {
-                                    // 再進行一次優化
-                                    nGood = Optimizer::PoseOptimization(&mCurrentFrame);
-
-                                    for (int io = 0; io < mCurrentFrame.N; io++)
-                                    {
-                                        if (mCurrentFrame.mvbOutlier[io])
-                                        {
-                                            mCurrentFrame.mvpMapPoints[io] = NULL;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // If the pose is supported by enough inliers stop ransacs and continue
-                    // 如果找到一個候選幀經過一次次的優化之後，具有足夠多的匹配點，就認為重定位成功，退出循環叠代。
-                    if (nGood >= 50)
-                    {
-                        bMatch = true;
-                        break;
-                    }
-                }
+                cvtColor(mImGray, mImGray, CV_RGBA2GRAY);
+                cvtColor(imGrayRight, imGrayRight, CV_RGBA2GRAY);
+            }
+            else
+            {
+                cvtColor(mImGray, mImGray, CV_BGRA2GRAY);
+                cvtColor(imGrayRight, imGrayRight, CV_BGRA2GRAY);
             }
         }
 
-        // 最後根據是否成功找到匹配關鍵幀返回重定位是否成功。
-        if (bMatch)
+        mCurrentFrame = Frame(mImGray, 
+                              imGrayRight, 
+                              timestamp, 
+                              mpORBextractorLeft, 
+                              mpORBextractorRight, 
+                              mpORBVocabulary, 
+                              mK, 
+                              mDistCoef, 
+                              mbf, 
+                              mThDepth);
+
+        Track();
+
+        return mCurrentFrame.mTcw.clone();
+    }
+
+    cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const double &timestamp)
+    {
+        mImGray = imRGB;
+        cv::Mat imDepth = imD;
+
+        if (mImGray.channels() == 3)
         {
-            mnLastRelocFrameId = mCurrentFrame.mnId;
+            if (mbRGB){
+                cvtColor(mImGray, mImGray, CV_RGB2GRAY);
+            }
+            else{
+                cvtColor(mImGray, mImGray, CV_BGR2GRAY);
+            }
+        }
+        else if (mImGray.channels() == 4)
+        {
+            if (mbRGB){
+                cvtColor(mImGray, mImGray, CV_RGBA2GRAY);
+            }
+            else{
+                cvtColor(mImGray, mImGray, CV_BGRA2GRAY);
+            }
         }
 
-        return bMatch;
+        if ((fabs(mDepthMapFactor - 1.0f) > 1e-5) || imDepth.type() != CV_32F){
+            imDepth.convertTo(imDepth, CV_32F, mDepthMapFactor);
+        }
+
+        mCurrentFrame = Frame(mImGray, 
+                              imDepth, 
+                              timestamp, 
+                              mpORBextractorLeft, 
+                              mpORBVocabulary, 
+                              mK, 
+                              mDistCoef, 
+                              mbf, 
+                              mThDepth);
+
+        Track();
+
+        return mCurrentFrame.mTcw.clone();
+    }
+
+    void Tracking::StereoInitialization()
+    {
+        // 檢查當前幀的特征點數量，如果太少就放棄了
+        if (mCurrentFrame.N > 500)
+        {
+            // Set Frame pose to the origin
+            // 將當前幀的姿態設定到原點上，並以此構建關鍵幀添加到地圖對象 mpMap 中。
+            mCurrentFrame.SetPose(cv::Mat::eye(4, 4, CV_32F));
+
+            // Create KeyFrame
+            KeyFrame *pKFini = new KeyFrame(mCurrentFrame, mpMap, mpKeyFrameDB);
+
+            // Insert KeyFrame in the map
+            mpMap->AddKeyFrame(pKFini);
+
+            // Create MapPoints and asscoiate to KeyFrame
+            // 檢查當前幀的特征點，如果有深度信息，就依此信息將之還原到 3D 物理世界中，新建地圖點並將之與關鍵幀關聯上。
+            for (int i = 0; i < mCurrentFrame.N; i++)
+            {
+                float z = mCurrentFrame.mvDepth[i];
+
+                if (z > 0)
+                {
+                    cv::Mat x3D = mCurrentFrame.UnprojectStereo(i);
+                    MapPoint *pNewMP = new MapPoint(x3D, pKFini, mpMap);
+                    pNewMP->AddObservation(pKFini, i);
+                    pKFini->AddMapPoint(pNewMP, i);
+                    pNewMP->ComputeDistinctiveDescriptors();
+                    pNewMP->UpdateNormalAndDepth();
+                    mpMap->AddMapPoint(pNewMP);
+
+                    mCurrentFrame.mvpMapPoints[i] = pNewMP;
+                }
+            }
+
+            cout << "New map created with " << mpMap->MapPointsInMap() << " points" << endl;
+
+            // ==================================================
+            // ===== 更新系統的相關變量和狀態 =====
+            mpLocalMapper->InsertKeyFrame(pKFini);
+
+            mLastFrame = Frame(mCurrentFrame);
+            mnLastKeyFrameId = mCurrentFrame.mnId;
+            mpLastKeyFrame = pKFini;
+
+            mvpLocalKeyFrames.push_back(pKFini);
+            mvpLocalMapPoints = mpMap->GetAllMapPoints();
+            mpReferenceKF = pKFini;
+            mCurrentFrame.mpReferenceKF = pKFini;
+
+            // 將 mvpLocalMapPoints 設置為參考用地圖點
+            mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
+
+            mpMap->mvpKeyFrameOrigins.push_back(pKFini);
+
+            mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.mTcw);
+
+            mState = OK;
+            // ==================================================
+        }
+    }
+
+    // 和『單目模式』與『建圖模式』無關，暫時跳過
+    void Tracking::UpdateLastFrame()
+    {
+        // Update pose according to reference keyframe
+        // 取出前一幀的參考關鍵幀
+        KeyFrame *pRef = mLastFrame.mpReferenceKF;
+
+        // 取出『前一幀和其參考關鍵幀之間的位姿轉換』，即轉換矩陣
+        cv::Mat Tlr = mlRelativeFramePoses.back();
+
+        // 參考關鍵幀位姿 乘上 『參考關鍵幀到前一幀的轉換矩陣』，得到前一幀的位姿
+        mLastFrame.SetPose(Tlr * pRef->GetPose());
+
+        // 若為單目模式，直接返回
+        if (mnLastKeyFrameId == mLastFrame.mnId || mSensor == System::MONOCULAR || !mbOnlyTracking){
+            return;
+        }
+
+        // Create "visual odometry" MapPoints
+        // We sort points according to their measured depth by the stereo/RGB-D sensor
+        vector<pair<float, int>> vDepthIdx;
+        vDepthIdx.reserve(mLastFrame.N);
+
+        for (int i = 0; i < mLastFrame.N; i++)
+        {
+            float z = mLastFrame.mvDepth[i];
+
+            if (z > 0)
+            {
+                vDepthIdx.push_back(make_pair(z, i));
+            }
+        }
+
+        if (vDepthIdx.empty())
+            return;
+
+        sort(vDepthIdx.begin(), vDepthIdx.end());
+
+        // We insert all close points (depth<mThDepth)
+        // If less than 100 close points, we insert the 100 closest ones.
+        int nPoints = 0;
+
+        for (size_t j = 0; j < vDepthIdx.size(); j++)
+        {
+            int i = vDepthIdx[j].second;
+
+            bool bCreateNew = false;
+
+            MapPoint *pMP = mLastFrame.mvpMapPoints[i];
+            if (!pMP)
+                bCreateNew = true;
+            else if (pMP->Observations() < 1)
+            {
+                bCreateNew = true;
+            }
+
+            if (bCreateNew)
+            {
+                cv::Mat x3D = mLastFrame.UnprojectStereo(i);
+                MapPoint *pNewMP = new MapPoint(x3D, mpMap, &mLastFrame, i);
+
+                mLastFrame.mvpMapPoints[i] = pNewMP;
+
+                mlpTemporalPoints.push_back(pNewMP);
+                nPoints++;
+            }
+            else
+            {
+                nPoints++;
+            }
+
+            if (vDepthIdx[j].first > mThDepth && nPoints > 100)
+                break;
+        }
     }
 
     void Tracking::ChangeCalibration(const string &strSettingPath)

@@ -40,37 +40,14 @@ namespace ORB_SLAM2
     // 以上為管理執行續相關函式
     // ==================================================
 
-    LoopClosing::LoopClosing(Map *pMap, KeyFrameDatabase *pDB, ORBVocabulary *pVoc, const bool bFixScale) : 
-                             mpMap(pMap), mpKeyFrameDB(pDB), mpORBVocabulary(pVoc), mbFixScale(bFixScale),
-                             mbResetRequested(false), mbFinishRequested(false), mbFinished(true),
-                             mpMatchedKF(NULL), mLastLoopKFid(0), mbRunningGBA(false), mbFinishedGBA(true),
-                             mbStopGBA(false), mpThreadGBA(NULL), mnFullBAIdx(0)
+    LoopClosing::LoopClosing(Map *pMap, KeyFrameDatabase *pDB, ORBVocabulary *pVoc, 
+                             const bool bFixScale) :
+                             mpMap(pMap), mpKeyFrameDB(pDB), mpORBVocabulary(pVoc), 
+                             mbFixScale(bFixScale), mbResetRequested(false), mbFinishRequested(false), 
+                             mbFinished(true), mpMatchedKF(NULL), mLastLoopKFid(0), mbRunningGBA(false), 
+                             mbFinishedGBA(true), mbStopGBA(false), mpThreadGBA(NULL), mnFullBAIdx(0)
     {
         mnCovisibilityConsistencyTh = 3;
-    }
-
-    // 將『關鍵幀 pKF』加入『關鍵幀的隊列』當中
-    void LoopClosing::InsertKeyFrame(KeyFrame *pKF)
-    {
-        unique_lock<mutex> lock(mMutexLoopQueue);
-
-        if (pKF->mnId != 0){
-            mlpLoopKeyFrameQueue.push_back(pKF);
-        }
-    }
-
-    // ==================================================
-    // 以下為非單目相關函式
-    // ==================================================
-
-    void LoopClosing::SetTracker(Tracking *pTracker)
-    {
-        mpTracker = pTracker;
-    }
-
-    void LoopClosing::SetLocalMapper(LocalMapping *pLocalMapper)
-    {
-        mpLocalMapper = pLocalMapper;
     }
 
     void LoopClosing::Run()
@@ -432,7 +409,8 @@ namespace ORB_SLAM2
                     for (size_t j = 0, jend = vbInliers.size(); j < jend; j++)
                     {
                         // 若為內點（已在 pSolver->iterate 作過判斷）
-                        if (vbInliers[j]){
+                        if (vbInliers[j])
+                        {
                             vpMapPointMatches[j] = vvpMapPointMatches[i][j];
                         }
                     }
@@ -912,43 +890,6 @@ namespace ORB_SLAM2
         }
     }
 
-    // 請求重置狀態
-    void LoopClosing::RequestReset()
-    {
-        {
-            unique_lock<mutex> lock(mMutexReset);
-            mbResetRequested = true;
-        }
-
-        while (1)
-        {
-            {
-                unique_lock<mutex> lock2(mMutexReset);
-
-                // 完成重置後，mbResetRequested 會被改成 false，因此這個迴圈的目的是在等待確實被重置
-                if (!mbResetRequested){
-                    break;
-                }
-            }
-
-            // 確實被重置之前，暫停 LoopClosing
-            usleep(5000);
-        }
-    }
-
-    // 若有重置請求，重置『關鍵幀隊列』、『最新一筆關鍵幀的 id』以及『重置請求』
-    void LoopClosing::ResetIfRequested()
-    {
-        unique_lock<mutex> lock(mMutexReset);
-
-        if (mbResetRequested)
-        {
-            mlpLoopKeyFrameQueue.clear();
-            mLastLoopKFid = 0;
-            mbResetRequested = false;
-        }
-    }
-
     // 呼叫 Optimizer::GlobalBundleAdjustemnt 後，『子關鍵幀』以『父關鍵幀』優化後的位姿估計為基礎，
     // 再進行兩幀間的相對運動，更新『子關鍵幀』的位姿估計，而『父關鍵幀』的位姿估計也改為優化後的位姿
     void LoopClosing::RunGlobalBundleAdjustment(unsigned long nLoopKF)
@@ -1096,11 +1037,29 @@ namespace ORB_SLAM2
         }
     }
 
-    // 請求結束 LoopClosing 執行續
-    void LoopClosing::RequestFinish()
+    // **************************************************
+    
+    // 將『關鍵幀 pKF』加入『關鍵幀的隊列』當中
+    void LoopClosing::InsertKeyFrame(KeyFrame *pKF)
     {
-        unique_lock<mutex> lock(mMutexFinish);
-        mbFinishRequested = true;
+        unique_lock<mutex> lock(mMutexLoopQueue);
+
+        if (pKF->mnId != 0){
+            mlpLoopKeyFrameQueue.push_back(pKF);
+        }
+    }
+
+    // 若有重置請求，重置『關鍵幀隊列』、『最新一筆關鍵幀的 id』以及『重置請求』
+    void LoopClosing::ResetIfRequested()
+    {
+        unique_lock<mutex> lock(mMutexReset);
+
+        if (mbResetRequested)
+        {
+            mlpLoopKeyFrameQueue.clear();
+            mLastLoopKFid = 0;
+            mbResetRequested = false;
+        }
     }
 
     // 檢查結束 LoopClosing 執行續的請求
@@ -1117,6 +1076,23 @@ namespace ORB_SLAM2
         mbFinished = true;
     }
 
+    void LoopClosing::SetTracker(Tracking *pTracker)
+    {
+        mpTracker = pTracker;
+    }
+
+    void LoopClosing::SetLocalMapper(LocalMapping *pLocalMapper)
+    {
+        mpLocalMapper = pLocalMapper;
+    }
+
+    // 請求結束 LoopClosing 執行續
+    void LoopClosing::RequestFinish()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        mbFinishRequested = true;
+    }
+
     // LoopClosing 執行續是否已有效停止
     bool LoopClosing::isFinished()
     {
@@ -1124,4 +1100,33 @@ namespace ORB_SLAM2
         return mbFinished;
     }
 
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
+
+    // 請求重置狀態
+    void LoopClosing::RequestReset()
+    {
+        {
+            unique_lock<mutex> lock(mMutexReset);
+            mbResetRequested = true;
+        }
+
+        while (1)
+        {
+            {
+                unique_lock<mutex> lock2(mMutexReset);
+
+                // 完成重置後，mbResetRequested 會被改成 false，因此這個迴圈的目的是在等待確實被重置
+                if (!mbResetRequested){
+                    break;
+                }
+            }
+
+            // 確實被重置之前，暫停 LoopClosing
+            usleep(5000);
+        }
+    }
+
+    
 } //namespace ORB_SLAM

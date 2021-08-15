@@ -529,6 +529,23 @@ namespace ORB_SLAM2
         Pos.copyTo(mWorldPos);
     }
 
+    // 取得參考關鍵幀
+    KeyFrame *MapPoint::GetReferenceKeyFrame()
+    {
+        unique_lock<mutex> lock(mMutexFeatures);
+
+        return mpRefKF;
+    }
+
+    // 返回要更新的地圖點
+    MapPoint *MapPoint::GetReplaced()
+    {
+        unique_lock<mutex> lock1(mMutexFeatures);
+        unique_lock<mutex> lock2(mMutexPos);
+
+        return mpReplaced;
+    }
+
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================
@@ -560,23 +577,6 @@ namespace ORB_SLAM2
         // MapPoints can be created from Tracking and Local Mapping. This mutex avoid conflicts with id.
         unique_lock<mutex> lock(mpMap->mMutexPointCreation);
         mnId = nNextId++;
-    }
-
-    // 取得參考關鍵幀
-    KeyFrame *MapPoint::GetReferenceKeyFrame()
-    {
-        unique_lock<mutex> lock(mMutexFeatures);
-
-        return mpRefKF;
-    }
-
-    // 返回要更新的地圖點
-    MapPoint *MapPoint::GetReplaced()
-    {
-        unique_lock<mutex> lock1(mMutexFeatures);
-        unique_lock<mutex> lock2(mMutexPos);
-
-        return mpReplaced;
     }
 
     

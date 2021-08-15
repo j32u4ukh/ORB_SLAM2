@@ -44,62 +44,109 @@ namespace ORB_SLAM2
         mCameraLineWidth = fSettings["Viewer.CameraLineWidth"];
     }
 
-    // ==================================================
-    // 以下為非單目相關函式
-    // ==================================================
-
-    // 將當前觀察到的點畫成紅色，過去觀察到的地圖點畫成黑色
-    void MapDrawer::DrawMapPoints()
+    // 根據當前相機位姿，更新 OpenGlMatrix M 的值
+    void MapDrawer::GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M)
     {
-        // 從『地圖 mpMap』中取出所有地圖點
-        const vector<MapPoint *> &vpMPs = mpMap->GetAllMapPoints();
-
-        // 從『地圖 mpMap』中取出所有參考地圖點（當前觀察到的點）
-        const vector<MapPoint *> &vpRefMPs = mpMap->GetReferenceMapPoints();
-
-        set<MapPoint *> spRefMPs(vpRefMPs.begin(), vpRefMPs.end());
-
-        if (vpMPs.empty()){
-            return;
-        }
-
-        glPointSize(mPointSize);
-
-        // 繪畫點模式
-        glBegin(GL_POINTS);
-
-        // 設置為黑色 -> 過去觀察到的點
-        glColor3f(0.0, 0.0, 0.0);
-
-        for(MapPoint * mp : vpMPs)
+        // 若當前相機位姿不為空
+        if (!mCameraPose.empty())
         {
-            if (mp->isBad() || spRefMPs.count(mp)){
-                continue;
+            cv::Mat Rwc(3, 3, CV_32F);
+            cv::Mat twc(3, 1, CV_32F);
+
+            {
+                unique_lock<mutex> lock(mMutexCamera);
+
+                // 取得當前相機的旋轉矩陣
+                Rwc = mCameraPose.rowRange(0, 3).colRange(0, 3).t();
+
+                // 取得當前相機的平移向量
+                twc = -Rwc * mCameraPose.rowRange(0, 3).col(3);
             }
 
-            cv::Mat pos = mp->GetWorldPos();
-            glVertex3f(pos.at<float>(0), pos.at<float>(1), pos.at<float>(2));
+            // 當前相機的位姿，存入 OpenGlMatrix M
+            M.m[0] = Rwc.at<float>(0, 0);
+            M.m[1] = Rwc.at<float>(1, 0);
+            M.m[2] = Rwc.at<float>(2, 0);
+            M.m[3] = 0.0;
+
+            M.m[4] = Rwc.at<float>(0, 1);
+            M.m[5] = Rwc.at<float>(1, 1);
+            M.m[6] = Rwc.at<float>(2, 1);
+            M.m[7] = 0.0;
+
+            M.m[8] = Rwc.at<float>(0, 2);
+            M.m[9] = Rwc.at<float>(1, 2);
+            M.m[10] = Rwc.at<float>(2, 2);
+            M.m[11] = 0.0;
+
+            M.m[12] = twc.at<float>(0);
+            M.m[13] = twc.at<float>(1);
+            M.m[14] = twc.at<float>(2);
+            M.m[15] = 1.0;
         }
+
+        // 若當前相機位姿是空的
+        else
+        {
+            // OpenGlMatrix M 設為單位矩陣
+            M.SetIdentity();
+        }
+    }
+
+    // 畫出當前相機位姿
+    void MapDrawer::DrawCurrentCamera(pangolin::OpenGlMatrix &Twc)
+    {
+        const float &w = mCameraSize;
+        const float h = w * 0.75;
+        const float z = w * 0.6;
+
+        /* glPushMatrix() 將當前矩陣 push 入一個 stack，反之 glPopMatrix() 取出 stack 頂端的矩陣，
+        因此我們就可以"記憶 gluLookAt() 後的 CM 長相"，並且在所有轉換都做完之後，
+        又再度回到" gluLookAt() 後的 CM 長像"，而且重點是這兩個函數是硬體實作且 hard dependent，速度更快，
+        因此可以用一句話形容： glPushMatrix() 是記住自己現在的位置，而 glPopMatrix() 是回到之前記住的位置!! 
         
+        參考：http://ppb440219.blogspot.com/2012/01/opengl-glpushmatrix-glpopmatrix.html */
+
+        // 紀錄當前位姿
+        glPushMatrix();
+
+        // 將位姿從原本的相機座標系，轉換為世界座標系
+#ifdef HAVE_GLES
+        glMultMatrixf(Twc.m);
+#else
+        glMultMatrixd(Twc.m);
+#endif
+
+        glLineWidth(mCameraLineWidth);
+
+        // 設置為綠色
+        glColor3f(0.0f, 1.0f, 0.0f);
+
+        glBegin(GL_LINES);
+        glVertex3f(0, 0, 0);
+        glVertex3f(w, h, z);
+        glVertex3f(0, 0, 0);
+        glVertex3f(w, -h, z);
+        glVertex3f(0, 0, 0);
+        glVertex3f(-w, -h, z);
+        glVertex3f(0, 0, 0);
+        glVertex3f(-w, h, z);
+
+        glVertex3f(w, h, z);
+        glVertex3f(w, -h, z);
+
+        glVertex3f(-w, h, z);
+        glVertex3f(-w, -h, z);
+
+        glVertex3f(-w, h, z);
+        glVertex3f(w, h, z);
+
+        glVertex3f(-w, -h, z);
+        glVertex3f(w, -h, z);
         glEnd();
 
-        glPointSize(mPointSize);
-        glBegin(GL_POINTS);
-
-        // 設置為紅色 -> 當前觀察到的點
-        glColor3f(1.0, 0.0, 0.0);
-
-        for(MapPoint * mp : spRefMPs)
-        {
-            if (mp->isBad()){
-                continue;
-            }
-
-            cv::Mat pos = mp->GetWorldPos();
-            glVertex3f(pos.at<float>(0), pos.at<float>(1), pos.at<float>(2));
-        }
-
-        glEnd();
+        // 取出紀錄的位姿，以還原成之前的位姿
+        glPopMatrix();
     }
 
     // 畫出過去所有關鍵幀，並畫出和『共視關鍵幀』、『父關鍵幀』、『迴路關鍵幀』之間的連線
@@ -231,60 +278,58 @@ namespace ORB_SLAM2
         }
     }
 
-    // 畫出當前相機位姿
-    void MapDrawer::DrawCurrentCamera(pangolin::OpenGlMatrix &Twc)
+    // 將當前觀察到的點畫成紅色，過去觀察到的地圖點畫成黑色
+    void MapDrawer::DrawMapPoints()
     {
-        const float &w = mCameraSize;
-        const float h = w * 0.75;
-        const float z = w * 0.6;
+        // 從『地圖 mpMap』中取出所有地圖點
+        const vector<MapPoint *> &vpMPs = mpMap->GetAllMapPoints();
 
-        /* glPushMatrix() 將當前矩陣 push 入一個 stack，反之 glPopMatrix() 取出 stack 頂端的矩陣，
-        因此我們就可以"記憶 gluLookAt() 後的 CM 長相"，並且在所有轉換都做完之後，
-        又再度回到" gluLookAt() 後的 CM 長像"，而且重點是這兩個函數是硬體實作且 hard dependent，速度更快，
-        因此可以用一句話形容： glPushMatrix() 是記住自己現在的位置，而 glPopMatrix() 是回到之前記住的位置!! 
+        // 從『地圖 mpMap』中取出所有參考地圖點（當前觀察到的點）
+        const vector<MapPoint *> &vpRefMPs = mpMap->GetReferenceMapPoints();
+
+        set<MapPoint *> spRefMPs(vpRefMPs.begin(), vpRefMPs.end());
+
+        if (vpMPs.empty()){
+            return;
+        }
+
+        glPointSize(mPointSize);
+
+        // 繪畫點模式
+        glBegin(GL_POINTS);
+
+        // 設置為黑色 -> 過去觀察到的點
+        glColor3f(0.0, 0.0, 0.0);
+
+        for(MapPoint * mp : vpMPs)
+        {
+            if (mp->isBad() || spRefMPs.count(mp)){
+                continue;
+            }
+
+            cv::Mat pos = mp->GetWorldPos();
+            glVertex3f(pos.at<float>(0), pos.at<float>(1), pos.at<float>(2));
+        }
         
-        參考：http://ppb440219.blogspot.com/2012/01/opengl-glpushmatrix-glpopmatrix.html */
-
-        // 紀錄當前位姿
-        glPushMatrix();
-
-        // 將位姿從原本的相機座標系，轉換為世界座標系
-#ifdef HAVE_GLES
-        glMultMatrixf(Twc.m);
-#else
-        glMultMatrixd(Twc.m);
-#endif
-
-        glLineWidth(mCameraLineWidth);
-
-        // 設置為綠色
-        glColor3f(0.0f, 1.0f, 0.0f);
-
-        glBegin(GL_LINES);
-        glVertex3f(0, 0, 0);
-        glVertex3f(w, h, z);
-        glVertex3f(0, 0, 0);
-        glVertex3f(w, -h, z);
-        glVertex3f(0, 0, 0);
-        glVertex3f(-w, -h, z);
-        glVertex3f(0, 0, 0);
-        glVertex3f(-w, h, z);
-
-        glVertex3f(w, h, z);
-        glVertex3f(w, -h, z);
-
-        glVertex3f(-w, h, z);
-        glVertex3f(-w, -h, z);
-
-        glVertex3f(-w, h, z);
-        glVertex3f(w, h, z);
-
-        glVertex3f(-w, -h, z);
-        glVertex3f(w, -h, z);
         glEnd();
 
-        // 取出紀錄的位姿，以還原成之前的位姿
-        glPopMatrix();
+        glPointSize(mPointSize);
+        glBegin(GL_POINTS);
+
+        // 設置為紅色 -> 當前觀察到的點
+        glColor3f(1.0, 0.0, 0.0);
+
+        for(MapPoint * mp : spRefMPs)
+        {
+            if (mp->isBad()){
+                continue;
+            }
+
+            cv::Mat pos = mp->GetWorldPos();
+            glVertex3f(pos.at<float>(0), pos.at<float>(1), pos.at<float>(2));
+        }
+
+        glEnd();
     }
 
     // 設置當前幀的位姿
@@ -294,53 +339,9 @@ namespace ORB_SLAM2
         mCameraPose = Tcw.clone();
     }
 
-    // 根據當前相機位姿，更新 OpenGlMatrix M 的值
-    void MapDrawer::GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M)
-    {
-        // 若當前相機位姿不為空
-        if (!mCameraPose.empty())
-        {
-            cv::Mat Rwc(3, 3, CV_32F);
-            cv::Mat twc(3, 1, CV_32F);
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
 
-            {
-                unique_lock<mutex> lock(mMutexCamera);
-
-                // 取得當前相機的旋轉矩陣
-                Rwc = mCameraPose.rowRange(0, 3).colRange(0, 3).t();
-
-                // 取得當前相機的平移向量
-                twc = -Rwc * mCameraPose.rowRange(0, 3).col(3);
-            }
-
-            // 當前相機的位姿，存入 OpenGlMatrix M
-            M.m[0] = Rwc.at<float>(0, 0);
-            M.m[1] = Rwc.at<float>(1, 0);
-            M.m[2] = Rwc.at<float>(2, 0);
-            M.m[3] = 0.0;
-
-            M.m[4] = Rwc.at<float>(0, 1);
-            M.m[5] = Rwc.at<float>(1, 1);
-            M.m[6] = Rwc.at<float>(2, 1);
-            M.m[7] = 0.0;
-
-            M.m[8] = Rwc.at<float>(0, 2);
-            M.m[9] = Rwc.at<float>(1, 2);
-            M.m[10] = Rwc.at<float>(2, 2);
-            M.m[11] = 0.0;
-
-            M.m[12] = twc.at<float>(0);
-            M.m[13] = twc.at<float>(1);
-            M.m[14] = twc.at<float>(2);
-            M.m[15] = 1.0;
-        }
-
-        // 若當前相機位姿是空的
-        else
-        {
-            // OpenGlMatrix M 設為單位矩陣
-            M.SetIdentity();
-        }
-    }
-
+    
 } //namespace ORB_SLAM

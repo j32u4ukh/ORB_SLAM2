@@ -40,11 +40,6 @@ namespace ORB_SLAM2
         mvInvertedFile.resize(voc.size());
     }
 
-    
-    // ==================================================
-    // 以下為非單目相關函式
-    // ==================================================
-
     void KeyFrameDatabase::add(KeyFrame *pKF)
     {
         unique_lock<mutex> lock(mMutex);
@@ -80,12 +75,6 @@ namespace ORB_SLAM2
                 }
             }
         }
-    }
-
-    void KeyFrameDatabase::clear()
-    {
-        mvInvertedFile.clear();
-        mvInvertedFile.resize(mpVoc->size());
     }
 
     // 計算和『關鍵幀 pKF』有相同單字的『關鍵幀及其共視關鍵幀』和『關鍵幀 pKF』的相似程度，將相似程度高的關鍵幀返回
@@ -417,4 +406,15 @@ namespace ORB_SLAM2
         return vpRelocCandidates;
     }
 
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
+
+    void KeyFrameDatabase::clear()
+    {
+        mvInvertedFile.clear();
+        mvInvertedFile.resize(mpVoc->size());
+    }
+
+    
 } //namespace ORB_SLAM

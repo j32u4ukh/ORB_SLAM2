@@ -34,6 +34,56 @@ namespace ORB_SLAM2
     // 以上為管理執行續相關函式
     // ==================================================
 
+    KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB) : 
+                       mnFrameId(F.mnId), mTimeStamp(F.mTimeStamp), mnGridCols(FRAME_GRID_COLS), 
+                       mnGridRows(FRAME_GRID_ROWS), mfGridElementWidthInv(F.mfGridElementWidthInv), 
+                       mfGridElementHeightInv(F.mfGridElementHeightInv), mnTrackReferenceForFrame(0), 
+                       mnFuseTargetForKF(0), mnBALocalForKF(0), mnBAFixedForKF(0), mnLoopQuery(0), 
+                       mnLoopWords(0), mnRelocQuery(0), mnRelocWords(0), mnBAGlobalForKF(0), 
+                       fx(F.fx), fy(F.fy), cx(F.cx), cy(F.cy), invfx(F.invfx), invfy(F.invfy), 
+                       mbf(F.mbf), mb(F.mb), mThDepth(F.mThDepth), N(F.N), 
+                       mvKeys(F.mvKeys), mvKeysUn(F.mvKeysUn), mvuRight(F.mvuRight), mvDepth(F.mvDepth), 
+                       mDescriptors(F.mDescriptors.clone()), mBowVec(F.mBowVec), mFeatVec(F.mFeatVec), 
+                       mnScaleLevels(F.mnScaleLevels), mfScaleFactor(F.mfScaleFactor), 
+                       mfLogScaleFactor(F.mfLogScaleFactor), mvScaleFactors(F.mvScaleFactors), 
+                       mvLevelSigma2(F.mvLevelSigma2), mvInvLevelSigma2(F.mvInvLevelSigma2), 
+                       mnMinX(F.mnMinX), mnMinY(F.mnMinY), mnMaxX(F.mnMaxX), mnMaxY(F.mnMaxY), 
+                       mK(F.mK), mvpMapPoints(F.mvpMapPoints), mpKeyFrameDB(pKFDB), mpMap(pMap), 
+                       mpORBvocabulary(F.mpORBvocabulary), mbFirstConnection(true), mpParent(NULL), 
+                       mbNotErase(false), mbToBeErased(false), mbBad(false), mHalfBaseline(F.mb / 2)
+    {
+        mnId = nNextId++;
+        mGrid.resize(mnGridCols);
+
+        for (int i = 0; i < mnGridCols; i++)
+        {
+            mGrid[i].resize(mnGridRows);
+
+            for (int j = 0; j < mnGridRows; j++)
+            {
+                mGrid[i][j] = F.mGrid[i][j];
+            }
+        }
+
+        SetPose(F.mTcw);
+    }
+
+    void KeyFrame::SetPose(const cv::Mat &Tcw_)
+    {
+        unique_lock<mutex> lock(mMutexPose);
+        Tcw_.copyTo(Tcw);
+        cv::Mat Rcw = Tcw.rowRange(0, 3).colRange(0, 3);
+        cv::Mat tcw = Tcw.rowRange(0, 3).col(3);
+        cv::Mat Rwc = Rcw.t();
+        Ow = -Rwc * tcw;
+
+        Twc = cv::Mat::eye(4, 4, Tcw.type());
+        Rwc.copyTo(Twc.rowRange(0, 3).colRange(0, 3));
+        Ow.copyTo(Twc.rowRange(0, 3).col(3));
+        cv::Mat center = (cv::Mat_<float>(4, 1) << mHalfBaseline, 0, 0, 1);
+        Cw = Twc * center;
+    }
+
     void KeyFrame::ComputeBoW()
     {
         if (mBowVec.empty() || mFeatVec.empty())
@@ -496,22 +546,6 @@ namespace ORB_SLAM2
         }
     }
 
-    void KeyFrame::SetPose(const cv::Mat &Tcw_)
-    {
-        unique_lock<mutex> lock(mMutexPose);
-        Tcw_.copyTo(Tcw);
-        cv::Mat Rcw = Tcw.rowRange(0, 3).colRange(0, 3);
-        cv::Mat tcw = Tcw.rowRange(0, 3).col(3);
-        cv::Mat Rwc = Rcw.t();
-        Ow = -Rwc * tcw;
-
-        Twc = cv::Mat::eye(4, 4, Tcw.type());
-        Rwc.copyTo(Twc.rowRange(0, 3).colRange(0, 3));
-        Ow.copyTo(Twc.rowRange(0, 3).col(3));
-        cv::Mat center = (cv::Mat_<float>(4, 1) << mHalfBaseline, 0, 0, 1);
-        Cw = Twc * center;
-    }
-
     // 提昇『子關鍵幀』層級到與自己相同，和『父關鍵幀』高度共視者，成為『父關鍵幀-候選』，最後移除當前幀
     // 當前關鍵幀觀察到的地圖點，若『觀察到這個地圖點的關鍵幀』太少（少於 3 個），則將地圖點與關鍵幀等全部移除
     void KeyFrame::SetBadFlag()
@@ -713,48 +747,33 @@ namespace ORB_SLAM2
         return Twc.clone();
     }
 
-    // ==================================================
-    // 以下為非單目相關函式
-    // ==================================================
-
-    KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB) : 
-                       mnFrameId(F.mnId), mTimeStamp(F.mTimeStamp), mnGridCols(FRAME_GRID_COLS), 
-                       mnGridRows(FRAME_GRID_ROWS), mfGridElementWidthInv(F.mfGridElementWidthInv), 
-                       mfGridElementHeightInv(F.mfGridElementHeightInv), mnTrackReferenceForFrame(0), 
-                       mnFuseTargetForKF(0), mnBALocalForKF(0), mnBAFixedForKF(0), mnLoopQuery(0), 
-                       mnLoopWords(0), mnRelocQuery(0), mnRelocWords(0), mnBAGlobalForKF(0), 
-                       fx(F.fx), fy(F.fy), cx(F.cx), cy(F.cy), invfx(F.invfx), invfy(F.invfy), 
-                       mbf(F.mbf), mb(F.mb), mThDepth(F.mThDepth), N(F.N), 
-                       mvKeys(F.mvKeys), mvKeysUn(F.mvKeysUn), mvuRight(F.mvuRight), mvDepth(F.mvDepth), 
-                       mDescriptors(F.mDescriptors.clone()), mBowVec(F.mBowVec), mFeatVec(F.mFeatVec), 
-                       mnScaleLevels(F.mnScaleLevels), mfScaleFactor(F.mfScaleFactor), 
-                       mfLogScaleFactor(F.mfLogScaleFactor), mvScaleFactors(F.mvScaleFactors), 
-                       mvLevelSigma2(F.mvLevelSigma2), mvInvLevelSigma2(F.mvInvLevelSigma2), 
-                       mnMinX(F.mnMinX), mnMinY(F.mnMinY), mnMaxX(F.mnMaxX), mnMaxY(F.mnMaxY), 
-                       mK(F.mK), mvpMapPoints(F.mvpMapPoints), mpKeyFrameDB(pKFDB), mpMap(pMap), 
-                       mpORBvocabulary(F.mpORBvocabulary), mbFirstConnection(true), mpParent(NULL), 
-                       mbNotErase(false), mbToBeErased(false), mbBad(false), mHalfBaseline(F.mb / 2)
+    // 請求不要移除當前關鍵幀，避免在『執行續 LoopClosing』處理關鍵幀時被移除
+    void KeyFrame::SetNotErase()
     {
-        mnId = nNextId++;
-        mGrid.resize(mnGridCols);
+        unique_lock<mutex> lock(mMutexConnections);
 
-        for (int i = 0; i < mnGridCols; i++)
+        // 請求不要移除當前關鍵幀
+        mbNotErase = true;
+    }
+
+    // 取消『不要移除當前關鍵幀』的請求，若有『移除當前關鍵幀』的請求，則設為移除當前關鍵幀，和觀察者不足的地圖點及其關鍵幀
+    void KeyFrame::SetErase()
+    {
         {
-            mGrid[i].resize(mnGridRows);
+            unique_lock<mutex> lock(mMutexConnections);
 
-            for (int j = 0; j < mnGridRows; j++)
+            if (mspLoopEdges.empty())
             {
-                mGrid[i][j] = F.mGrid[i][j];
+                // 取消『不要移除當前關鍵幀』的請求
+                mbNotErase = false;
             }
         }
 
-        SetPose(F.mTcw);
-    }
-
-    cv::Mat KeyFrame::GetStereoCenter()
-    {
-        unique_lock<mutex> lock(mMutexPose);
-        return Cw.clone();
+        if (mbToBeErased)
+        {
+            // 移除當前關鍵幀，和當前關鍵幀觀察到的地圖點，但觀察者不足的地圖點及其關鍵幀
+            SetBadFlag();
+        }
     }
 
     // 取得『已連結關鍵幀』
@@ -770,6 +789,38 @@ namespace ORB_SLAM2
         }
 
         return s;
+    }
+
+    // 取得關鍵幀觀察到的地圖點
+    set<MapPoint *> KeyFrame::GetMapPoints()
+    {
+        unique_lock<mutex> lock(mMutexFeatures);
+        set<MapPoint *> s;
+
+        for(MapPoint *pMP : mvpMapPoints)
+        {
+            if(pMP)
+            {
+                if (!pMP->isBad())
+                {
+                    s.insert(pMP);
+                }
+            }
+        }
+        
+        return s;
+    }
+
+    KeyFrame *KeyFrame::GetParent()
+    {
+        unique_lock<mutex> lockCon(mMutexConnections);
+        return mpParent;
+    }
+
+    set<KeyFrame *> KeyFrame::GetLoopEdges()
+    {
+        unique_lock<mutex> lockCon(mMutexConnections);
+        return mspLoopEdges;
     }
 
     // 取得『關鍵幀』的『已連結關鍵幀（根據觀察到的地圖點數量由大到小排序，且觀察到的地圖點數量「大於」 w）』
@@ -809,24 +860,23 @@ namespace ORB_SLAM2
                                   mvpOrderedConnectedKeyFrames.begin() + n);
     }
 
-    // 取得關鍵幀觀察到的地圖點
-    set<MapPoint *> KeyFrame::GetMapPoints()
+    bool KeyFrame::hasChild(KeyFrame *pKF)
     {
-        unique_lock<mutex> lock(mMutexFeatures);
-        set<MapPoint *> s;
+        unique_lock<mutex> lockCon(mMutexConnections);
+        return mspChildrens.count(pKF);
+    }
 
-        for(MapPoint *pMP : mvpMapPoints)
-        {
-            if(pMP)
-            {
-                if (!pMP->isBad())
-                {
-                    s.insert(pMP);
-                }
-            }
-        }
-        
-        return s;
+    void KeyFrame::AddLoopEdge(KeyFrame *pKF)
+    {
+        unique_lock<mutex> lockCon(mMutexConnections);
+        mbNotErase = true;
+        mspLoopEdges.insert(pKF);
+    }
+
+    set<KeyFrame *> KeyFrame::GetChilds()
+    {
+        unique_lock<mutex> lockCon(mMutexConnections);
+        return mspChildrens;
     }
 
     // 有多少個地圖點，是被足夠多的關鍵幀所觀察到的
@@ -860,64 +910,14 @@ namespace ORB_SLAM2
         return nPoints;
     }
 
-    set<KeyFrame *> KeyFrame::GetChilds()
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
+
+    cv::Mat KeyFrame::GetStereoCenter()
     {
-        unique_lock<mutex> lockCon(mMutexConnections);
-        return mspChildrens;
-    }
-
-    KeyFrame *KeyFrame::GetParent()
-    {
-        unique_lock<mutex> lockCon(mMutexConnections);
-        return mpParent;
-    }
-
-    bool KeyFrame::hasChild(KeyFrame *pKF)
-    {
-        unique_lock<mutex> lockCon(mMutexConnections);
-        return mspChildrens.count(pKF);
-    }
-
-    void KeyFrame::AddLoopEdge(KeyFrame *pKF)
-    {
-        unique_lock<mutex> lockCon(mMutexConnections);
-        mbNotErase = true;
-        mspLoopEdges.insert(pKF);
-    }
-
-    set<KeyFrame *> KeyFrame::GetLoopEdges()
-    {
-        unique_lock<mutex> lockCon(mMutexConnections);
-        return mspLoopEdges;
-    }
-
-    // 請求不要移除當前關鍵幀，避免在『執行續 LoopClosing』處理關鍵幀時被移除
-    void KeyFrame::SetNotErase()
-    {
-        unique_lock<mutex> lock(mMutexConnections);
-
-        // 請求不要移除當前關鍵幀
-        mbNotErase = true;
-    }
-
-    // 取消『不要移除當前關鍵幀』的請求，若有『移除當前關鍵幀』的請求，則設為移除當前關鍵幀，和觀察者不足的地圖點及其關鍵幀
-    void KeyFrame::SetErase()
-    {
-        {
-            unique_lock<mutex> lock(mMutexConnections);
-
-            if (mspLoopEdges.empty())
-            {
-                // 取消『不要移除當前關鍵幀』的請求
-                mbNotErase = false;
-            }
-        }
-
-        if (mbToBeErased)
-        {
-            // 移除當前關鍵幀，和當前關鍵幀觀察到的地圖點，但觀察者不足的地圖點及其關鍵幀
-            SetBadFlag();
-        }
+        unique_lock<mutex> lock(mMutexPose);
+        return Cw.clone();
     }
 
     

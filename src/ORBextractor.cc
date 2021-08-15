@@ -538,298 +538,137 @@ namespace ORB_SLAM2
         }
     }
 
-    // ==================================================
-    // 以下為非單目相關函式
-    // ==================================================
-
-    // 將 ExtractorNode 化分成田字型的 4 塊 ExtractorNode
-    void ExtractorNode::DivideNode(ExtractorNode &n1, ExtractorNode &n2, ExtractorNode &n3, 
-                                   ExtractorNode &n4)
+    // 抽取 ORB 特徵，特徵點存於 _keypoints ，描述子存於 descriptors
+    void ORBextractor::operator()(InputArray _image, InputArray _mask, vector<KeyPoint> &_keypoints,
+                                  OutputArray _descriptors)
     {
-        const int halfX = ceil(static_cast<float>(UR.x - UL.x) / 2);
-        const int halfY = ceil(static_cast<float>(BR.y - UL.y) / 2);
-
-        //Define boundaries of childs
-        n1.UL = UL;
-        n1.UR = cv::Point2i(UL.x + halfX, UL.y);
-        n1.BL = cv::Point2i(UL.x, UL.y + halfY);
-        n1.BR = cv::Point2i(UL.x + halfX, UL.y + halfY);
-        n1.vKeys.reserve(vKeys.size());
-
-        n2.UL = n1.UR;
-        n2.UR = UR;
-        n2.BL = n1.BR;
-        n2.BR = cv::Point2i(UR.x, UL.y + halfY);
-        n2.vKeys.reserve(vKeys.size());
-
-        n3.UL = n1.BL;
-        n3.UR = n1.BR;
-        n3.BL = BL;
-        n3.BR = cv::Point2i(n1.BR.x, BL.y);
-        n3.vKeys.reserve(vKeys.size());
-
-        n4.UL = n3.UR;
-        n4.UR = n2.BR;
-        n4.BL = n3.BR;
-        n4.BR = BR;
-        n4.vKeys.reserve(vKeys.size());
-
-        //Associate points to childs
-        for(const cv::KeyPoint &kp : vKeys)
+        if (_image.empty())
         {
-            if (kp.pt.x < n1.UR.x)
+            return;
+        }
+
+        Mat image = _image.getMat();
+        assert(image.type() == CV_8UC1);
+
+        // Pre-compute the scale pyramid
+        // 縮放影像金字塔各層級的影像
+        ComputePyramid(image);
+
+        // 影像金字塔各層級的 ORB 特徵點 shape = (金字塔層數, 特徵點數)
+        vector<vector<KeyPoint>> allKeypoints;
+
+        // 計算影像金字塔各層級的 ORB 特徵點(包含位置與角度，角度資訊儲存於 KeyPoint 當中)
+        ComputeKeyPointsOctTree(allKeypoints);
+        //ComputeKeyPointsOld(allKeypoints);
+
+        Mat descriptors;
+
+        // 金字塔各層級的 ORB 特徵點總個數
+        int nkeypoints = 0;
+
+        for (int level = 0; level < nlevels; ++level)
+        {
+            nkeypoints += (int)allKeypoints[level].size();
+        }
+
+        if (nkeypoints == 0)
+        {
+            _descriptors.release();
+        }
+        else
+        {
+            _descriptors.create(nkeypoints, 32, CV_8U);
+            descriptors = _descriptors.getMat();
+        }
+
+        _keypoints.clear();
+        _keypoints.reserve(nkeypoints);
+
+        int offset = 0;
+
+        for (int level = 0; level < nlevels; ++level)
+        {
+            vector<KeyPoint> &keypoints = allKeypoints[level];
+
+            // 金字塔第 level 層的 ORB 特徵點個數
+            int nkeypointsLevel = (int)keypoints.size();
+
+            if (nkeypointsLevel == 0)
             {
-                if (kp.pt.y < n1.BR.y)
+                continue;
+            }
+
+            // preprocess the resized image
+            // 複製一份金字塔第 level 層的影像
+            Mat workingMat = mvImagePyramid[level].clone();
+
+            // 高斯模糊
+            GaussianBlur(workingMat, workingMat, Size(7, 7), 2, 2, BORDER_REFLECT_101);
+
+            // Compute the descriptors
+            // 取得 descriptors 的子矩陣（修改 desc 也會修改到 descriptors 相對應的位置）
+            Mat desc = descriptors.rowRange(offset, offset + nkeypointsLevel);
+
+            // 計算 workingMat 的 ORB 描述子，儲存至 desc
+            computeDescriptors(workingMat, keypoints, desc, pattern);
+
+            offset += nkeypointsLevel;
+
+            // Scale keypoint coordinates
+            if (level != 0)
+            {
+                // getScale(level, firstLevel, scaleFactor);
+                float scale = mvScaleFactor[level];
+                
+                vector<KeyPoint>::iterator keypoint = keypoints.begin();
+                vector<KeyPoint>::iterator keypointEnd = keypoints.end();
+
+                for (; keypoint != keypointEnd; ++keypoint)
                 {
-                    n1.vKeys.push_back(kp);
-                }
-                else
-                {
-                    n3.vKeys.push_back(kp);
+                    // 根據縮放尺度校正關鍵點的位置（應該是校正到原圖上的位置？）
+                    keypoint->pt *= scale;
                 }
             }
-            else if (kp.pt.y < n1.BR.y)
-            {
-                n2.vKeys.push_back(kp);
-            }
-            else
-            {
-                n4.vKeys.push_back(kp);
-            }
-        }
 
-        if (n1.vKeys.size() == 1)
-        {
-            n1.bNoMore = true;
-        }
-
-        if (n2.vKeys.size() == 1)
-        {
-            n2.bNoMore = true;
-        }
-
-        if (n3.vKeys.size() == 1)
-        {
-            n3.bNoMore = true;
-        }
-            
-        if (n4.vKeys.size() == 1)
-        {
-            n4.bNoMore = true;
+            // And add the keypoints to the output
+            // 將金字塔各層級的關鍵點加入 _keypoints
+            _keypoints.insert(_keypoints.end(), keypoints.begin(), keypoints.end());
         }
     }
 
-    // 持續將影像拆分成 4 個 ExtractorNode ，直到個數達到指定數量或再拆分也無法增加個數
-    // 並篩選出各個 ExtractorNode 當中 response 值最高的 cv::KeyPoint，存入 vector<cv::KeyPoint>
-    vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint> &vToDistributeKeys, 
-                                                         const int &minX, const int &maxX, 
-                                                         const int &minY, const int &maxY, 
-                                                         const int &N, const int &level)
+    // 縮放影像金字塔各層級的影像
+    void ORBextractor::ComputePyramid(cv::Mat image)
     {
-        // Compute how many initial nodes
-        const int nIni = round(static_cast<float>(maxX - minX) / (maxY - minY));
-
-        const float hX = static_cast<float>(maxX - minX) / nIni;
-
-        /// NOTE: lNodes 和 vpIniNodes 當中儲存的內容是相同的，推測是利用兩者在『增減方便』以及『搜索快速』各自的優點
-        list<ExtractorNode> lNodes;
-        vector<ExtractorNode *> vpIniNodes;
-        vpIniNodes.resize(nIni);
-
-        for (int i = 0; i < nIni; i++)
+        for (int level = 0; level < nlevels; ++level)
         {
-            // 向右移動，取得寬度為 hX，高度為 maxY - minY 的矩形區域
-            ExtractorNode ni;
-            ni.UL = cv::Point2i(hX * static_cast<float>(i), 0);
-            ni.UR = cv::Point2i(hX * static_cast<float>(i + 1), 0);
-            ni.BL = cv::Point2i(ni.UL.x, maxY - minY);
-            ni.BR = cv::Point2i(ni.UR.x, maxY - minY);
-            ni.vKeys.reserve(vToDistributeKeys.size());
+            // 取得金字塔第 level 層的縮放尺度
+            float scale = mvInvScaleFactor[level];
 
-            lNodes.push_back(ni);
-            vpIniNodes[i] = &lNodes.back();
-        }
+            Size sz(cvRound((float)image.cols * scale), cvRound((float)image.rows * scale));
+            Size wholeSize(sz.width + EDGE_THRESHOLD * 2, sz.height + EDGE_THRESHOLD * 2);
+            Mat temp(wholeSize, image.type()), masktemp;
 
-        // Associate points to childs
-        for(const cv::KeyPoint &kp : vToDistributeKeys)
-        {
-            // 根據特徵點所屬區域，計算索引值，將特徵點加入該 ExtractorNode 當中
-            vpIniNodes[kp.pt.x / hX]->vKeys.push_back(kp);
-        }
-        
-        list<ExtractorNode>::iterator lit = lNodes.begin();
+            // 縮放後的 Mat
+            mvImagePyramid[level] = temp(Rect(EDGE_THRESHOLD, EDGE_THRESHOLD, sz.width, sz.height));
 
-        // 移除沒有特徵點的 ExtractorNode
-        while (lit != lNodes.end())
-        {
-            if (lit->vKeys.empty())
+            // Compute the resized image
+            // 縮放並加上邊框的影像，存入 temp，即 mvImagePyramid[level] 
+            if (level != 0)
             {
-                lit = lNodes.erase(lit);
+                // 縮放圖片
+                resize(mvImagePyramid[level - 1], mvImagePyramid[level], sz, 0, 0, INTER_LINEAR);
+
+                copyMakeBorder(mvImagePyramid[level], temp, EDGE_THRESHOLD, EDGE_THRESHOLD, 
+                               EDGE_THRESHOLD, EDGE_THRESHOLD, BORDER_REFLECT_101 + BORDER_ISOLATED);
             }
+
+            // level == 0，存入原圖
             else
             {
-                if (lit->vKeys.size() == 1)
-                {
-                    // 標注這個 ExtractorNode 只有 1 個特徵
-                    lit->bNoMore = true;
-                }
-
-                lit++;
-            }
-
-            // if (lit->vKeys.size() == 1)
-            // {
-            //     // 標注這個 ExtractorNode 只有 1 個特徵
-            //     lit->bNoMore = true;
-            //     lit++;
-            // }
-            // else if (lit->vKeys.empty()){
-            //     lit = lNodes.erase(lit);
-            // }                
-            // else{
-            //     lit++;
-            // }                
-        }
-
-        // <ExtractorNode 當中含有的特徵數量, ExtractorNode *>
-        vector<pair<int, ExtractorNode *>> vSizeAndPointerToNode;
-        vSizeAndPointerToNode.reserve(lNodes.size() * 4);
-        bool bFinish = false;
-        int iteration = 0;
-
-        // 對原獲取 ExtractorNode 持續拆分，直到個數達到指定數量或再拆分也無法增加個數
-        while (!bFinish)
-        {
-            iteration++;
-
-            int prevSize = lNodes.size();
-
-            lit = lNodes.begin();
-
-            // 原有 ExtractorNode 拆分成 4 個子 ExtractorNode 後，其子 ExtractorNode 的特徵數量大於 1 的個數
-            int nToExpand = 0;
-
-            vSizeAndPointerToNode.clear();
-
-            while (lit != lNodes.end())
-            {
-                if (lit->bNoMore)
-                {
-                    // If node only contains one point do not subdivide and continue
-                    lit++;
-                    // continue;
-                }
-                else
-                {
-                    // If more than one point, subdivide
-                    ExtractorNode n1, n2, n3, n4;
-                    lit->DivideNode(n1, n2, n3, n4);
-
-                    // Add childs if they contain points
-                    nToExpand = addContainPoints(n1, lNodes, nToExpand, vSizeAndPointerToNode);
-                    nToExpand = addContainPoints(n2, lNodes, nToExpand, vSizeAndPointerToNode);
-                    nToExpand = addContainPoints(n3, lNodes, nToExpand, vSizeAndPointerToNode);
-                    nToExpand = addContainPoints(n4, lNodes, nToExpand, vSizeAndPointerToNode);
-                    
-                    lit = lNodes.erase(lit);
-                    // continue;
-                }
-            }
-
-            // Finish if there are more nodes than required features
-            // or all nodes contain just one point
-            // 若 ExtractorNode 的數量大於 N 或拆分後所獲取的數量相同，則結束當前迴圈
-            if ((int)lNodes.size() >= N || (int)lNodes.size() == prevSize)
-            {
-                bFinish = true;
-            }
-            else if (((int)lNodes.size() + nToExpand * 3) > N)
-            {
-
-                while (!bFinish)
-                {
-                    prevSize = lNodes.size();
-
-                    vector<pair<int, ExtractorNode *>> vPrevSizeAndPointerToNode = 
-                                                                                vSizeAndPointerToNode;
-                    vSizeAndPointerToNode.clear();
-
-                    sort(vPrevSizeAndPointerToNode.begin(), vPrevSizeAndPointerToNode.end());
-
-                    for (int j = vPrevSizeAndPointerToNode.size() - 1; j >= 0; j--)
-                    {
-                        ExtractorNode n1, n2, n3, n4;
-                        vPrevSizeAndPointerToNode[j].second->DivideNode(n1, n2, n3, n4);
-
-                        // Add childs if they contain points
-                        addContainPoints(n1, lNodes, 0, vSizeAndPointerToNode);
-                        addContainPoints(n2, lNodes, 0, vSizeAndPointerToNode);
-                        addContainPoints(n3, lNodes, 0, vSizeAndPointerToNode);
-                        addContainPoints(n4, lNodes, 0, vSizeAndPointerToNode);
-                        
-                        lNodes.erase(vPrevSizeAndPointerToNode[j].second->lit);
-
-                        // 若 ExtractorNode 的數量大於 N，則結束當前迴圈
-                        if ((int)lNodes.size() >= N){
-                            break;
-                        }
-                    }
-
-                    // 若 ExtractorNode 的數量大於 N 或再次拆分後所獲取的數量相同，則結束當前迴圈
-                    if ((int)lNodes.size() >= N || (int)lNodes.size() == prevSize){
-                        bFinish = true;
-                    }                        
-                }
+                copyMakeBorder(image, temp, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD, 
+                               EDGE_THRESHOLD, BORDER_REFLECT_101);
             }
         }
-
-        // Retain the best point in each node
-        vector<cv::KeyPoint> vResultKeys;
-        vResultKeys.reserve(nfeatures);
-
-        for (lit = lNodes.begin(); lit != lNodes.end(); lit++)
-        {
-            vector<cv::KeyPoint> &vNodeKeys = lit->vKeys;
-            cv::KeyPoint *pKP = &vNodeKeys[0];
-            float maxResponse = pKP->response;
-
-            // 遍歷各個 ExtractorNode，其 response 值最大的特徵點才加入 vResultKeys
-            for(cv::KeyPoint &kp : vNodeKeys){
-
-                if (kp.response > maxResponse)
-                {
-                    pKP = &kp;
-                    maxResponse = kp.response;
-                }
-            }
-
-            vResultKeys.push_back(*pKP);
-        }
-
-        return vResultKeys;
-    }
-    
-    int ORBextractor::addContainPoints(ExtractorNode &node, std::list<ExtractorNode> &list_node, 
-                                       int n_to_expand, 
-                                       std::vector<std::pair<int, ExtractorNode *>> &size_node_list)
-    {
-        // ExtractorNode &node
-        // list<ExtractorNode> &list_node
-        // int nToExpand
-        // vector<pair<int, ExtractorNode *>> &size_node_list
-
-        if (node.vKeys.size() > 0)
-        {
-            list_node.push_front(node);
-
-            if (node.vKeys.size() > 1)
-            {
-                size_node_list.push_back(make_pair(node.vKeys.size(), &list_node.front()));
-                list_node.front().lit = list_node.begin();
-            }
-        }
-
-        return n_to_expand;
     }
 
     // 計算影像金字塔各層級的 ORB 特徵點(包含位置與角度，角度資訊儲存於 KeyPoint 當中)
@@ -951,6 +790,287 @@ namespace ORB_SLAM2
             computeOrientation(mvImagePyramid[level], allKeypoints[level], umax);
         }
     }
+
+    // 持續將影像拆分成 4 個 ExtractorNode ，直到個數達到指定數量或再拆分也無法增加個數
+    // 並篩選出各個 ExtractorNode 當中 response 值最高的 cv::KeyPoint，存入 vector<cv::KeyPoint>
+    vector<cv::KeyPoint> ORBextractor::DistributeOctTree(const vector<cv::KeyPoint> &vToDistributeKeys, 
+                                                         const int &minX, const int &maxX, 
+                                                         const int &minY, const int &maxY, 
+                                                         const int &N, const int &level)
+    {
+        // Compute how many initial nodes
+        const int nIni = round(static_cast<float>(maxX - minX) / (maxY - minY));
+
+        const float hX = static_cast<float>(maxX - minX) / nIni;
+
+        /// NOTE: lNodes 和 vpIniNodes 當中儲存的內容是相同的，推測是利用兩者在『增減方便』以及『搜索快速』各自的優點
+        list<ExtractorNode> lNodes;
+        vector<ExtractorNode *> vpIniNodes;
+        vpIniNodes.resize(nIni);
+
+        for (int i = 0; i < nIni; i++)
+        {
+            // 向右移動，取得寬度為 hX，高度為 maxY - minY 的矩形區域
+            ExtractorNode ni;
+            ni.UL = cv::Point2i(hX * static_cast<float>(i), 0);
+            ni.UR = cv::Point2i(hX * static_cast<float>(i + 1), 0);
+            ni.BL = cv::Point2i(ni.UL.x, maxY - minY);
+            ni.BR = cv::Point2i(ni.UR.x, maxY - minY);
+            ni.vKeys.reserve(vToDistributeKeys.size());
+
+            lNodes.push_back(ni);
+            vpIniNodes[i] = &lNodes.back();
+        }
+
+        // Associate points to childs
+        for(const cv::KeyPoint &kp : vToDistributeKeys)
+        {
+            // 根據特徵點所屬區域，計算索引值，將特徵點加入該 ExtractorNode 當中
+            vpIniNodes[kp.pt.x / hX]->vKeys.push_back(kp);
+        }
+        
+        list<ExtractorNode>::iterator lit = lNodes.begin();
+
+        // 移除沒有特徵點的 ExtractorNode
+        while (lit != lNodes.end())
+        {
+            if (lit->vKeys.empty())
+            {
+                lit = lNodes.erase(lit);
+            }
+            else
+            {
+                if (lit->vKeys.size() == 1)
+                {
+                    // 標注這個 ExtractorNode 只有 1 個特徵
+                    lit->bNoMore = true;
+                }
+
+                lit++;
+            }              
+        }
+
+        // <ExtractorNode 當中含有的特徵數量, ExtractorNode *>
+        vector<pair<int, ExtractorNode *>> vSizeAndPointerToNode;
+        vSizeAndPointerToNode.reserve(lNodes.size() * 4);
+        bool bFinish = false;
+        int iteration = 0;
+
+        // 對原獲取 ExtractorNode 持續拆分，直到個數達到指定數量或再拆分也無法增加個數
+        while (!bFinish)
+        {
+            iteration++;
+
+            int prevSize = lNodes.size();
+
+            lit = lNodes.begin();
+
+            // 原有 ExtractorNode 拆分成 4 個子 ExtractorNode 後，其子 ExtractorNode 的特徵數量大於 1 的個數
+            int nToExpand = 0;
+
+            vSizeAndPointerToNode.clear();
+
+            while (lit != lNodes.end())
+            {
+                if (lit->bNoMore)
+                {
+                    // If node only contains one point do not subdivide and continue
+                    lit++;
+                    // continue;
+                }
+                else
+                {
+                    // If more than one point, subdivide
+                    ExtractorNode n1, n2, n3, n4;
+                    lit->DivideNode(n1, n2, n3, n4);
+
+                    // Add childs if they contain points
+                    nToExpand = addContainPoints(n1, lNodes, nToExpand, vSizeAndPointerToNode);
+                    nToExpand = addContainPoints(n2, lNodes, nToExpand, vSizeAndPointerToNode);
+                    nToExpand = addContainPoints(n3, lNodes, nToExpand, vSizeAndPointerToNode);
+                    nToExpand = addContainPoints(n4, lNodes, nToExpand, vSizeAndPointerToNode);
+                    
+                    lit = lNodes.erase(lit);
+                    // continue;
+                }
+            }
+
+            // Finish if there are more nodes than required features
+            // or all nodes contain just one point
+            // 若 ExtractorNode 的數量大於 N 或拆分後所獲取的數量相同，則結束當前迴圈
+            if ((int)lNodes.size() >= N || (int)lNodes.size() == prevSize)
+            {
+                bFinish = true;
+            }
+            else if (((int)lNodes.size() + nToExpand * 3) > N)
+            {
+
+                while (!bFinish)
+                {
+                    prevSize = lNodes.size();
+
+                    vector<pair<int, ExtractorNode *>> vPrevSizeAndPointerToNode = 
+                                                                                vSizeAndPointerToNode;
+                    vSizeAndPointerToNode.clear();
+
+                    sort(vPrevSizeAndPointerToNode.begin(), vPrevSizeAndPointerToNode.end());
+
+                    for (int j = vPrevSizeAndPointerToNode.size() - 1; j >= 0; j--)
+                    {
+                        ExtractorNode n1, n2, n3, n4;
+                        vPrevSizeAndPointerToNode[j].second->DivideNode(n1, n2, n3, n4);
+
+                        // Add childs if they contain points
+                        addContainPoints(n1, lNodes, 0, vSizeAndPointerToNode);
+                        addContainPoints(n2, lNodes, 0, vSizeAndPointerToNode);
+                        addContainPoints(n3, lNodes, 0, vSizeAndPointerToNode);
+                        addContainPoints(n4, lNodes, 0, vSizeAndPointerToNode);
+                        
+                        lNodes.erase(vPrevSizeAndPointerToNode[j].second->lit);
+
+                        // 若 ExtractorNode 的數量大於 N，則結束當前迴圈
+                        if ((int)lNodes.size() >= N){
+                            break;
+                        }
+                    }
+
+                    // 若 ExtractorNode 的數量大於 N 或再次拆分後所獲取的數量相同，則結束當前迴圈
+                    if ((int)lNodes.size() >= N || (int)lNodes.size() == prevSize){
+                        bFinish = true;
+                    }                        
+                }
+            }
+        }
+
+        // Retain the best point in each node
+        vector<cv::KeyPoint> vResultKeys;
+        vResultKeys.reserve(nfeatures);
+
+        for (lit = lNodes.begin(); lit != lNodes.end(); lit++)
+        {
+            vector<cv::KeyPoint> &vNodeKeys = lit->vKeys;
+            cv::KeyPoint *pKP = &vNodeKeys[0];
+            float maxResponse = pKP->response;
+
+            // 遍歷各個 ExtractorNode，其 response 值最大的特徵點才加入 vResultKeys
+            for(cv::KeyPoint &kp : vNodeKeys){
+
+                if (kp.response > maxResponse)
+                {
+                    pKP = &kp;
+                    maxResponse = kp.response;
+                }
+            }
+
+            vResultKeys.push_back(*pKP);
+        }
+
+        return vResultKeys;
+    }
+    
+    // 將 ExtractorNode 化分成田字型的 4 塊 ExtractorNode
+    void ExtractorNode::DivideNode(ExtractorNode &n1, ExtractorNode &n2, ExtractorNode &n3, 
+                                   ExtractorNode &n4)
+    {
+        const int halfX = ceil(static_cast<float>(UR.x - UL.x) / 2);
+        const int halfY = ceil(static_cast<float>(BR.y - UL.y) / 2);
+
+        //Define boundaries of childs
+        n1.UL = UL;
+        n1.UR = cv::Point2i(UL.x + halfX, UL.y);
+        n1.BL = cv::Point2i(UL.x, UL.y + halfY);
+        n1.BR = cv::Point2i(UL.x + halfX, UL.y + halfY);
+        n1.vKeys.reserve(vKeys.size());
+
+        n2.UL = n1.UR;
+        n2.UR = UR;
+        n2.BL = n1.BR;
+        n2.BR = cv::Point2i(UR.x, UL.y + halfY);
+        n2.vKeys.reserve(vKeys.size());
+
+        n3.UL = n1.BL;
+        n3.UR = n1.BR;
+        n3.BL = BL;
+        n3.BR = cv::Point2i(n1.BR.x, BL.y);
+        n3.vKeys.reserve(vKeys.size());
+
+        n4.UL = n3.UR;
+        n4.UR = n2.BR;
+        n4.BL = n3.BR;
+        n4.BR = BR;
+        n4.vKeys.reserve(vKeys.size());
+
+        //Associate points to childs
+        for(const cv::KeyPoint &kp : vKeys)
+        {
+            if (kp.pt.x < n1.UR.x)
+            {
+                if (kp.pt.y < n1.BR.y)
+                {
+                    n1.vKeys.push_back(kp);
+                }
+                else
+                {
+                    n3.vKeys.push_back(kp);
+                }
+            }
+            else if (kp.pt.y < n1.BR.y)
+            {
+                n2.vKeys.push_back(kp);
+            }
+            else
+            {
+                n4.vKeys.push_back(kp);
+            }
+        }
+
+        if (n1.vKeys.size() == 1)
+        {
+            n1.bNoMore = true;
+        }
+
+        if (n2.vKeys.size() == 1)
+        {
+            n2.bNoMore = true;
+        }
+
+        if (n3.vKeys.size() == 1)
+        {
+            n3.bNoMore = true;
+        }
+            
+        if (n4.vKeys.size() == 1)
+        {
+            n4.bNoMore = true;
+        }
+    }
+
+    int ORBextractor::addContainPoints(ExtractorNode &node, std::list<ExtractorNode> &list_node, 
+                                       int n_to_expand, 
+                                       std::vector<std::pair<int, ExtractorNode *>> &size_node_list)
+    {
+        // ExtractorNode &node
+        // list<ExtractorNode> &list_node
+        // int nToExpand
+        // vector<pair<int, ExtractorNode *>> &size_node_list
+
+        if (node.vKeys.size() > 0)
+        {
+            list_node.push_front(node);
+
+            if (node.vKeys.size() > 1)
+            {
+                size_node_list.push_back(make_pair(node.vKeys.size(), &list_node.front()));
+                list_node.front().lit = list_node.begin();
+            }
+        }
+
+        return n_to_expand;
+    }
+
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
 
     void ORBextractor::ComputeKeyPointsOld(std::vector<std::vector<KeyPoint>> &allKeypoints)
     {
@@ -1127,137 +1247,5 @@ namespace ORB_SLAM2
         }
     }
 
-    // 抽取 ORB 特徵，特徵點存於 _keypoints ，描述子存於 descriptors
-    void ORBextractor::operator()(InputArray _image, InputArray _mask, vector<KeyPoint> &_keypoints,
-                                  OutputArray _descriptors)
-    {
-        if (_image.empty())
-        {
-            return;
-        }
-
-        Mat image = _image.getMat();
-        assert(image.type() == CV_8UC1);
-
-        // Pre-compute the scale pyramid
-        // 縮放影像金字塔各層級的影像
-        ComputePyramid(image);
-
-        // 影像金字塔各層級的 ORB 特徵點 shape = (金字塔層數, 特徵點數)
-        vector<vector<KeyPoint>> allKeypoints;
-
-        // 計算影像金字塔各層級的 ORB 特徵點(包含位置與角度，角度資訊儲存於 KeyPoint 當中)
-        ComputeKeyPointsOctTree(allKeypoints);
-        //ComputeKeyPointsOld(allKeypoints);
-
-        Mat descriptors;
-
-        // 金字塔各層級的 ORB 特徵點總個數
-        int nkeypoints = 0;
-
-        for (int level = 0; level < nlevels; ++level)
-        {
-            nkeypoints += (int)allKeypoints[level].size();
-        }
-
-        if (nkeypoints == 0)
-        {
-            _descriptors.release();
-        }
-        else
-        {
-            _descriptors.create(nkeypoints, 32, CV_8U);
-            descriptors = _descriptors.getMat();
-        }
-
-        _keypoints.clear();
-        _keypoints.reserve(nkeypoints);
-
-        int offset = 0;
-
-        for (int level = 0; level < nlevels; ++level)
-        {
-            vector<KeyPoint> &keypoints = allKeypoints[level];
-
-            // 金字塔第 level 層的 ORB 特徵點個數
-            int nkeypointsLevel = (int)keypoints.size();
-
-            if (nkeypointsLevel == 0)
-            {
-                continue;
-            }
-
-            // preprocess the resized image
-            // 複製一份金字塔第 level 層的影像
-            Mat workingMat = mvImagePyramid[level].clone();
-
-            // 高斯模糊
-            GaussianBlur(workingMat, workingMat, Size(7, 7), 2, 2, BORDER_REFLECT_101);
-
-            // Compute the descriptors
-            // 取得 descriptors 的子矩陣（修改 desc 也會修改到 descriptors 相對應的位置）
-            Mat desc = descriptors.rowRange(offset, offset + nkeypointsLevel);
-
-            // 計算 workingMat 的 ORB 描述子，儲存至 desc
-            computeDescriptors(workingMat, keypoints, desc, pattern);
-
-            offset += nkeypointsLevel;
-
-            // Scale keypoint coordinates
-            if (level != 0)
-            {
-                // getScale(level, firstLevel, scaleFactor);
-                float scale = mvScaleFactor[level];
-                
-                vector<KeyPoint>::iterator keypoint = keypoints.begin();
-                vector<KeyPoint>::iterator keypointEnd = keypoints.end();
-
-                for (; keypoint != keypointEnd; ++keypoint)
-                {
-                    // 根據縮放尺度校正關鍵點的位置（應該是校正到原圖上的位置？）
-                    keypoint->pt *= scale;
-                }
-            }
-
-            // And add the keypoints to the output
-            // 將金字塔各層級的關鍵點加入 _keypoints
-            _keypoints.insert(_keypoints.end(), keypoints.begin(), keypoints.end());
-        }
-    }
-
-    // 縮放影像金字塔各層級的影像
-    void ORBextractor::ComputePyramid(cv::Mat image)
-    {
-        for (int level = 0; level < nlevels; ++level)
-        {
-            // 取得金字塔第 level 層的縮放尺度
-            float scale = mvInvScaleFactor[level];
-
-            Size sz(cvRound((float)image.cols * scale), cvRound((float)image.rows * scale));
-            Size wholeSize(sz.width + EDGE_THRESHOLD * 2, sz.height + EDGE_THRESHOLD * 2);
-            Mat temp(wholeSize, image.type()), masktemp;
-
-            // 縮放後的 Mat
-            mvImagePyramid[level] = temp(Rect(EDGE_THRESHOLD, EDGE_THRESHOLD, sz.width, sz.height));
-
-            // Compute the resized image
-            // 縮放並加上邊框的影像，存入 temp，即 mvImagePyramid[level] 
-            if (level != 0)
-            {
-                // 縮放圖片
-                resize(mvImagePyramid[level - 1], mvImagePyramid[level], sz, 0, 0, INTER_LINEAR);
-
-                copyMakeBorder(mvImagePyramid[level], temp, EDGE_THRESHOLD, EDGE_THRESHOLD, 
-                               EDGE_THRESHOLD, EDGE_THRESHOLD, BORDER_REFLECT_101 + BORDER_ISOLATED);
-            }
-
-            // level == 0，存入原圖
-            else
-            {
-                copyMakeBorder(image, temp, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD, 
-                               EDGE_THRESHOLD, BORDER_REFLECT_101);
-            }
-        }
-    }
-
+    
 } //namespace ORB_SLAM

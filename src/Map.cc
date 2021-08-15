@@ -71,10 +71,6 @@ namespace ORB_SLAM2
         return mspKeyFrames.size();
     }
 
-    // ==================================================
-    // 以下為非單目相關函式
-    // ==================================================
-
     void Map::EraseKeyFrame(KeyFrame *pKF)
     {
         unique_lock<mutex> lock(mMutexMap);
@@ -82,29 +78,6 @@ namespace ORB_SLAM2
 
         // TODO: This only erase the pointer.
         // Delete the MapPoint
-    }
-
-    // 設置參考用地圖點
-    void Map::SetReferenceMapPoints(const vector<MapPoint *> &vpMPs)
-    {
-        unique_lock<mutex> lock(mMutexMap);
-        mvpReferenceMapPoints = vpMPs;
-    }
-
-    // 增加『重要變革的索引值』
-    void Map::InformNewBigChange()
-    {
-        unique_lock<mutex> lock(mMutexMap);
-        mnBigChangeIdx++;
-    }
-
-    // 回傳重要變革的索引值
-    int Map::GetLastBigChangeIdx()
-    {
-        unique_lock<mutex> lock(mMutexMap);
-
-        // 重要變革的索引值
-        return mnBigChangeIdx;
     }
 
     // 取出所有『關鍵幀』
@@ -121,22 +94,49 @@ namespace ORB_SLAM2
         return vector<MapPoint *>(mspMapPoints.begin(), mspMapPoints.end());
     }
 
+    long unsigned int Map::GetMaxKFid()
+    {
+        unique_lock<mutex> lock(mMutexMap);
+        return mnMaxKFid;
+    }
+
+    // 增加『重要變革的索引值』
+    void Map::InformNewBigChange()
+    {
+        unique_lock<mutex> lock(mMutexMap);
+        mnBigChangeIdx++;
+    }
+
     long unsigned int Map::MapPointsInMap()
     {
         unique_lock<mutex> lock(mMutexMap);
         return mspMapPoints.size();
     }
 
+    // 設置參考用地圖點
+    void Map::SetReferenceMapPoints(const vector<MapPoint *> &vpMPs)
+    {
+        unique_lock<mutex> lock(mMutexMap);
+        mvpReferenceMapPoints = vpMPs;
+    }
+
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
+
+    // 回傳重要變革的索引值
+    int Map::GetLastBigChangeIdx()
+    {
+        unique_lock<mutex> lock(mMutexMap);
+
+        // 重要變革的索引值
+        return mnBigChangeIdx;
+    }
+
     vector<MapPoint *> Map::GetReferenceMapPoints()
     {
         unique_lock<mutex> lock(mMutexMap);
         return mvpReferenceMapPoints;
-    }
-
-    long unsigned int Map::GetMaxKFid()
-    {
-        unique_lock<mutex> lock(mMutexMap);
-        return mnMaxKFid;
     }
 
     void Map::clear()

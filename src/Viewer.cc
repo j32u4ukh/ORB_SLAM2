@@ -31,10 +31,6 @@ namespace ORB_SLAM2
     // 以上為管理執行續相關函式
     // ==================================================
 
-    // ==================================================
-    // 以下為非單目相關函式
-    // ==================================================
-
     Viewer::Viewer(System *pSystem, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, 
                    Tracking *pTracking, const string &strSettingPath) : 
                    mpSystem(pSystem), mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), 
@@ -217,46 +213,6 @@ namespace ORB_SLAM2
         SetFinish();
     }
 
-    void Viewer::RequestFinish()
-    {
-        unique_lock<mutex> lock(mMutexFinish);
-        mbFinishRequested = true;
-    }
-
-    bool Viewer::CheckFinish()
-    {
-        unique_lock<mutex> lock(mMutexFinish);
-        return mbFinishRequested;
-    }
-
-    void Viewer::SetFinish()
-    {
-        unique_lock<mutex> lock(mMutexFinish);
-        mbFinished = true;
-    }
-
-    bool Viewer::isFinished()
-    {
-        unique_lock<mutex> lock(mMutexFinish);
-        return mbFinished;
-    }
-
-    void Viewer::RequestStop()
-    {
-        unique_lock<mutex> lock(mMutexStop);
-
-        if (!mbStopped)
-        {
-            mbStopRequested = true;
-        }
-    }
-
-    bool Viewer::isStopped()
-    {
-        unique_lock<mutex> lock(mMutexStop);
-        return mbStopped;
-    }
-
     bool Viewer::Stop()
     {
         unique_lock<mutex> lock(mMutexStop);
@@ -278,6 +234,50 @@ namespace ORB_SLAM2
 
         return false;
     }
+
+    bool Viewer::isStopped()
+    {
+        unique_lock<mutex> lock(mMutexStop);
+        return mbStopped;
+    }
+
+    bool Viewer::CheckFinish()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        return mbFinishRequested;
+    }
+
+    void Viewer::SetFinish()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        mbFinished = true;
+    }
+
+    void Viewer::RequestStop()
+    {
+        unique_lock<mutex> lock(mMutexStop);
+
+        if (!mbStopped)
+        {
+            mbStopRequested = true;
+        }
+    }
+
+    void Viewer::RequestFinish()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        mbFinishRequested = true;
+    }
+
+    bool Viewer::isFinished()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        return mbFinished;
+    }
+
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
 
     void Viewer::Release()
     {

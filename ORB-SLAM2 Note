@@ -42,12 +42,12 @@ mean tracking time: 0.0943997
 #KeyFrame: 642
 #MapPoint: 76626
 
-#KeyFrame: 624
-#MapPoint: 81683
-Total time: 5:45.9096
-Median tracking time: 0.0702805
-Mean tracking time: 0.0761748
-
+Vocabulary loaded! Cost 10.2777 s.
+#KeyFrame: 772
+#MapPoint: 96428
+Total time: 6:33.3495
+Median tracking time: 0.0791831
+Mean tracking time: 0.0866218
 
 
 virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()

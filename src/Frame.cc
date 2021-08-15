@@ -103,29 +103,6 @@ namespace ORB_SLAM2
         AssignFeaturesToGrid();
     }
 
-    // 利用 ORBextractor 抽取 ORB 特徵
-    void Frame::ExtractORB(int flag, const cv::Mat &im)
-    {
-        if (flag == 0)
-        {
-            // 抽取 ORB 特徵，特徵點存於 mvKeys ，描述子存於 mDescriptors
-            (*mpORBextractorLeft)(im, cv::Mat(), mvKeys, mDescriptors);
-        }
-        else
-        {
-            // 抽取 ORB 特徵，特徵點存於 mvKeysRight ，描述子存於 mDescriptorsRight
-            (*mpORBextractorRight)(im, cv::Mat(), mvKeysRight, mDescriptorsRight);
-        }
-    }
-    
-    // ==================================================
-    // 以下為非單目相關函式
-    // ==================================================
-
-    Frame::Frame()
-    {
-    }
-
     // Copy Constructor
     Frame::Frame(const Frame &frame) : 
         mpORBvocabulary(frame.mpORBvocabulary), mpORBextractorLeft(frame.mpORBextractorLeft), 
@@ -154,6 +131,370 @@ namespace ORB_SLAM2
             // 設置 Frame 位姿，並根據 Frame 位姿，更新旋轉、平移等數據
             SetPose(frame.mTcw);
         }
+    }
+
+    // 利用 ORBextractor 抽取 ORB 特徵
+    void Frame::ExtractORB(int flag, const cv::Mat &im)
+    {
+        if (flag == 0)
+        {
+            // 抽取 ORB 特徵，特徵點存於 mvKeys ，描述子存於 mDescriptors
+            (*mpORBextractorLeft)(im, cv::Mat(), mvKeys, mDescriptors);
+        }
+        else
+        {
+            // 抽取 ORB 特徵，特徵點存於 mvKeysRight ，描述子存於 mDescriptorsRight
+            (*mpORBextractorRight)(im, cv::Mat(), mvKeysRight, mDescriptorsRight);
+        }
+    }
+    
+    // 關鍵點-扭曲校正
+    void Frame::UndistortKeyPoints()
+    {
+        if (mDistCoef.at<float>(0) == 0.0)
+        {
+            mvKeysUn = mvKeys;
+            return;
+        }
+
+        // Fill matrix with points
+        cv::Mat mat(N, 2, CV_32F);
+
+        for (int i = 0; i < N; i++)
+        {
+            mat.at<float>(i, 0) = mvKeys[i].pt.x;
+            mat.at<float>(i, 1) = mvKeys[i].pt.y;
+        }
+
+        // Undistort points
+        mat = mat.reshape(2);
+
+        /* 根據相機參數和觀測到點坐標位置計算實際坐標位置
+        void cv::undistortPoints(InputArray src,
+                                 OutputArray dst,
+                                 InputArray cameraMatrix,
+                                 InputArray distCoeffs,
+                                 InputArray R = noArray(),
+                                 InputArray P = noArray() )
+
+        cameraMatrix：相機內參
+        distCoeffs：扭曲模型參數
+
+        1. 觀測點的 shape，即 src 的 shape 是 1xNx2 或 Nx1x2
+        2. R 參數是用在雙目里的，單目里置為空矩陣
+        3. P矩陣值為空時，得到的結果的點坐標是相機的歸一化坐標 (x, y) (x, y) (x,y)，這時候數值就會明顯很小；
+        設置相機內參會進行以下計算：
+
+        u′ = xfx′​ + cx′​
+        v′ = yfy′ ​+ cy′​
+
+        這時候得到的才是特征點消畸變後的像素坐標
+        我們通常使用時是想得到在同一個相機下的真實像素，所以 P 設置為內參就可以了。
+
+        參考：https://blog.csdn.net/jonathanzh/article/details/104418758
+        */
+        cv::undistortPoints(mat, mat, mK, mDistCoef, cv::Mat(), mK);
+
+        mat = mat.reshape(1);
+
+        // Fill undistorted keypoint vector
+        mvKeysUn.resize(N);
+
+        for (int i = 0; i < N; i++)
+        {
+            cv::KeyPoint kp = mvKeys[i];
+            kp.pt.x = mat.at<float>(i, 0);
+            kp.pt.y = mat.at<float>(i, 1);
+
+            // 將校正後的關鍵點存入 mvKeysUn
+            mvKeysUn[i] = kp;
+        }
+    }
+
+    // 計算（扭曲校正後的）影像的四個頂點
+    void Frame::ComputeImageBounds(const cv::Mat &imLeft)
+    {
+        // 計算校正後的影像的四個頂點
+        if (mDistCoef.at<float>(0) != 0.0)
+        {
+            cv::Mat mat(4, 2, CV_32F);
+            mat.at<float>(0, 0) = 0.0;
+            mat.at<float>(0, 1) = 0.0;
+            mat.at<float>(1, 0) = imLeft.cols;
+            mat.at<float>(1, 1) = 0.0;
+            mat.at<float>(2, 0) = 0.0;
+            mat.at<float>(2, 1) = imLeft.rows;
+            mat.at<float>(3, 0) = imLeft.cols;
+            mat.at<float>(3, 1) = imLeft.rows;
+
+            // Undistort corners
+            mat = mat.reshape(2);
+            cv::undistortPoints(mat, mat, mK, mDistCoef, cv::Mat(), mK);
+            mat = mat.reshape(1);
+
+            mnMinX = min(mat.at<float>(0, 0), mat.at<float>(2, 0));
+            mnMaxX = max(mat.at<float>(1, 0), mat.at<float>(3, 0));
+            mnMinY = min(mat.at<float>(0, 1), mat.at<float>(1, 1));
+            mnMaxY = max(mat.at<float>(2, 1), mat.at<float>(3, 1));
+        }
+        else
+        {
+            mnMinX = 0.0f;
+            mnMaxX = imLeft.cols;
+            mnMinY = 0.0f;
+            mnMaxY = imLeft.rows;
+        }
+    }
+
+    // 寫入各個網格所包含的關鍵點的索引值
+    void Frame::AssignFeaturesToGrid()
+    {
+        int nReserve = 0.5f * N / (FRAME_GRID_COLS * FRAME_GRID_ROWS);
+
+        for (unsigned int i = 0; i < FRAME_GRID_COLS; i++)
+        {
+            for (unsigned int j = 0; j < FRAME_GRID_ROWS; j++)
+            {                
+                // 配置足夠的記憶體大小
+                mGrid[i][j].reserve(nReserve);
+            }
+        }
+        
+        for (int i = 0; i < N; i++)
+        {
+            const cv::KeyPoint &kp = mvKeysUn[i];
+            int nGridPosX, nGridPosY;
+
+            // 判斷關鍵點是否在影像區域內，並將關鍵點所在網格位置返回至 nGridPosX 和 nGridPosY
+            if (PosInGrid(kp, nGridPosX, nGridPosY))
+            {
+                // 紀錄網格 mGrid[nGridPosX][nGridPosY] 所包含的關鍵點的索引值
+                mGrid[nGridPosX][nGridPosY].push_back(i);
+            }
+        }
+    }
+
+    // 判斷關鍵點是否在影像區域內，並將關鍵點所在網格位置返回至 posX 和 posY
+    bool Frame::PosInGrid(const cv::KeyPoint &kp, int &posX, int &posY)
+    {
+        posX = round((kp.pt.x - mnMinX) * mfGridElementWidthInv);
+        posY = round((kp.pt.y - mnMinY) * mfGridElementHeightInv);
+
+        //Keypoint's coordinates are undistorted, which could cause to go out of the image
+        if (posX < 0 || posX >= FRAME_GRID_COLS || posY < 0 || posY >= FRAME_GRID_ROWS){
+            return false;
+        }
+
+        return true;
+    }
+
+    // 設置 Frame 位姿，並根據 Frame 位姿，更新旋轉、平移等數據
+    void Frame::SetPose(cv::Mat Tcw)
+    {
+        mTcw = Tcw.clone();
+
+        // 根據相機位姿，更新旋轉、平移等數據
+        UpdatePoseMatrices();
+    }
+
+    // 根據 Frame 位姿，更新旋轉、平移等數據
+    void Frame::UpdatePoseMatrices()
+    {
+        mRcw = mTcw.rowRange(0, 3).colRange(0, 3);
+        mRwc = mRcw.t();
+        mtcw = mTcw.rowRange(0, 3).col(3);
+        mOw = -mRcw.t() * mtcw;
+    }
+
+    // 返回以 (x, y) 為圓心，在搜索半徑內，在指定金字塔層級找到的關鍵點的索引值
+    vector<size_t> Frame::GetFeaturesInArea(const float &x, const float &y, const float &r, 
+                                            const int minLevel, const int maxLevel) const
+    {
+        vector<size_t> vIndices;
+        vIndices.reserve(N);
+
+        // X 方向網格最小個數
+        const int nMinCellX = max(0, (int)floor((x - mnMinX - r) * mfGridElementWidthInv));
+
+        if (nMinCellX >= FRAME_GRID_COLS){
+            return vIndices;
+        }
+
+        // X 方向網格最大個數
+        const int nMaxCellX = min((int)FRAME_GRID_COLS - 1, 
+                                  (int)ceil((x - mnMinX + r) * mfGridElementWidthInv));
+
+        if (nMaxCellX < 0){
+            return vIndices;
+        }
+
+        // Y 方向網格最小個數
+        const int nMinCellY = max(0, (int)floor((y - mnMinY - r) * mfGridElementHeightInv));
+
+        if (nMinCellY >= FRAME_GRID_ROWS){
+            return vIndices;
+        }
+
+        // Y 方向網格最大個數
+        const int nMaxCellY = min((int)FRAME_GRID_ROWS - 1, 
+                                  (int)ceil((y - mnMinY + r) * mfGridElementHeightInv));
+
+        if (nMaxCellY < 0){
+            return vIndices;
+        }
+
+        const bool bCheckLevels = (minLevel > 0) || (maxLevel >= 0);
+
+        for (int ix = nMinCellX; ix <= nMaxCellX; ix++)
+        {
+            for (int iy = nMinCellY; iy <= nMaxCellY; iy++)
+            {
+                // 網格(ix, iy) 所包含的關鍵點的索引值
+                const vector<size_t> vCell = mGrid[ix][iy];
+
+                if (vCell.empty()){
+                    continue;
+                }
+
+                for(size_t cell_idx : vCell)
+                {
+                    // 『關鍵點的索引值 cell_idx』
+                    const cv::KeyPoint &kpUn = mvKeysUn[cell_idx];
+
+                    // 檢查層級是否超出 minLevel 與 maxLevel 的範圍
+                    if (bCheckLevels)
+                    {
+                        if (kpUn.octave < minLevel){
+                            continue;
+                        }
+                        
+                        if (maxLevel >= 0){
+                            if (kpUn.octave > maxLevel){
+                                continue;
+                            }
+                        }   
+                    }
+
+                    const float distx = kpUn.pt.x - x;
+                    const float disty = kpUn.pt.y - y;
+
+                    if (fabs(distx) < r && fabs(disty) < r)
+                    {
+                        // 『關鍵點的索引值 cell_idx』
+                        vIndices.push_back(cell_idx);
+                    }
+                }
+            }
+        }
+
+        return vIndices;
+    }
+
+    // 根據 Frame 的各個特徵點的描述子，形成『詞袋字典 mBowVec』與『特徵字典 mFeatVec』
+    void Frame::ComputeBoW()
+    {
+        if (mBowVec.empty())
+        {
+            vector<cv::Mat> vCurrentDesc = Converter::toDescriptorVector(mDescriptors);
+
+            // 雖然 mBowVec, mFeatVec 看起來是向量，但實際上型態為字典
+            mpORBvocabulary->transform(vCurrentDesc, mBowVec, mFeatVec, 4);
+        }
+    }
+
+    // 判定一個地圖點是否會出現在但前相機的視野範圍內
+    // pMP是待考察的地圖點指針
+    // viewingCosLimit是拒絕地圖點的視角余弦閾值，如果當前相機的視角方向v與地圖點的平均視角方向n夾角的余弦值小於該參數，
+    // 就認為地圖點不在相機的視野範圍內
+    bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
+    {
+        pMP->mbTrackInView = false;
+
+        // 3D in absolute coordinates
+        // 先獲取考察地圖點的世界坐標
+        cv::Mat P = pMP->GetWorldPos();
+
+        // 3D in camera coordinates
+        // 將地圖點的世界坐標轉換到當前幀的相機坐標系下
+        const cv::Mat Pc = mRcw * P + mtcw;
+        const float &PcX = Pc.at<float>(0);
+        const float &PcY = Pc.at<float>(1);
+        const float &PcZ = Pc.at<float>(2);
+
+        // Check positive depth
+        // 如果投影之後，地圖點的深度為負數，以為著該地圖點在相機的後面，拋棄之。
+        if (PcZ < 0.0f){
+            return false;
+        }
+
+        // ==================================================
+        // 通過針孔相機模型，計算地圖點在成像平面上的坐標，如果超出了圖像範圍，拋棄之。
+        // ==================================================
+        // Project in image and check it is not outside
+        const float invz = 1.0f / PcZ;
+        const float u = fx * PcX * invz + cx;
+        const float v = fy * PcY * invz + cy;
+
+        if (u < mnMinX || u > mnMaxX){
+            return false;
+        }
+            
+        if (v < mnMinY || v > mnMaxY){
+            return false;
+        }
+        // ==================================================
+        
+        // ==================================================
+        // 計算地圖點到相機的距離，如果不在地圖點的尺度不變距離的範圍(scale invariance region)內，拋棄之。
+        // ==================================================
+        // Check distance is in the scale invariance region of the MapPoint
+        const float maxDistance = pMP->GetMaxDistanceInvariance();
+        const float minDistance = pMP->GetMinDistanceInvariance();
+
+        // 這里計算的臨時變量PO是地圖點相對於相機的位置矢量。
+        const cv::Mat PO = P - mOw;
+        const float dist = cv::norm(PO);
+
+        if (dist < minDistance || dist > maxDistance){
+            return false;
+        }
+        // ==================================================
+
+        // ==================================================
+        // 檢查視角，根據輸入參數 viewingCosLimit ，限定當前幀觀測地圖點的視角方向 v 與
+        // 地圖點的平均視角方向 n 夾角的余弦值不小於 cos60◦， 即當前幀的時間角不能偏離平均視角 60◦。
+        // ==================================================
+        // Check viewing angle
+        cv::Mat Pn = pMP->GetNormal();
+
+        const float viewCos = PO.dot(Pn) / dist;
+
+        if (viewCos < viewingCosLimit){
+            return false;
+        }
+        // ==================================================
+
+        // 計算地圖點在當前幀中的圖像尺度，並更新地圖點中用於軌跡跟蹤的成員變量。
+        // Predict scale in the image
+        const int nPredictedLevel = pMP->PredictScale(dist, this);
+
+        // Data used by the tracking
+        pMP->mbTrackInView = true;
+        pMP->mTrackProjX = u;
+        pMP->mTrackProjXR = u - mbf * invz;
+        pMP->mTrackProjY = v;
+        pMP->mnTrackScaleLevel = nPredictedLevel;
+        pMP->mTrackViewCos = viewCos;
+
+        return true;
+    }
+
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
+
+    Frame::Frame()
+    {
     }
 
     Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp, 
@@ -278,347 +619,6 @@ namespace ORB_SLAM2
         mb = mbf / fx;
 
         AssignFeaturesToGrid();
-    }
-
-    // 寫入各個網格所包含的關鍵點的索引值
-    void Frame::AssignFeaturesToGrid()
-    {
-        int nReserve = 0.5f * N / (FRAME_GRID_COLS * FRAME_GRID_ROWS);
-
-        for (unsigned int i = 0; i < FRAME_GRID_COLS; i++)
-        {
-            for (unsigned int j = 0; j < FRAME_GRID_ROWS; j++)
-            {                
-                // 配置足夠的記憶體大小
-                mGrid[i][j].reserve(nReserve);
-            }
-        }
-        
-        for (int i = 0; i < N; i++)
-        {
-            const cv::KeyPoint &kp = mvKeysUn[i];
-            int nGridPosX, nGridPosY;
-
-            // 判斷關鍵點是否在影像區域內，並將關鍵點所在網格位置返回至 nGridPosX 和 nGridPosY
-            if (PosInGrid(kp, nGridPosX, nGridPosY))
-            {
-                // 紀錄網格 mGrid[nGridPosX][nGridPosY] 所包含的關鍵點的索引值
-                mGrid[nGridPosX][nGridPosY].push_back(i);
-            }
-        }
-    }
-
-    // 設置 Frame 位姿，並根據 Frame 位姿，更新旋轉、平移等數據
-    void Frame::SetPose(cv::Mat Tcw)
-    {
-        mTcw = Tcw.clone();
-
-        // 根據相機位姿，更新旋轉、平移等數據
-        UpdatePoseMatrices();
-    }
-
-    // 根據 Frame 位姿，更新旋轉、平移等數據
-    void Frame::UpdatePoseMatrices()
-    {
-        mRcw = mTcw.rowRange(0, 3).colRange(0, 3);
-        mRwc = mRcw.t();
-        mtcw = mTcw.rowRange(0, 3).col(3);
-        mOw = -mRcw.t() * mtcw;
-    }
-
-    // 判定一個地圖點是否會出現在但前相機的視野範圍內
-    // pMP是待考察的地圖點指針
-    // viewingCosLimit是拒絕地圖點的視角余弦閾值，如果當前相機的視角方向v與地圖點的平均視角方向n夾角的余弦值小於該參數，
-    // 就認為地圖點不在相機的視野範圍內
-    bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
-    {
-        pMP->mbTrackInView = false;
-
-        // 3D in absolute coordinates
-        // 先獲取考察地圖點的世界坐標
-        cv::Mat P = pMP->GetWorldPos();
-
-        // 3D in camera coordinates
-        // 將地圖點的世界坐標轉換到當前幀的相機坐標系下
-        const cv::Mat Pc = mRcw * P + mtcw;
-        const float &PcX = Pc.at<float>(0);
-        const float &PcY = Pc.at<float>(1);
-        const float &PcZ = Pc.at<float>(2);
-
-        // Check positive depth
-        // 如果投影之後，地圖點的深度為負數，以為著該地圖點在相機的後面，拋棄之。
-        if (PcZ < 0.0f){
-            return false;
-        }
-
-        // ==================================================
-        // 通過針孔相機模型，計算地圖點在成像平面上的坐標，如果超出了圖像範圍，拋棄之。
-        // ==================================================
-        // Project in image and check it is not outside
-        const float invz = 1.0f / PcZ;
-        const float u = fx * PcX * invz + cx;
-        const float v = fy * PcY * invz + cy;
-
-        if (u < mnMinX || u > mnMaxX){
-            return false;
-        }
-            
-        if (v < mnMinY || v > mnMaxY){
-            return false;
-        }
-        // ==================================================
-        
-        // ==================================================
-        // 計算地圖點到相機的距離，如果不在地圖點的尺度不變距離的範圍(scale invariance region)內，拋棄之。
-        // ==================================================
-        // Check distance is in the scale invariance region of the MapPoint
-        const float maxDistance = pMP->GetMaxDistanceInvariance();
-        const float minDistance = pMP->GetMinDistanceInvariance();
-
-        // 這里計算的臨時變量PO是地圖點相對於相機的位置矢量。
-        const cv::Mat PO = P - mOw;
-        const float dist = cv::norm(PO);
-
-        if (dist < minDistance || dist > maxDistance){
-            return false;
-        }
-        // ==================================================
-
-        // ==================================================
-        // 檢查視角，根據輸入參數 viewingCosLimit ，限定當前幀觀測地圖點的視角方向 v 與
-        // 地圖點的平均視角方向 n 夾角的余弦值不小於 cos60◦， 即當前幀的時間角不能偏離平均視角 60◦。
-        // ==================================================
-        // Check viewing angle
-        cv::Mat Pn = pMP->GetNormal();
-
-        const float viewCos = PO.dot(Pn) / dist;
-
-        if (viewCos < viewingCosLimit){
-            return false;
-        }
-        // ==================================================
-
-        // 計算地圖點在當前幀中的圖像尺度，並更新地圖點中用於軌跡跟蹤的成員變量。
-        // Predict scale in the image
-        const int nPredictedLevel = pMP->PredictScale(dist, this);
-
-        // Data used by the tracking
-        pMP->mbTrackInView = true;
-        pMP->mTrackProjX = u;
-        pMP->mTrackProjXR = u - mbf * invz;
-        pMP->mTrackProjY = v;
-        pMP->mnTrackScaleLevel = nPredictedLevel;
-        pMP->mTrackViewCos = viewCos;
-
-        return true;
-    }
-
-    // 返回以 (x, y) 為圓心，在搜索半徑內，在指定金字塔層級找到的關鍵點的索引值
-    vector<size_t> Frame::GetFeaturesInArea(const float &x, const float &y, const float &r, 
-                                            const int minLevel, const int maxLevel) const
-    {
-        vector<size_t> vIndices;
-        vIndices.reserve(N);
-
-        // X 方向網格最小個數
-        const int nMinCellX = max(0, (int)floor((x - mnMinX - r) * mfGridElementWidthInv));
-
-        if (nMinCellX >= FRAME_GRID_COLS){
-            return vIndices;
-        }
-
-        // X 方向網格最大個數
-        const int nMaxCellX = min((int)FRAME_GRID_COLS - 1, 
-                                  (int)ceil((x - mnMinX + r) * mfGridElementWidthInv));
-
-        if (nMaxCellX < 0){
-            return vIndices;
-        }
-
-        // Y 方向網格最小個數
-        const int nMinCellY = max(0, (int)floor((y - mnMinY - r) * mfGridElementHeightInv));
-
-        if (nMinCellY >= FRAME_GRID_ROWS){
-            return vIndices;
-        }
-
-        // Y 方向網格最大個數
-        const int nMaxCellY = min((int)FRAME_GRID_ROWS - 1, 
-                                  (int)ceil((y - mnMinY + r) * mfGridElementHeightInv));
-
-        if (nMaxCellY < 0){
-            return vIndices;
-        }
-
-        const bool bCheckLevels = (minLevel > 0) || (maxLevel >= 0);
-
-        for (int ix = nMinCellX; ix <= nMaxCellX; ix++)
-        {
-            for (int iy = nMinCellY; iy <= nMaxCellY; iy++)
-            {
-                // 網格(ix, iy) 所包含的關鍵點的索引值
-                const vector<size_t> vCell = mGrid[ix][iy];
-
-                if (vCell.empty()){
-                    continue;
-                }
-
-                for(size_t cell_idx : vCell)
-                {
-                    // 『關鍵點的索引值 cell_idx』
-                    const cv::KeyPoint &kpUn = mvKeysUn[cell_idx];
-
-                    // 檢查層級是否超出 minLevel 與 maxLevel 的範圍
-                    if (bCheckLevels)
-                    {
-                        if (kpUn.octave < minLevel){
-                            continue;
-                        }
-                        
-                        if (maxLevel >= 0){
-                            if (kpUn.octave > maxLevel){
-                                continue;
-                            }
-                        }   
-                    }
-
-                    const float distx = kpUn.pt.x - x;
-                    const float disty = kpUn.pt.y - y;
-
-                    if (fabs(distx) < r && fabs(disty) < r)
-                    {
-                        // 『關鍵點的索引值 cell_idx』
-                        vIndices.push_back(cell_idx);
-                    }
-                }
-            }
-        }
-
-        return vIndices;
-    }
-
-    // 判斷關鍵點是否在影像區域內，並將關鍵點所在網格位置返回至 posX 和 posY
-    bool Frame::PosInGrid(const cv::KeyPoint &kp, int &posX, int &posY)
-    {
-        posX = round((kp.pt.x - mnMinX) * mfGridElementWidthInv);
-        posY = round((kp.pt.y - mnMinY) * mfGridElementHeightInv);
-
-        //Keypoint's coordinates are undistorted, which could cause to go out of the image
-        if (posX < 0 || posX >= FRAME_GRID_COLS || posY < 0 || posY >= FRAME_GRID_ROWS){
-            return false;
-        }
-
-        return true;
-    }
-
-    // 根據 Frame 的各個特徵點的描述子，形成『詞袋字典 mBowVec』與『特徵字典 mFeatVec』
-    void Frame::ComputeBoW()
-    {
-        if (mBowVec.empty())
-        {
-            vector<cv::Mat> vCurrentDesc = Converter::toDescriptorVector(mDescriptors);
-
-            // 雖然 mBowVec, mFeatVec 看起來是向量，但實際上型態為字典
-            mpORBvocabulary->transform(vCurrentDesc, mBowVec, mFeatVec, 4);
-        }
-    }
-
-    // 關鍵點-扭曲校正
-    void Frame::UndistortKeyPoints()
-    {
-        if (mDistCoef.at<float>(0) == 0.0)
-        {
-            mvKeysUn = mvKeys;
-            return;
-        }
-
-        // Fill matrix with points
-        cv::Mat mat(N, 2, CV_32F);
-
-        for (int i = 0; i < N; i++)
-        {
-            mat.at<float>(i, 0) = mvKeys[i].pt.x;
-            mat.at<float>(i, 1) = mvKeys[i].pt.y;
-        }
-
-        // Undistort points
-        mat = mat.reshape(2);
-
-        /* 根據相機參數和觀測到點坐標位置計算實際坐標位置
-        void cv::undistortPoints(InputArray src,
-                                 OutputArray dst,
-                                 InputArray cameraMatrix,
-                                 InputArray distCoeffs,
-                                 InputArray R = noArray(),
-                                 InputArray P = noArray() )
-
-        cameraMatrix：相機內參
-        distCoeffs：扭曲模型參數
-
-        1. 觀測點的 shape，即 src 的 shape 是 1xNx2 或 Nx1x2
-        2. R 參數是用在雙目里的，單目里置為空矩陣
-        3. P矩陣值為空時，得到的結果的點坐標是相機的歸一化坐標 (x, y) (x, y) (x,y)，這時候數值就會明顯很小；
-        設置相機內參會進行以下計算：
-
-        u′ = xfx′​ + cx′​
-        v′ = yfy′ ​+ cy′​
-
-        這時候得到的才是特征點消畸變後的像素坐標
-        我們通常使用時是想得到在同一個相機下的真實像素，所以 P 設置為內參就可以了。
-
-        參考：https://blog.csdn.net/jonathanzh/article/details/104418758
-        */
-        cv::undistortPoints(mat, mat, mK, mDistCoef, cv::Mat(), mK);
-
-        mat = mat.reshape(1);
-
-        // Fill undistorted keypoint vector
-        mvKeysUn.resize(N);
-
-        for (int i = 0; i < N; i++)
-        {
-            cv::KeyPoint kp = mvKeys[i];
-            kp.pt.x = mat.at<float>(i, 0);
-            kp.pt.y = mat.at<float>(i, 1);
-
-            // 將校正後的關鍵點存入 mvKeysUn
-            mvKeysUn[i] = kp;
-        }
-    }
-
-    // 計算（扭曲校正後的）影像的四個頂點
-    void Frame::ComputeImageBounds(const cv::Mat &imLeft)
-    {
-        // 計算校正後的影像的四個頂點
-        if (mDistCoef.at<float>(0) != 0.0)
-        {
-            cv::Mat mat(4, 2, CV_32F);
-            mat.at<float>(0, 0) = 0.0;
-            mat.at<float>(0, 1) = 0.0;
-            mat.at<float>(1, 0) = imLeft.cols;
-            mat.at<float>(1, 1) = 0.0;
-            mat.at<float>(2, 0) = 0.0;
-            mat.at<float>(2, 1) = imLeft.rows;
-            mat.at<float>(3, 0) = imLeft.cols;
-            mat.at<float>(3, 1) = imLeft.rows;
-
-            // Undistort corners
-            mat = mat.reshape(2);
-            cv::undistortPoints(mat, mat, mK, mDistCoef, cv::Mat(), mK);
-            mat = mat.reshape(1);
-
-            mnMinX = min(mat.at<float>(0, 0), mat.at<float>(2, 0));
-            mnMaxX = max(mat.at<float>(1, 0), mat.at<float>(3, 0));
-            mnMinY = min(mat.at<float>(0, 1), mat.at<float>(1, 1));
-            mnMaxY = max(mat.at<float>(2, 1), mat.at<float>(3, 1));
-        }
-        else
-        {
-            mnMinX = 0.0f;
-            mnMaxX = imLeft.cols;
-            mnMinY = 0.0f;
-            mnMaxY = imLeft.rows;
-        }
     }
 
     void Frame::ComputeStereoMatches()
