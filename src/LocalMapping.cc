@@ -50,35 +50,9 @@ namespace ORB_SLAM2
     }
 
     // ==================================================
+
+    // ==================================================
     // 以上為管理執行續相關函式
-    // ==================================================
-
-    // 清空『新關鍵幀容器』
-    void LocalMapping::Release()
-    {
-        unique_lock<mutex> lock(mMutexStop);
-        unique_lock<mutex> lock2(mMutexFinish);
-
-        if (mbFinished){
-            return;
-        }
-
-        mbStopped = false;
-        mbStopRequested = false;
-        list<KeyFrame *>::iterator lit = mlNewKeyFrames.begin();
-        list<KeyFrame *>::iterator lend = mlNewKeyFrames.end();
-
-        for (; lit != lend; lit++){
-            delete *lit;
-        }
-            
-        mlNewKeyFrames.clear();
-
-        cout << "Local Mapping RELEASE" << endl;
-    }
-
-    // ==================================================
-    // 以下為非單目相關函式
     // ==================================================
 
     LocalMapping::LocalMapping(Map *pMap, const float bMonocular) : 
@@ -87,16 +61,6 @@ namespace ORB_SLAM2
                                mbStopped(false), mbStopRequested(false), mbNotStop(false), 
                                mbAcceptKeyFrames(true)
     {
-    }
-
-    void LocalMapping::SetLoopCloser(LoopClosing *pLoopCloser)
-    {
-        mpLoopCloser = pLoopCloser;
-    }
-
-    void LocalMapping::SetTracker(Tracking *pTracker)
-    {
-        mpTracker = pTracker;
     }
 
     void LocalMapping::Run()
@@ -191,15 +155,12 @@ namespace ORB_SLAM2
         SetFinish();
     }
 
-    void LocalMapping::InsertKeyFrame(KeyFrame *pKF)
+    // 設置『是否接受關鍵幀（此時 LOCAL MAPPING 線程是否處於空閑的狀態）』
+    void LocalMapping::SetAcceptKeyFrames(bool flag)
     {
-        unique_lock<mutex> lock(mMutexNewKFs);
-
-        // 將新的關鍵幀放入容器 mlNewKeyFrames 中
-        mlNewKeyFrames.push_back(pKF);
-
-        // 將成員變量 mbAbortBA 設置為 true，表示要暫停 BA 優化
-        mbAbortBA = true;
+        unique_lock<mutex> lock(mMutexAccept);
+        
+        mbAcceptKeyFrames = flag;
     }
 
     // 檢查『新關鍵幀容器 mlNewKeyFrames』是否不為空（有關鍵幀）
@@ -763,6 +724,41 @@ namespace ORB_SLAM2
         }
     }
 
+    // 計算『基礎矩陣(Fundamental Matrix)』
+    cv::Mat LocalMapping::ComputeF12(KeyFrame *&pKF1, KeyFrame *&pKF2)
+    {
+        cv::Mat R1w = pKF1->GetRotation();
+        cv::Mat t1w = pKF1->GetTranslation();
+
+        cv::Mat R2w = pKF2->GetRotation();
+        cv::Mat t2w = pKF2->GetTranslation();
+
+        // 由 2 到 1 的旋轉
+        cv::Mat R12 = R1w * R2w.t();
+
+        // 由 2 到 1 的平移
+        cv::Mat t12 = -R1w * R2w.t() * t2w + t1w;
+
+        // 向量 t12 的『反對稱矩陣』 t^
+        cv::Mat t12x = SkewSymmetricMatrix(t12);
+
+        const cv::Mat &K1 = pKF1->mK;
+        const cv::Mat &K2 = pKF2->mK;
+
+        // E = (t^)R = t12x * R12
+        // F = K^-T * E * K^-1
+        return K1.t().inv() * t12x * R12 * K2.inv();
+    }
+
+    // 取得傳入向量的『反對稱矩陣』
+    cv::Mat LocalMapping::SkewSymmetricMatrix(const cv::Mat &v)
+    {
+        return (cv::Mat_<float>(3, 3) << 
+                              0, -v.at<float>(2),  v.at<float>(1),
+                 v.at<float>(2),               0, -v.at<float>(0),
+                -v.at<float>(1),  v.at<float>(0),              0);
+    }
+
     // 將『關鍵幀 mpCurrentKeyFrame』觀察到的地圖點與現有的融合，更新關鍵幀之間的共視關係與連結
     void LocalMapping::SearchInNeighbors()
     {
@@ -875,48 +871,6 @@ namespace ORB_SLAM2
         mpCurrentKeyFrame->UpdateConnections();
     }
 
-    // 計算『基礎矩陣(Fundamental Matrix)』
-    cv::Mat LocalMapping::ComputeF12(KeyFrame *&pKF1, KeyFrame *&pKF2)
-    {
-        cv::Mat R1w = pKF1->GetRotation();
-        cv::Mat t1w = pKF1->GetTranslation();
-
-        cv::Mat R2w = pKF2->GetRotation();
-        cv::Mat t2w = pKF2->GetTranslation();
-
-        // 由 2 到 1 的旋轉
-        cv::Mat R12 = R1w * R2w.t();
-
-        // 由 2 到 1 的平移
-        cv::Mat t12 = -R1w * R2w.t() * t2w + t1w;
-
-        // 向量 t12 的『反對稱矩陣』 t^
-        cv::Mat t12x = SkewSymmetricMatrix(t12);
-
-        const cv::Mat &K1 = pKF1->mK;
-        const cv::Mat &K2 = pKF2->mK;
-
-        // E = (t^)R = t12x * R12
-        // F = K^-T * E * K^-1
-        return K1.t().inv() * t12x * R12 * K2.inv();
-    }
-
-    // 是否中止『執行續 LocalMapping』
-    bool LocalMapping::Stop()
-    {
-        unique_lock<mutex> lock(mMutexStop);
-
-        // 是否請求中止 且 沒有『請求不要中止』
-        if (mbStopRequested && !mbNotStop)
-        {
-            mbStopped = true;
-            cout << "Local Mapping STOP" << endl;
-            return true;
-        }
-
-        return false;
-    }
-
     // 請求中止『執行續 LocalMapping』
     bool LocalMapping::stopRequested()
     {
@@ -924,44 +878,6 @@ namespace ORB_SLAM2
 
         // 請求中止『執行續 LocalMapping』（不會光 mbStopRequested 被改為 true 就中止）
         return mbStopRequested;
-    }
-
-    // 是否接受關鍵幀（此時 LOCAL MAPPING 線程是否處於空閑的狀態）
-    bool LocalMapping::AcceptKeyFrames()
-    {
-        unique_lock<mutex> lock(mMutexAccept);
-        return mbAcceptKeyFrames;
-    }
-
-    // 設置『是否接受關鍵幀（此時 LOCAL MAPPING 線程是否處於空閑的狀態）』
-    void LocalMapping::SetAcceptKeyFrames(bool flag)
-    {
-        unique_lock<mutex> lock(mMutexAccept);
-        
-        mbAcceptKeyFrames = flag;
-    }
-
-    // 防止 LocalMapping 暫停用
-    bool LocalMapping::SetNotStop(bool flag)
-    {
-        unique_lock<mutex> lock(mMutexStop);
-
-        if (flag && mbStopped)
-        {
-            return false;
-        }
-
-        // mbNotStop 決定了 Stop 函數是否能夠將成員變量 mbStopped 設置為 true
-        // 請求不要中止『執行續 LocalMapping』
-        mbNotStop = flag;
-
-        return true;
-    }
-
-    // 將 mbAbortBA 設為 true
-    void LocalMapping::InterruptBA()
-    {
-        mbAbortBA = true;
     }
 
     // 地圖點在相對小關鍵幀（相同、高 1 階或更精細的比例）中看到，則該關鍵幀被認為是冗餘的 -> SetBadFlag()
@@ -1072,13 +988,128 @@ namespace ORB_SLAM2
 
     }
 
-    // 取得傳入向量的『反對稱矩陣』
-    cv::Mat LocalMapping::SkewSymmetricMatrix(const cv::Mat &v)
+    // 是否中止『執行續 LocalMapping』
+    bool LocalMapping::Stop()
     {
-        return (cv::Mat_<float>(3, 3) << 
-                              0, -v.at<float>(2),  v.at<float>(1),
-                 v.at<float>(2),               0, -v.at<float>(0),
-                -v.at<float>(1),  v.at<float>(0),              0);
+        unique_lock<mutex> lock(mMutexStop);
+
+        // 是否請求中止 且 沒有『請求不要中止』
+        if (mbStopRequested && !mbNotStop)
+        {
+            mbStopped = true;
+            cout << "Local Mapping STOP" << endl;
+            return true;
+        }
+
+        return false;
+    }
+
+    bool LocalMapping::CheckFinish()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        return mbFinishRequested;
+    }
+
+    // 若有需要，清空『新關鍵幀容器』以及『最近新增的地圖點』
+    void LocalMapping::ResetIfRequested()
+    {
+        unique_lock<mutex> lock(mMutexReset);
+
+        if (mbResetRequested)
+        {
+            mlNewKeyFrames.clear();
+            mlpRecentAddedMapPoints.clear();
+            mbResetRequested = false;
+        }
+    }
+
+    void LocalMapping::SetFinish()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        mbFinished = true;
+        unique_lock<mutex> lock2(mMutexStop);
+        mbStopped = true;
+    }
+
+    // **************************************************
+
+    // 清空『新關鍵幀容器』
+    void LocalMapping::Release()
+    {
+        unique_lock<mutex> lock(mMutexStop);
+        unique_lock<mutex> lock2(mMutexFinish);
+
+        if (mbFinished){
+            return;
+        }
+
+        mbStopped = false;
+        mbStopRequested = false;
+        list<KeyFrame *>::iterator lit = mlNewKeyFrames.begin();
+        list<KeyFrame *>::iterator lend = mlNewKeyFrames.end();
+
+        for (; lit != lend; lit++){
+            delete *lit;
+        }
+            
+        mlNewKeyFrames.clear();
+
+        cout << "Local Mapping RELEASE" << endl;
+    }
+
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
+
+    void LocalMapping::SetLoopCloser(LoopClosing *pLoopCloser)
+    {
+        mpLoopCloser = pLoopCloser;
+    }
+
+    void LocalMapping::SetTracker(Tracking *pTracker)
+    {
+        mpTracker = pTracker;
+    }
+
+    void LocalMapping::InsertKeyFrame(KeyFrame *pKF)
+    {
+        unique_lock<mutex> lock(mMutexNewKFs);
+
+        // 將新的關鍵幀放入容器 mlNewKeyFrames 中
+        mlNewKeyFrames.push_back(pKF);
+
+        // 將成員變量 mbAbortBA 設置為 true，表示要暫停 BA 優化
+        mbAbortBA = true;
+    }
+
+    // 是否接受關鍵幀（此時 LOCAL MAPPING 線程是否處於空閑的狀態）
+    bool LocalMapping::AcceptKeyFrames()
+    {
+        unique_lock<mutex> lock(mMutexAccept);
+        return mbAcceptKeyFrames;
+    }
+
+    // 防止 LocalMapping 暫停用
+    bool LocalMapping::SetNotStop(bool flag)
+    {
+        unique_lock<mutex> lock(mMutexStop);
+
+        if (flag && mbStopped)
+        {
+            return false;
+        }
+
+        // mbNotStop 決定了 Stop 函數是否能夠將成員變量 mbStopped 設置為 true
+        // 請求不要中止『執行續 LocalMapping』
+        mbNotStop = flag;
+
+        return true;
+    }
+
+    // 將 mbAbortBA 設為 true
+    void LocalMapping::InterruptBA()
+    {
+        mbAbortBA = true;
     }
 
     // 請求清空『新關鍵幀容器』以及『最近新增的地圖點』
@@ -1103,37 +1134,10 @@ namespace ORB_SLAM2
         }
     }
 
-    // 若有需要，清空『新關鍵幀容器』以及『最近新增的地圖點』
-    void LocalMapping::ResetIfRequested()
-    {
-        unique_lock<mutex> lock(mMutexReset);
-
-        if (mbResetRequested)
-        {
-            mlNewKeyFrames.clear();
-            mlpRecentAddedMapPoints.clear();
-            mbResetRequested = false;
-        }
-    }
-
     void LocalMapping::RequestFinish()
     {
         unique_lock<mutex> lock(mMutexFinish);
         mbFinishRequested = true;
-    }
-
-    bool LocalMapping::CheckFinish()
-    {
-        unique_lock<mutex> lock(mMutexFinish);
-        return mbFinishRequested;
-    }
-
-    void LocalMapping::SetFinish()
-    {
-        unique_lock<mutex> lock(mMutexFinish);
-        mbFinished = true;
-        unique_lock<mutex> lock2(mMutexStop);
-        mbStopped = true;
     }
 
     // 『執行續 LocalMapping』是否已結束

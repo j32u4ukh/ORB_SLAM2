@@ -42,11 +42,11 @@ mean tracking time: 0.0943997
 #KeyFrame: 642
 #MapPoint: 76626
 
-#KeyFrame: 569
-#MapPoint: 61660
-Total time: 8:24.4107
-Median tracking time: 0.105391
-Mean tracking time: 0.111079
+#KeyFrame: 624
+#MapPoint: 81683
+Total time: 5:45.9096
+Median tracking time: 0.0702805
+Mean tracking time: 0.0761748
 
 
 

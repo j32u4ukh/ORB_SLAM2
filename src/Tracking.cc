@@ -40,129 +40,10 @@ using namespace std;
 
 namespace ORB_SLAM2
 {
+    // ==================================================
 
     // ==================================================
     // 以上為管理執行續相關函式
-    // ==================================================
-
-    // 設置是否僅追蹤不建圖
-    void Tracking::InformOnlyTracking(const bool &flag)
-    {
-        // 是否僅追蹤不建圖
-        mbOnlyTracking = flag;
-    }
-
-    void Tracking::Reset()
-    {
-        /* 被呼叫的可能情境：
-        1. 關鍵幀所觀察到的地圖點的深度為負數
-        2. 至少被 1 個關鍵幀所觀察到的地圖點不足 100 個
-        */
-
-        cout << "System Reseting" << endl;
-
-        if (mpViewer)
-        {
-            mpViewer->RequestStop();
-
-            while (!mpViewer->isStopped()){
-                usleep(3000);
-            }
-        }
-
-        // Reset Local Mapping
-        cout << "Reseting Local Mapper...";
-
-        // 請求清空『新關鍵幀容器』以及『最近新增的地圖點』
-        mpLocalMapper->RequestReset();
-        
-        cout << " done" << endl;
-
-        // Reset Loop Closing
-        cout << "Reseting Loop Closing...";
-
-        // 請求重置狀態
-        mpLoopClosing->RequestReset();
-        
-        cout << " done" << endl;
-
-        // Clear BoW Database
-        cout << "Reseting Database...";
-        mpKeyFrameDB->clear();
-        cout << " done" << endl;
-
-        // Clear Map (this erase MapPoints and KeyFrames)
-        mpMap->clear();
-
-        KeyFrame::nNextId = 0;
-        Frame::nNextId = 0;
-        mState = NO_IMAGES_YET;
-
-        if (mpInitializer)
-        {
-            delete mpInitializer;
-            mpInitializer = static_cast<Initializer *>(NULL);
-        }
-
-        mlRelativeFramePoses.clear();
-        mlpReferences.clear();
-        mlFrameTimes.clear();
-        mlbLost.clear();
-
-        if (mpViewer){
-            mpViewer->Release();
-        }
-    }
-
-    cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
-    {
-        mImGray = im;
-
-        // 根據輸入影像的類型，轉換所需的灰階影像
-        if (mImGray.channels() == 3)
-        {
-            if (mbRGB)
-            {
-                cvtColor(mImGray, mImGray, CV_RGB2GRAY);
-            }
-            else
-            {
-                cvtColor(mImGray, mImGray, CV_BGR2GRAY);
-            }
-        }
-        else if (mImGray.channels() == 4)
-        {
-            if (mbRGB)
-            {
-                cvtColor(mImGray, mImGray, CV_RGBA2GRAY);
-            }
-            else
-            {
-                cvtColor(mImGray, mImGray, CV_BGRA2GRAY);
-            }
-        }
-
-        // mState 初始化時（第 1 幀）是 NO_IMAGES_YET
-        // 建構當前幀 Frame 物件
-        if (mState == NOT_INITIALIZED || mState == NO_IMAGES_YET)
-        {
-            mCurrentFrame = Frame(mImGray, timestamp,
-                                  mpIniORBextractor, mpORBVocabulary, mK, mDistCoef, mbf, mThDepth);
-        }
-        else
-        {
-            mCurrentFrame = Frame(mImGray, timestamp,
-                                  mpORBextractorLeft, mpORBVocabulary, mK, mDistCoef, mbf, mThDepth);
-        }
-
-        // 進行初始化
-        Track();
-
-        return mCurrentFrame.mTcw.clone();
-    }
-
-    // ==================================================
-    // 以下為非單目相關函式
     // ==================================================
 
     // 相機標定 與 建構 ORBextractor 物件等
@@ -296,6 +177,128 @@ namespace ORB_SLAM2
             }
         }
     }
+
+    // **************************************************
+    
+    // 設置是否僅追蹤不建圖
+    void Tracking::InformOnlyTracking(const bool &flag)
+    {
+        // 是否僅追蹤不建圖
+        mbOnlyTracking = flag;
+    }
+
+    void Tracking::Reset()
+    {
+        /* 被呼叫的可能情境：
+        1. 關鍵幀所觀察到的地圖點的深度為負數
+        2. 至少被 1 個關鍵幀所觀察到的地圖點不足 100 個
+        */
+
+        cout << "System Reseting" << endl;
+
+        if (mpViewer)
+        {
+            mpViewer->RequestStop();
+
+            while (!mpViewer->isStopped()){
+                usleep(3000);
+            }
+        }
+
+        // Reset Local Mapping
+        cout << "Reseting Local Mapper...";
+
+        // 請求清空『新關鍵幀容器』以及『最近新增的地圖點』
+        mpLocalMapper->RequestReset();
+        
+        cout << " done" << endl;
+
+        // Reset Loop Closing
+        cout << "Reseting Loop Closing...";
+
+        // 請求重置狀態
+        mpLoopClosing->RequestReset();
+        
+        cout << " done" << endl;
+
+        // Clear BoW Database
+        cout << "Reseting Database...";
+        mpKeyFrameDB->clear();
+        cout << " done" << endl;
+
+        // Clear Map (this erase MapPoints and KeyFrames)
+        mpMap->clear();
+
+        KeyFrame::nNextId = 0;
+        Frame::nNextId = 0;
+        mState = NO_IMAGES_YET;
+
+        if (mpInitializer)
+        {
+            delete mpInitializer;
+            mpInitializer = static_cast<Initializer *>(NULL);
+        }
+
+        mlRelativeFramePoses.clear();
+        mlpReferences.clear();
+        mlFrameTimes.clear();
+        mlbLost.clear();
+
+        if (mpViewer){
+            mpViewer->Release();
+        }
+    }
+
+    cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
+    {
+        mImGray = im;
+
+        // 根據輸入影像的類型，轉換所需的灰階影像
+        if (mImGray.channels() == 3)
+        {
+            if (mbRGB)
+            {
+                cvtColor(mImGray, mImGray, CV_RGB2GRAY);
+            }
+            else
+            {
+                cvtColor(mImGray, mImGray, CV_BGR2GRAY);
+            }
+        }
+        else if (mImGray.channels() == 4)
+        {
+            if (mbRGB)
+            {
+                cvtColor(mImGray, mImGray, CV_RGBA2GRAY);
+            }
+            else
+            {
+                cvtColor(mImGray, mImGray, CV_BGRA2GRAY);
+            }
+        }
+
+        // mState 初始化時（第 1 幀）是 NO_IMAGES_YET
+        // 建構當前幀 Frame 物件
+        if (mState == NOT_INITIALIZED || mState == NO_IMAGES_YET)
+        {
+            mCurrentFrame = Frame(mImGray, timestamp,
+                                  mpIniORBextractor, mpORBVocabulary, mK, mDistCoef, mbf, mThDepth);
+        }
+        else
+        {
+            mCurrentFrame = Frame(mImGray, timestamp,
+                                  mpORBextractorLeft, mpORBVocabulary, mK, mDistCoef, mbf, mThDepth);
+        }
+
+        // 進行初始化
+        Track();
+
+        return mCurrentFrame.mTcw.clone();
+    }
+
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
 
     void Tracking::SetLocalMapper(LocalMapping *pLocalMapper)
     {

@@ -22,6 +22,11 @@
 
 namespace ORB_SLAM2
 {
+    // ==================================================
+
+    // ==================================================
+    // 以上為管理執行續相關函式
+    // ==================================================
 
     /****************************************************************************
      * 函數：Converter::toDescriptorVector()
@@ -64,6 +69,22 @@ namespace ORB_SLAM2
     }
 
     /****************************************************************************
+     * 函數：Converter::toVector3d()
+     * 功能：將Opencv的Mat轉化為Eigen的Matrix
+     * 輸入：const cv::Mat &cvVector -- 輸入向量
+     * 輸出：無
+     * 返回：cv::Mat -- 位姿矩陣
+     * 其他：其實當前有更好的方法！
+    *****************************************************************************/
+    Eigen::Matrix<double, 3, 1> Converter::toVector3d(const cv::Mat &cvVector)
+    {
+        Eigen::Matrix<double, 3, 1> v;
+        v << cvVector.at<float>(0), cvVector.at<float>(1), cvVector.at<float>(2);
+
+        return v;
+    }
+
+    /****************************************************************************
      * 函數：Converter::toCvMat()
      * 功能：將g2o的李代數se3轉化為opencv的mat
      * 輸入：const g2o::SE3Quat &SE3 -- 輸入矩陣
@@ -75,23 +96,6 @@ namespace ORB_SLAM2
     {
         Eigen::Matrix<double, 4, 4> eigMat = SE3.to_homogeneous_matrix();
         return toCvMat(eigMat);
-    }
-
-    /****************************************************************************
-     * 函數：Converter::toCvMat()
-     * 功能：將g2o的仿射矩陣轉化為opencv的mat
-     * 輸入：const g2o::Sim3 &Sim3 -- 輸入矩陣
-     * 輸出：無
-     * 返回：cv::Mat -- 位姿矩陣
-     * 其他：
-    *****************************************************************************/
-    cv::Mat Converter::toCvMat(const g2o::Sim3 &Sim3)
-    {
-        Eigen::Matrix3d eigR = Sim3.rotation().toRotationMatrix();
-        Eigen::Vector3d eigt = Sim3.translation();
-        double s = Sim3.scale();
-
-        return toCvSE3(s * eigR, eigt);
     }
 
     /****************************************************************************
@@ -120,6 +124,47 @@ namespace ORB_SLAM2
     /****************************************************************************
      * 函數：Converter::toCvMat()
      * 功能：將Eigen的Matrix轉化為Opencv的Mat
+     * 輸入：const Eigen::Matrix<double,3,1> &m -- 輸入矩陣
+     * 輸出：無
+     * 返回：cv::Mat -- 位姿矩陣
+     * 其他：其實當前有更好的方法！
+    *****************************************************************************/
+    cv::Mat Converter::toCvMat(const Eigen::Matrix<double, 3, 1> &m)
+    {
+        cv::Mat cvMat(3, 1, CV_32F);
+
+        for (int i = 0; i < 3; i++){
+            
+            cvMat.at<float>(i) = m(i);
+        }
+
+        return cvMat.clone();
+    }
+
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
+
+    /****************************************************************************
+     * 函數：Converter::toCvMat()
+     * 功能：將g2o的仿射矩陣轉化為opencv的mat
+     * 輸入：const g2o::Sim3 &Sim3 -- 輸入矩陣
+     * 輸出：無
+     * 返回：cv::Mat -- 位姿矩陣
+     * 其他：
+    *****************************************************************************/
+    cv::Mat Converter::toCvMat(const g2o::Sim3 &Sim3)
+    {
+        Eigen::Matrix3d eigR = Sim3.rotation().toRotationMatrix();
+        Eigen::Vector3d eigt = Sim3.translation();
+        double s = Sim3.scale();
+
+        return toCvSE3(s * eigR, eigt);
+    }
+
+    /****************************************************************************
+     * 函數：Converter::toCvMat()
+     * 功能：將Eigen的Matrix轉化為Opencv的Mat
      * 輸入：const Eigen::Matrix3d &m -- 輸入矩陣
      * 輸出：無
      * 返回：cv::Mat -- 位姿矩陣
@@ -135,26 +180,6 @@ namespace ORB_SLAM2
 
                 cvMat.at<float>(i, j) = m(i, j);
             }
-        }
-
-        return cvMat.clone();
-    }
-
-    /****************************************************************************
-     * 函數：Converter::toCvMat()
-     * 功能：將Eigen的Matrix轉化為Opencv的Mat
-     * 輸入：const Eigen::Matrix<double,3,1> &m -- 輸入矩陣
-     * 輸出：無
-     * 返回：cv::Mat -- 位姿矩陣
-     * 其他：其實當前有更好的方法！
-    *****************************************************************************/
-    cv::Mat Converter::toCvMat(const Eigen::Matrix<double, 3, 1> &m)
-    {
-        cv::Mat cvMat(3, 1, CV_32F);
-
-        for (int i = 0; i < 3; i++){
-            
-            cvMat.at<float>(i) = m(i);
         }
 
         return cvMat.clone();
@@ -188,22 +213,6 @@ namespace ORB_SLAM2
         }
 
         return cvMat.clone();
-    }
-
-    /****************************************************************************
-     * 函數：Converter::toVector3d()
-     * 功能：將Opencv的Mat轉化為Eigen的Matrix
-     * 輸入：const cv::Mat &cvVector -- 輸入向量
-     * 輸出：無
-     * 返回：cv::Mat -- 位姿矩陣
-     * 其他：其實當前有更好的方法！
-    *****************************************************************************/
-    Eigen::Matrix<double, 3, 1> Converter::toVector3d(const cv::Mat &cvVector)
-    {
-        Eigen::Matrix<double, 3, 1> v;
-        v << cvVector.at<float>(0), cvVector.at<float>(1), cvVector.at<float>(2);
-
-        return v;
     }
 
     /****************************************************************************

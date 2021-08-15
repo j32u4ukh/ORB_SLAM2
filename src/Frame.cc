@@ -31,6 +31,7 @@ namespace ORB_SLAM2
     float Frame::cx, Frame::cy, Frame::fx, Frame::fy, Frame::invfx, Frame::invfy;
     float Frame::mnMinX, Frame::mnMinY, Frame::mnMaxX, Frame::mnMaxY;
     float Frame::mfGridElementWidthInv, Frame::mfGridElementHeightInv;
+    // ==================================================
 
     // ==================================================
     // 以上為管理執行續相關函式

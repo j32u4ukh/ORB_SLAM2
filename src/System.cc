@@ -27,15 +27,16 @@
 
 namespace ORB_SLAM2
 {
+    // ==================================================
 
-    System::System(const string &strVocFile,
-                   const string &strSettingsFile,
-                   const eSensor sensor,
-                   const bool bUseViewer) : mSensor(sensor),
-                                            mpViewer(static_cast<Viewer *>(NULL)),
-                                            mbReset(false),
-                                            mbActivateLocalizationMode(false),
-                                            mbDeactivateLocalizationMode(false)
+    // ==================================================
+    // 以上為管理執行續相關函式
+    // ==================================================
+
+    System::System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor, 
+                   const bool bUseViewer) : 
+                   mSensor(sensor), mpViewer(static_cast<Viewer *>(NULL)), mbReset(false), 
+                   mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false)
     {
         // Output welcome message
         cout << endl
@@ -144,6 +145,12 @@ namespace ORB_SLAM2
         mpLoopCloser->SetTracker(mpTracker);
         mpLoopCloser->SetLocalMapper(mpLocalMapper);
     }
+
+    
+
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
 
     cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp)
     {

@@ -24,13 +24,10 @@
 
 namespace ORB_SLAM2
 {
+    // ==================================================
 
     // ==================================================
     // 以上為管理執行續相關函式
-    // ==================================================
-
-    // ==================================================
-    // 以下為非單目相關函式
     // ==================================================
 
     Map::Map() : mnMaxKFid(0), mnBigChangeIdx(0)
@@ -64,6 +61,19 @@ namespace ORB_SLAM2
 
         /// TODO: This only erase the pointer. Delete the MapPoint
     }
+
+    // 返回地圖中的關鍵幀數量
+    long unsigned int Map::KeyFramesInMap()
+    {
+        unique_lock<mutex> lock(mMutexMap);
+
+        // 地圖中的關鍵幀數量
+        return mspKeyFrames.size();
+    }
+
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
 
     void Map::EraseKeyFrame(KeyFrame *pKF)
     {
@@ -115,15 +125,6 @@ namespace ORB_SLAM2
     {
         unique_lock<mutex> lock(mMutexMap);
         return mspMapPoints.size();
-    }
-
-    // 返回地圖中的關鍵幀數量
-    long unsigned int Map::KeyFramesInMap()
-    {
-        unique_lock<mutex> lock(mMutexMap);
-
-        // 地圖中的關鍵幀數量
-        return mspKeyFrames.size();
     }
 
     vector<MapPoint *> Map::GetReferenceMapPoints()

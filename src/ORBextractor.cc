@@ -425,6 +425,36 @@ namespace ORB_SLAM2
             -1, -6, 0, -11 /*mean (0.127148), correlation (0.547401)*/
     };
 
+    // 利用灰階質心法計算特徵點的角度（角度資訊儲存於 KeyPoint 當中）
+    static void computeOrientation(const Mat &image, vector<KeyPoint> &keypoints, 
+                                   const vector<int> &umax)
+    {
+        for(cv::KeyPoint keypoint : keypoints)
+        {
+            // 灰階質心法，計算區塊 image 的角度
+            keypoint.angle = IC_Angle(image, keypoint.pt, umax);
+        }
+    }
+    
+    // 計算 ORB 描述子，儲存至 descriptors
+    static void computeDescriptors(const Mat &image, vector<KeyPoint> &keypoints, Mat &descriptors,
+                                   const vector<Point> &pattern)
+    {
+        descriptors = Mat::zeros((int)keypoints.size(), 32, CV_8UC1);
+
+        for (size_t i = 0; i < keypoints.size(); i++)
+        {
+            // 計算 KeyPoint &kpt 的 ORB 描述子，更新 descriptors[row_i] 的數值
+            computeOrbDescriptor(keypoints[i], image, &pattern[0], descriptors.ptr((int)i));
+        }
+    }
+
+    // ==================================================
+
+    // ==================================================
+    // 以上為管理執行續相關函式
+    // ==================================================
+
     ORBextractor::ORBextractor(int _nfeatures, float _scaleFactor, int _nlevels, int _iniThFAST, 
                                int _minThFAST): 
                                nfeatures(_nfeatures), scaleFactor(_scaleFactor), nlevels(_nlevels), 
@@ -456,12 +486,6 @@ namespace ORB_SLAM2
             // Inv版本 變異數
             mvInvLevelSigma2[i] = 1.0f / mvLevelSigma2[i];
         }
-
-        // for (int i = 0; i < nlevels; i++)
-        // {
-        //     mvInvScaleFactor[i] = 1.0f / mvScaleFactor[i];
-        //     mvInvLevelSigma2[i] = 1.0f / mvLevelSigma2[i];
-        // }
 
         mvImagePyramid.resize(nlevels);
         mnFeaturesPerLevel.resize(nlevels);
@@ -514,16 +538,9 @@ namespace ORB_SLAM2
         }
     }
 
-    // 利用灰階質心法計算特徵點的角度（角度資訊儲存於 KeyPoint 當中）
-    static void computeOrientation(const Mat &image, vector<KeyPoint> &keypoints, 
-                                   const vector<int> &umax)
-    {
-        for(cv::KeyPoint keypoint : keypoints)
-        {
-            // 灰階質心法，計算區塊 image 的角度
-            keypoint.angle = IC_Angle(image, keypoint.pt, umax);
-        }
-    }
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
 
     // 將 ExtractorNode 化分成田字型的 4 塊 ExtractorNode
     void ExtractorNode::DivideNode(ExtractorNode &n1, ExtractorNode &n2, ExtractorNode &n3, 
@@ -1107,19 +1124,6 @@ namespace ORB_SLAM2
         // and compute orientations
         for (int level = 0; level < nlevels; ++level){
             computeOrientation(mvImagePyramid[level], allKeypoints[level], umax);
-        }
-    }
-
-    // 計算 ORB 描述子，儲存至 descriptors
-    static void computeDescriptors(const Mat &image, vector<KeyPoint> &keypoints, Mat &descriptors,
-                                   const vector<Point> &pattern)
-    {
-        descriptors = Mat::zeros((int)keypoints.size(), 32, CV_8UC1);
-
-        for (size_t i = 0; i < keypoints.size(); i++)
-        {
-            // 計算 KeyPoint &kpt 的 ORB 描述子，更新 descriptors[row_i] 的數值
-            computeOrbDescriptor(keypoints[i], image, &pattern[0], descriptors.ptr((int)i));
         }
     }
 

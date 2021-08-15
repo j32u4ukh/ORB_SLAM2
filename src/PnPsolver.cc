@@ -63,9 +63,18 @@ using namespace std;
 namespace ORB_SLAM2
 {
 
-  PnPsolver::PnPsolver(const Frame &F, const vector<MapPoint *> &vpMapPointMatches) : 
-                       pws(0), us(0), alphas(0), pcs(0), maximum_number_of_correspondences(0), N(0),
-                       number_of_correspondences(0), mnInliersi(0), mnIterations(0), mnBestInliers(0)
+  // ==================================================
+
+  // ==================================================
+  // 以上為管理執行續相關函式
+  // ==================================================
+
+  // ==================================================
+  // 以下為非單目相關函式
+  // ==================================================
+
+  PnPsolver::PnPsolver(const Frame &F, const vector<MapPoint *> &vpMapPointMatches) : pws(0), us(0), alphas(0), pcs(0), maximum_number_of_correspondences(0), N(0),
+                                                                                      number_of_correspondences(0), mnInliersi(0), mnIterations(0), mnBestInliers(0)
   {
     mvpMapPointMatches = vpMapPointMatches;
     mvP2D.reserve(F.mvpMapPoints.size());
@@ -313,7 +322,7 @@ namespace ORB_SLAM2
 
     reset_correspondences();
 
-    for(int idx : vIndices)
+    for (int idx : vIndices)
     {
       add_correspondence(mvP3Dw[idx].x, mvP3Dw[idx].y, mvP3Dw[idx].z, mvP2D[idx].x, mvP2D[idx].y);
     }
@@ -1025,11 +1034,7 @@ namespace ORB_SLAM2
       rowA[2] = rowL[3] * betas[0] + rowL[4] * betas[1] + 2 * rowL[5] * betas[2] + rowL[8] * betas[3];
       rowA[3] = rowL[6] * betas[0] + rowL[7] * betas[1] + rowL[8] * betas[2] + 2 * rowL[9] * betas[3];
 
-      cvmSet(b, i, 0, rho[i] - (rowL[0] * betas[0] * betas[0] + rowL[1] * betas[0] * betas[1] + 
-                                rowL[2] * betas[1] * betas[1] + rowL[3] * betas[0] * betas[2] + 
-                                rowL[4] * betas[1] * betas[2] + rowL[5] * betas[2] * betas[2] + 
-                                rowL[6] * betas[0] * betas[3] + rowL[7] * betas[1] * betas[3] + 
-                                rowL[8] * betas[2] * betas[3] + rowL[9] * betas[3] * betas[3]));
+      cvmSet(b, i, 0, rho[i] - (rowL[0] * betas[0] * betas[0] + rowL[1] * betas[0] * betas[1] + rowL[2] * betas[1] * betas[1] + rowL[3] * betas[0] * betas[2] + rowL[4] * betas[1] * betas[2] + rowL[5] * betas[2] * betas[2] + rowL[6] * betas[0] * betas[3] + rowL[7] * betas[1] * betas[3] + rowL[8] * betas[2] * betas[3] + rowL[9] * betas[3] * betas[3]));
     }
   }
 
@@ -1190,7 +1195,7 @@ namespace ORB_SLAM2
         sum += *ppAij * pX[j];
         ppAij++;
       }
-      
+
       pX[i] = (pb[i] - sum) / A2[i];
     }
   }

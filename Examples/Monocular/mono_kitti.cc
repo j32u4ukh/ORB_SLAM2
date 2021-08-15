@@ -30,14 +30,14 @@
 
 using namespace std;
 
-void LoadImages(const string &strSequence, vector<string> &vstrImageFilenames,
-                vector<double> &vTimestamps);
-
 // ==================================================
 
 // ==================================================
 // 以上為管理執行續相關函式
 // ==================================================
+
+void LoadImages(const string &strSequence, vector<string> &vstrImageFilenames,
+                vector<double> &vTimestamps);
 
 // ==================================================
 // 以下為非單目相關函式

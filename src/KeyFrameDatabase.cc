@@ -29,11 +29,21 @@ using namespace std;
 
 namespace ORB_SLAM2
 {
+    // ==================================================
+
+    // ==================================================
+    // 以上為管理執行續相關函式
+    // ==================================================
 
     KeyFrameDatabase::KeyFrameDatabase(const ORBVocabulary &voc) : mpVoc(&voc)
     {
         mvInvertedFile.resize(voc.size());
     }
+
+    
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
 
     void KeyFrameDatabase::add(KeyFrame *pKF)
     {

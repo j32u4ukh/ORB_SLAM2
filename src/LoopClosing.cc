@@ -34,6 +34,11 @@
 
 namespace ORB_SLAM2
 {
+    // ==================================================
+
+    // ==================================================
+    // 以上為管理執行續相關函式
+    // ==================================================
 
     LoopClosing::LoopClosing(Map *pMap, KeyFrameDatabase *pDB, ORBVocabulary *pVoc, const bool bFixScale) : 
                              mpMap(pMap), mpKeyFrameDB(pDB), mpORBVocabulary(pVoc), mbFixScale(bFixScale),
@@ -43,6 +48,20 @@ namespace ORB_SLAM2
     {
         mnCovisibilityConsistencyTh = 3;
     }
+
+    // 將『關鍵幀 pKF』加入『關鍵幀的隊列』當中
+    void LoopClosing::InsertKeyFrame(KeyFrame *pKF)
+    {
+        unique_lock<mutex> lock(mMutexLoopQueue);
+
+        if (pKF->mnId != 0){
+            mlpLoopKeyFrameQueue.push_back(pKF);
+        }
+    }
+
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
 
     void LoopClosing::SetTracker(Tracking *pTracker)
     {
@@ -101,16 +120,6 @@ namespace ORB_SLAM2
 
         // 標注 LoopClosing 執行續已停止
         SetFinish();
-    }
-
-    // 將『關鍵幀 pKF』加入『關鍵幀的隊列』當中
-    void LoopClosing::InsertKeyFrame(KeyFrame *pKF)
-    {
-        unique_lock<mutex> lock(mMutexLoopQueue);
-
-        if (pKF->mnId != 0){
-            mlpLoopKeyFrameQueue.push_back(pKF);
-        }
     }
 
     // 檢查『關鍵幀的隊列』是否有關鍵幀

@@ -30,11 +30,9 @@ namespace ORB_SLAM2
     mutex MapPoint::mGlobalMutex;
 
     // ==================================================
-    // 以上為管理執行續相關函式
-    // ==================================================
 
     // ==================================================
-    // 以下為非單目相關函式
+    // 以上為管理執行續相關函式
     // ==================================================
 
     MapPoint::MapPoint(const cv::Mat &Pos, KeyFrame *pRefKF, Map *pMap) : 
@@ -53,63 +51,21 @@ namespace ORB_SLAM2
         mnId = nNextId++;
     }
 
-    MapPoint::MapPoint(const cv::Mat &Pos, Map *pMap, Frame *pFrame, const int &idxF) : 
-                       mnFirstKFid(-1), mnFirstFrame(pFrame->mnId), nObs(0), 
-                       mnTrackReferenceForFrame(0), mnLastFrameSeen(0), mnBALocalForKF(0), 
-                       mnFuseCandidateForKF(0), mnLoopPointForKF(0), mnCorrectedByKF(0), 
-                       mnCorrectedReference(0), mnBAGlobalForKF(0), 
-                       mpRefKF(static_cast<KeyFrame *>(NULL)), mnVisible(1), mnFound(1), mbBad(false), 
-                       mpReplaced(NULL), mpMap(pMap)
+    // 若觀察到這個地圖點的關鍵幀太少，移除當前地圖點(若可以就直接將不好的點排除，不要一直判斷它好不好)
+    bool MapPoint::isBad()
     {
-        Pos.copyTo(mWorldPos);
-        cv::Mat Ow = pFrame->GetCameraCenter();
-        mNormalVector = mWorldPos - Ow;
-        mNormalVector = mNormalVector / cv::norm(mNormalVector);
-
-        cv::Mat PC = Pos - Ow;
-        const float dist = cv::norm(PC);
-        const int level = pFrame->mvKeysUn[idxF].octave;
-        const float levelScaleFactor = pFrame->mvScaleFactors[level];
-        const int nLevels = pFrame->mnScaleLevels;
-
-        mfMaxDistance = dist * levelScaleFactor;
-        mfMinDistance = mfMaxDistance / pFrame->mvScaleFactors[nLevels - 1];
-
-        pFrame->mDescriptors.row(idxF).copyTo(mDescriptor);
-
-        // MapPoints can be created from Tracking and Local Mapping. This mutex avoid conflicts with id.
-        unique_lock<mutex> lock(mpMap->mMutexPointCreation);
-        mnId = nNextId++;
+        unique_lock<mutex> lock(mMutexFeatures);
+        unique_lock<mutex> lock2(mMutexPos);
+        return mbBad;
     }
-
-    void MapPoint::SetWorldPos(const cv::Mat &Pos)
-    {
-        unique_lock<mutex> lock2(mGlobalMutex);
-        unique_lock<mutex> lock(mMutexPos);
-        Pos.copyTo(mWorldPos);
-    }
-
-    cv::Mat MapPoint::GetWorldPos()
-    {
-        unique_lock<mutex> lock(mMutexPos);
-        return mWorldPos.clone();
-    }
-
-    // 地圖點之法向量
-    cv::Mat MapPoint::GetNormal()
-    {
-        unique_lock<mutex> lock(mMutexPos);
-
-        // 平均『相機指向地圖點』之正規化向量
-        return mNormalVector.clone();
-    }
-
-    // 取得參考關鍵幀
-    KeyFrame *MapPoint::GetReferenceKeyFrame()
+    
+    // 檢查是否已添加過『關鍵幀 pKF』到當前地圖點
+    bool MapPoint::IsInKeyFrame(KeyFrame *pKF)
     {
         unique_lock<mutex> lock(mMutexFeatures);
 
-        return mpRefKF;
+        // mObservations：觀察到這個地圖點的『關鍵幀』，以及其『關鍵點』的索引值
+        return (mObservations.count(pKF));
     }
 
     // 地圖點被關鍵幀的第 idx 個關鍵點觀察到
@@ -134,208 +90,68 @@ namespace ORB_SLAM2
         }
     }
 
-    // 移除『關鍵幀 pKF』，更新關鍵幀的計數，若『觀察到這個地圖點的關鍵幀』太少（少於 3 個），則將地圖點與關鍵幀等全部移除
-    void MapPoint::EraseObservation(KeyFrame *pKF)
+    // 利用所有觀察到這個地圖點的關鍵幀來估計關鍵幀們平均指向的方向，以及該地圖點可能的深度範圍(最近與最遠)
+    void MapPoint::UpdateNormalAndDepth()
     {
-        bool bBad = false;
-
-        {
-            unique_lock<mutex> lock(mMutexFeatures);
-
-            if (mObservations.count(pKF))
-            {
-                // 取得觀察到『關鍵幀 pKF』的關鍵點的索引值
-                int idx = mObservations[pKF];
-
-                if (pKF->mvuRight[idx] >= 0){
-                    nObs -= 2;
-                }
-
-                // 單目的 mvuRight 會是負的
-                else{
-                    // 減少 1 個關鍵幀的計數
-                    nObs--;
-                }
-
-                // 從 mObservations 移除『關鍵幀 pKF』
-                mObservations.erase(pKF);
-
-                // 若為當前地圖點的參考關鍵幀
-                if (mpRefKF == pKF)
-                {
-                    // 以更新後的 mObservations 的第一個關鍵幀作為參考關鍵幀
-                    mpRefKF = mObservations.begin()->first;
-                }
-
-                // If only 2 observations or less, discard point
-                // 若觀察到這個地圖點的關鍵幀太少（少於 3 個）
-                if (nObs <= 2)
-                {
-                    bBad = true;
-                }
-            }
-        }
-
-        if (bBad){
-            // 清空這個地圖點、觀察到這個地圖點的所有關鍵幀，以及它自己對應的關鍵點索引值
-            SetBadFlag();
-        }
-    }
-
-    // 觀察到這個地圖點的『關鍵幀』，以及其『關鍵點』的索引值
-    map<KeyFrame *, size_t> MapPoint::GetObservations()
-    {
-        unique_lock<mutex> lock(mMutexFeatures);
-        return mObservations;
-    }
-
-    // 這個地圖點被幾個關鍵幀觀察到
-    int MapPoint::Observations()
-    {
-        unique_lock<mutex> lock(mMutexFeatures);
-
-        // 這個地圖點被幾個關鍵幀觀察到
-        return nObs;
-    }
-
-    // 清空這個地圖點、觀察到這個地圖點的所有關鍵幀，以及它自己對應的關鍵點索引值
-    void MapPoint::SetBadFlag()
-    {
-        map<KeyFrame *, size_t> obs;
+        map<KeyFrame *, size_t> observations;
+        KeyFrame *pRefKF;
+        cv::Mat Pos;
 
         {
             unique_lock<mutex> lock1(mMutexFeatures);
             unique_lock<mutex> lock2(mMutexPos);
-            mbBad = true;
 
-            // 暫存關鍵幀資訊，函式結束後便會釋放記憶體空間
-            obs = mObservations;
+            if (mbBad)
+            {
+                return;
+            }
 
-            // 清空觀察到這個地圖點的所有關鍵幀，以及它自己對應的關鍵點索引值
-            mObservations.clear();
-
-            /// TODO: nObs = 0
+            observations = mObservations;
+            pRefKF = mpRefKF;
+            Pos = mWorldPos.clone();
         }
 
-        map<KeyFrame *, size_t>::iterator mit, mend = obs.end();
-
-        for (mit = obs.begin(); mit != mend; mit++)
-        {
-            KeyFrame *pKF = mit->first;
-
-            // 『關鍵幀 pKF』第 mit->second 個關鍵點觀察到的地圖點，設為 NULL
-            pKF->EraseMapPointMatch(mit->second);
-        }
-
-        // 清除『當前地圖點』
-        mpMap->EraseMapPoint(this);
-    }
-
-    // 返回要更新的地圖點
-    MapPoint *MapPoint::GetReplaced()
-    {
-        unique_lock<mutex> lock1(mMutexFeatures);
-        unique_lock<mutex> lock2(mMutexPos);
-
-        return mpReplaced;
-    }
-
-    // 將被『較多』關鍵幀觀察到的地圖點，取代被『較少』關鍵幀觀察到的地圖點
-    void MapPoint::Replace(MapPoint *pMP)
-    {
-        if (pMP->mnId == this->mnId){
+        if (observations.empty()){
             return;
         }
 
-        int nvisible, nfound;
-        map<KeyFrame *, size_t> obs;
+        // 所有觀察到這個地圖點的關鍵幀的『相機中心 指向 地圖點 的向量』的總和
+        cv::Mat normal = cv::Mat::zeros(3, 1, CV_32F);
+
+        int n = 0;
+
+        for(pair<KeyFrame *, size_t> obs : observations)
+        {
+            KeyFrame *pKF = obs.first;
+            cv::Mat Owi = pKF->GetCameraCenter();
+
+            // 相機中心 指向 地圖點 的向量
+            cv::Mat normali = mWorldPos - Owi;
+
+            // normal 為正歸化後的 normali 的累加
+            normal = normal + normali / cv::norm(normali);
+
+            n++;
+        }
+        
+        // 相機中心 指向 地圖點 的向量
+        cv::Mat PC = Pos - pRefKF->GetCameraCenter();
+
+        // 相機到地圖點的距離
+        const float dist = cv::norm(PC);
+        
+        const int level = pRefKF->mvKeysUn[observations[pRefKF]].octave;
+        const float levelScaleFactor = pRefKF->mvScaleFactors[level];
+        const int nLevels = pRefKF->mnScaleLevels;
 
         {
-            unique_lock<mutex> lock1(mMutexFeatures);
-            unique_lock<mutex> lock2(mMutexPos);
-
-            // 觀察到這個地圖點的『關鍵幀』，以及其『關鍵點』的索引值
-            obs = mObservations;
-
-            mObservations.clear();
-            mbBad = true;
-
-            // 估計能夠看到地圖點的關鍵幀數量
-            nvisible = mnVisible;
-
-            nfound = mnFound;
-            mpReplaced = pMP;
+            unique_lock<mutex> lock3(mMutexPos);
+            mfMaxDistance = dist * levelScaleFactor;
+            mfMinDistance = mfMaxDistance / pRefKF->mvScaleFactors[nLevels - 1];
+            
+            // 平均『相機指向地圖點』之正規化向量
+            mNormalVector = normal / n;
         }
-
-        for(pair<KeyFrame *, size_t> kf_kpidx : obs)
-        {
-            // Replace measurement in keyframe
-            KeyFrame *pKF = kf_kpidx.first;
-            size_t kp_idx = kf_kpidx.second;
-
-            // 檢查是否還沒被添加過『關鍵幀 pKF』到當前地圖中
-            if (!pMP->IsInKeyFrame(pKF))
-            {
-                // 關鍵幀的第 idx 個關鍵幀觀察到的地圖點汰換成『地圖點 pMP』
-                pKF->ReplaceMapPointMatch(kp_idx, pMP);
-
-                // 『地圖點 pMP』被『關鍵幀 pKF』的第 (mit->second) 個關鍵點觀察到
-                pMP->AddObservation(pKF, kp_idx);
-            }
-            else
-            {
-                // 『關鍵幀 pKF』第 (mit->second) 個關鍵點觀察到的『地圖點 pMP』，設為 NULL
-                pKF->EraseMapPointMatch(kp_idx);
-            }
-        }
-
-        // 增加實際觀測到地圖點的關鍵幀數量
-        pMP->IncreaseFound(nfound);
-
-        // 增加對『能夠看到地圖點的關鍵幀數量』的估計
-        pMP->IncreaseVisible(nvisible);
-
-        // 以『所有描述這個地圖點的描述子的集合』的中心描述子，作為地圖點的描述子
-        pMP->ComputeDistinctiveDescriptors();
-
-        // 清除『地圖點 pMP』
-        mpMap->EraseMapPoint(this);
-    }
-
-    // 若觀察到這個地圖點的關鍵幀太少，移除當前地圖點(若可以就直接將不好的點排除，不要一直判斷它好不好)
-    bool MapPoint::isBad()
-    {
-        unique_lock<mutex> lock(mMutexFeatures);
-        unique_lock<mutex> lock2(mMutexPos);
-        return mbBad;
-    }
-    
-    // 增加對『能夠看到地圖點的關鍵幀數量』的估計
-    void MapPoint::IncreaseVisible(int n)
-    {
-        unique_lock<mutex> lock(mMutexFeatures);
-        mnVisible += n;
-    }
-
-    // 增加實際觀測到地圖點的關鍵幀數量
-    void MapPoint::IncreaseFound(int n)
-    {
-        unique_lock<mutex> lock(mMutexFeatures);
-
-        // mnFound：實際觀測到地圖點的關鍵幀數量
-        mnFound += n;
-    }
-
-    // 獲取其查找率(在TRACKING線程中判定匹配到地圖點的關鍵幀數量與預測可以看到地圖點的關鍵幀數量之比)
-    float MapPoint::GetFoundRatio()
-    {
-        unique_lock<mutex> lock(mMutexFeatures);
-
-        /* mnFound 記錄了實際觀測到地圖點的關鍵幀數量，而 mnVisible 則是估計能夠看到該點的關鍵幀數量。
-        mnFound 和 mnVisible 都是在 TRACKING 線程中得到更新的。在根據局部地圖優化位姿的時候，
-        通過 Tracking 對象的成員函數 SearchLocalPoints 對局部地圖中的地圖點進行粗略篩選，會根據觀測到地圖點的
-        視角余弦值來估計當前幀能否觀測到響應的地圖點，並通過地圖點的接口 IncreaseVisible 增加 mnVisible 的計數。*/
-        return static_cast<float>(mnFound) / mnVisible;
     }
 
     // 以『所有描述這個地圖點的描述子的集合』的中心描述子，作為地圖點的描述子
@@ -429,109 +245,72 @@ namespace ORB_SLAM2
         }
     }
 
-    // 取得地圖點描述子
-    cv::Mat MapPoint::GetDescriptor()
+    // 觀察到這個地圖點的『關鍵幀』，以及其『關鍵點』的索引值
+    map<KeyFrame *, size_t> MapPoint::GetObservations()
+    {
+        unique_lock<mutex> lock(mMutexFeatures);
+        return mObservations;
+    }
+
+    // 獲取其查找率(在TRACKING線程中判定匹配到地圖點的關鍵幀數量與預測可以看到地圖點的關鍵幀數量之比)
+    float MapPoint::GetFoundRatio()
     {
         unique_lock<mutex> lock(mMutexFeatures);
 
-        // 地圖點的描述子：『所有描述這個地圖點的描述子的集合』的中心描述子
-        return mDescriptor.clone();
+        /* mnFound 記錄了實際觀測到地圖點的關鍵幀數量，而 mnVisible 則是估計能夠看到該點的關鍵幀數量。
+        mnFound 和 mnVisible 都是在 TRACKING 線程中得到更新的。在根據局部地圖優化位姿的時候，
+        通過 Tracking 對象的成員函數 SearchLocalPoints 對局部地圖中的地圖點進行粗略篩選，會根據觀測到地圖點的
+        視角余弦值來估計當前幀能否觀測到響應的地圖點，並通過地圖點的接口 IncreaseVisible 增加 mnVisible 的計數。*/
+        return static_cast<float>(mnFound) / mnVisible;
     }
 
-    // 取得『是關鍵幀 pKF 的第幾個 關鍵點 觀察到這個地圖點的』
-    int MapPoint::GetIndexInKeyFrame(KeyFrame *pKF)
+    // 清空這個地圖點、觀察到這個地圖點的所有關鍵幀，以及它自己對應的關鍵點索引值
+    void MapPoint::SetBadFlag()
     {
-        unique_lock<mutex> lock(mMutexFeatures);
-
-        if (mObservations.count(pKF))
-        {
-            // 『關鍵幀 pKF』的第幾個『關鍵點』觀察到這個地圖點的
-            return mObservations[pKF];
-        }
-        else
-        {
-            return -1;
-        }
-    }
-
-    // 檢查是否已添加過『關鍵幀 pKF』到當前地圖點
-    bool MapPoint::IsInKeyFrame(KeyFrame *pKF)
-    {
-        unique_lock<mutex> lock(mMutexFeatures);
-
-        // mObservations：觀察到這個地圖點的『關鍵幀』，以及其『關鍵點』的索引值
-        return (mObservations.count(pKF));
-    }
-
-    // 利用所有觀察到這個地圖點的關鍵幀來估計關鍵幀們平均指向的方向，以及該地圖點可能的深度範圍(最近與最遠)
-    void MapPoint::UpdateNormalAndDepth()
-    {
-        map<KeyFrame *, size_t> observations;
-        KeyFrame *pRefKF;
-        cv::Mat Pos;
+        map<KeyFrame *, size_t> obs;
 
         {
             unique_lock<mutex> lock1(mMutexFeatures);
             unique_lock<mutex> lock2(mMutexPos);
+            mbBad = true;
 
-            if (mbBad)
-            {
-                return;
-            }
+            // 暫存關鍵幀資訊，函式結束後便會釋放記憶體空間
+            obs = mObservations;
 
-            observations = mObservations;
-            pRefKF = mpRefKF;
-            Pos = mWorldPos.clone();
+            // 清空觀察到這個地圖點的所有關鍵幀，以及它自己對應的關鍵點索引值
+            mObservations.clear();
+
+            /// TODO: nObs = 0
         }
 
-        if (observations.empty()){
-            return;
-        }
+        map<KeyFrame *, size_t>::iterator mit, mend = obs.end();
 
-        // 所有觀察到這個地圖點的關鍵幀的『相機中心 指向 地圖點 的向量』的總和
-        cv::Mat normal = cv::Mat::zeros(3, 1, CV_32F);
-
-        int n = 0;
-
-        for(pair<KeyFrame *, size_t> obs : observations)
+        for (mit = obs.begin(); mit != mend; mit++)
         {
-            KeyFrame *pKF = obs.first;
-            cv::Mat Owi = pKF->GetCameraCenter();
+            KeyFrame *pKF = mit->first;
 
-            // 相機中心 指向 地圖點 的向量
-            cv::Mat normali = mWorldPos - Owi;
-
-            // normal 為正歸化後的 normali 的累加
-            normal = normal + normali / cv::norm(normali);
-
-            n++;
+            // 『關鍵幀 pKF』第 mit->second 個關鍵點觀察到的地圖點，設為 NULL
+            pKF->EraseMapPointMatch(mit->second);
         }
-        
-        // 相機中心 指向 地圖點 的向量
-        cv::Mat PC = Pos - pRefKF->GetCameraCenter();
 
-        // 相機到地圖點的距離
-        const float dist = cv::norm(PC);
-        
-        const int level = pRefKF->mvKeysUn[observations[pRefKF]].octave;
-        const float levelScaleFactor = pRefKF->mvScaleFactors[level];
-        const int nLevels = pRefKF->mnScaleLevels;
-
-        {
-            unique_lock<mutex> lock3(mMutexPos);
-            mfMaxDistance = dist * levelScaleFactor;
-            mfMinDistance = mfMaxDistance / pRefKF->mvScaleFactors[nLevels - 1];
-            
-            // 平均『相機指向地圖點』之正規化向量
-            mNormalVector = normal / n;
-        }
+        // 清除『當前地圖點』
+        mpMap->EraseMapPoint(this);
     }
 
-    // 考慮金字塔層級的『地圖點 pMP』最小可能深度
-    float MapPoint::GetMinDistanceInvariance()
+    // 這個地圖點被幾個關鍵幀觀察到
+    int MapPoint::Observations()
+    {
+        unique_lock<mutex> lock(mMutexFeatures);
+
+        // 這個地圖點被幾個關鍵幀觀察到
+        return nObs;
+    }
+
+    // 取得地圖點的世界座標
+    cv::Mat MapPoint::GetWorldPos()
     {
         unique_lock<mutex> lock(mMutexPos);
-        return 0.8f * mfMinDistance;
+        return mWorldPos.clone();
     }
 
     // 考慮金字塔層級的『地圖點 pMP』最大可能深度
@@ -541,48 +320,34 @@ namespace ORB_SLAM2
         return 1.2f * mfMaxDistance;
     }
 
+    // 考慮金字塔層級的『地圖點 pMP』最小可能深度
+    float MapPoint::GetMinDistanceInvariance()
+    {
+        unique_lock<mutex> lock(mMutexPos);
+        return 0.8f * mfMinDistance;
+    }
+
+    // 地圖點之法向量
+    cv::Mat MapPoint::GetNormal()
+    {
+        unique_lock<mutex> lock(mMutexPos);
+
+        // 平均『相機指向地圖點』之正規化向量
+        return mNormalVector.clone();
+    }
+
     // 『關鍵幀 pKF』根據當前『地圖點 pMP』的深度，估計場景規模
     int MapPoint::PredictScale(const float &currentDist, KeyFrame *pKF)
     {
         return predictScale(currentDist, pKF->mfLogScaleFactor, pKF->mnScaleLevels);
-
-        // float ratio;
-        // {
-        //     unique_lock<mutex> lock(mMutexPos);
-        //     ratio = mfMaxDistance / currentDist;
-        // }
-        // int nScale = ceil(log(ratio) / pKF->mfLogScaleFactor);
-        // if (nScale < 0)
-        // {
-        //     nScale = 0;
-        // }
-        // else if (nScale >= pKF->mnScaleLevels){
-        //     nScale = pKF->mnScaleLevels - 1;
-        // }
-        // return nScale;
     }
 
     // 根據當前距離與最遠可能距離，換算出當前尺度
     int MapPoint::PredictScale(const float &currentDist, Frame *pF)
     {
         return predictScale(currentDist, pF->mfLogScaleFactor, pF->mnScaleLevels);
-
-        // float ratio;
-        // {
-        //     unique_lock<mutex> lock(mMutexPos);
-        //     ratio = mfMaxDistance / currentDist;
-        // }
-        // int nScale = ceil(log(ratio) / pF->mfLogScaleFactor);
-        // if (nScale < 0)
-        // {
-        //     nScale = 0;
-        // }
-        // else if (nScale >= pF->mnScaleLevels){
-        //     nScale = pF->mnScaleLevels - 1;
-        // }
-        // return nScale;
     }
-
+    
     int MapPoint::predictScale(const float &distance, const float scale_factor, const int scale_level)
     {
         float ratio;
@@ -605,5 +370,215 @@ namespace ORB_SLAM2
 
         return scale;
     }
+    
+    // 取得地圖點描述子
+    cv::Mat MapPoint::GetDescriptor()
+    {
+        unique_lock<mutex> lock(mMutexFeatures);
 
+        // 地圖點的描述子：『所有描述這個地圖點的描述子的集合』的中心描述子
+        return mDescriptor.clone();
+    }
+
+    // 將被『較多』關鍵幀觀察到的地圖點，取代被『較少』關鍵幀觀察到的地圖點
+    void MapPoint::Replace(MapPoint *pMP)
+    {
+        if (pMP->mnId == this->mnId){
+            return;
+        }
+
+        int nvisible, nfound;
+        map<KeyFrame *, size_t> obs;
+
+        {
+            unique_lock<mutex> lock1(mMutexFeatures);
+            unique_lock<mutex> lock2(mMutexPos);
+
+            // 觀察到這個地圖點的『關鍵幀』，以及其『關鍵點』的索引值
+            obs = mObservations;
+
+            mObservations.clear();
+            mbBad = true;
+
+            // 估計能夠看到地圖點的關鍵幀數量
+            nvisible = mnVisible;
+
+            nfound = mnFound;
+            mpReplaced = pMP;
+        }
+
+        for(pair<KeyFrame *, size_t> kf_kpidx : obs)
+        {
+            // Replace measurement in keyframe
+            KeyFrame *pKF = kf_kpidx.first;
+            size_t kp_idx = kf_kpidx.second;
+
+            // 檢查是否還沒被添加過『關鍵幀 pKF』到當前地圖中
+            if (!pMP->IsInKeyFrame(pKF))
+            {
+                // 關鍵幀的第 idx 個關鍵幀觀察到的地圖點汰換成『地圖點 pMP』
+                pKF->ReplaceMapPointMatch(kp_idx, pMP);
+
+                // 『地圖點 pMP』被『關鍵幀 pKF』的第 (mit->second) 個關鍵點觀察到
+                pMP->AddObservation(pKF, kp_idx);
+            }
+            else
+            {
+                // 『關鍵幀 pKF』第 (mit->second) 個關鍵點觀察到的『地圖點 pMP』，設為 NULL
+                pKF->EraseMapPointMatch(kp_idx);
+            }
+        }
+
+        // 增加實際觀測到地圖點的關鍵幀數量
+        pMP->IncreaseFound(nfound);
+
+        // 增加對『能夠看到地圖點的關鍵幀數量』的估計
+        pMP->IncreaseVisible(nvisible);
+
+        // 以『所有描述這個地圖點的描述子的集合』的中心描述子，作為地圖點的描述子
+        pMP->ComputeDistinctiveDescriptors();
+
+        // 清除『地圖點 pMP』
+        mpMap->EraseMapPoint(this);
+    }
+
+    // 增加實際觀測到地圖點的關鍵幀數量
+    void MapPoint::IncreaseFound(int n)
+    {
+        unique_lock<mutex> lock(mMutexFeatures);
+
+        // mnFound：實際觀測到地圖點的關鍵幀數量
+        mnFound += n;
+    }
+
+    // 增加對『能夠看到地圖點的關鍵幀數量』的估計
+    void MapPoint::IncreaseVisible(int n)
+    {
+        unique_lock<mutex> lock(mMutexFeatures);
+        mnVisible += n;
+    }
+
+    // 取得『是關鍵幀 pKF 的第幾個 關鍵點 觀察到這個地圖點的』
+    int MapPoint::GetIndexInKeyFrame(KeyFrame *pKF)
+    {
+        unique_lock<mutex> lock(mMutexFeatures);
+
+        if (mObservations.count(pKF))
+        {
+            // 『關鍵幀 pKF』的第幾個『關鍵點』觀察到這個地圖點的
+            return mObservations[pKF];
+        }
+        else
+        {
+            return -1;
+        }
+    }
+
+    // 移除『關鍵幀 pKF』，更新關鍵幀的計數，若『觀察到這個地圖點的關鍵幀』太少（少於 3 個），則將地圖點與關鍵幀等全部移除
+    void MapPoint::EraseObservation(KeyFrame *pKF)
+    {
+        bool bBad = false;
+
+        {
+            unique_lock<mutex> lock(mMutexFeatures);
+
+            if (mObservations.count(pKF))
+            {
+                // 取得觀察到『關鍵幀 pKF』的關鍵點的索引值
+                int idx = mObservations[pKF];
+
+                if (pKF->mvuRight[idx] >= 0){
+                    nObs -= 2;
+                }
+
+                // 單目的 mvuRight 會是負的
+                else{
+                    // 減少 1 個關鍵幀的計數
+                    nObs--;
+                }
+
+                // 從 mObservations 移除『關鍵幀 pKF』
+                mObservations.erase(pKF);
+
+                // 若為當前地圖點的參考關鍵幀
+                if (mpRefKF == pKF)
+                {
+                    // 以更新後的 mObservations 的第一個關鍵幀作為參考關鍵幀
+                    mpRefKF = mObservations.begin()->first;
+                }
+
+                // If only 2 observations or less, discard point
+                // 若觀察到這個地圖點的關鍵幀太少（少於 3 個）
+                if (nObs <= 2)
+                {
+                    bBad = true;
+                }
+            }
+        }
+
+        if (bBad){
+            // 清空這個地圖點、觀察到這個地圖點的所有關鍵幀，以及它自己對應的關鍵點索引值
+            SetBadFlag();
+        }
+    }
+
+    void MapPoint::SetWorldPos(const cv::Mat &Pos)
+    {
+        unique_lock<mutex> lock2(mGlobalMutex);
+        unique_lock<mutex> lock(mMutexPos);
+        Pos.copyTo(mWorldPos);
+    }
+
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
+
+    MapPoint::MapPoint(const cv::Mat &Pos, Map *pMap, Frame *pFrame, const int &idxF) : 
+                       mnFirstKFid(-1), mnFirstFrame(pFrame->mnId), nObs(0), 
+                       mnTrackReferenceForFrame(0), mnLastFrameSeen(0), mnBALocalForKF(0), 
+                       mnFuseCandidateForKF(0), mnLoopPointForKF(0), mnCorrectedByKF(0), 
+                       mnCorrectedReference(0), mnBAGlobalForKF(0), 
+                       mpRefKF(static_cast<KeyFrame *>(NULL)), mnVisible(1), mnFound(1), mbBad(false), 
+                       mpReplaced(NULL), mpMap(pMap)
+    {
+        Pos.copyTo(mWorldPos);
+        cv::Mat Ow = pFrame->GetCameraCenter();
+        mNormalVector = mWorldPos - Ow;
+        mNormalVector = mNormalVector / cv::norm(mNormalVector);
+
+        cv::Mat PC = Pos - Ow;
+        const float dist = cv::norm(PC);
+        const int level = pFrame->mvKeysUn[idxF].octave;
+        const float levelScaleFactor = pFrame->mvScaleFactors[level];
+        const int nLevels = pFrame->mnScaleLevels;
+
+        mfMaxDistance = dist * levelScaleFactor;
+        mfMinDistance = mfMaxDistance / pFrame->mvScaleFactors[nLevels - 1];
+
+        pFrame->mDescriptors.row(idxF).copyTo(mDescriptor);
+
+        // MapPoints can be created from Tracking and Local Mapping. This mutex avoid conflicts with id.
+        unique_lock<mutex> lock(mpMap->mMutexPointCreation);
+        mnId = nNextId++;
+    }
+
+    // 取得參考關鍵幀
+    KeyFrame *MapPoint::GetReferenceKeyFrame()
+    {
+        unique_lock<mutex> lock(mMutexFeatures);
+
+        return mpRefKF;
+    }
+
+    // 返回要更新的地圖點
+    MapPoint *MapPoint::GetReplaced()
+    {
+        unique_lock<mutex> lock1(mMutexFeatures);
+        unique_lock<mutex> lock2(mMutexPos);
+
+        return mpReplaced;
+    }
+
+    
+    
 } //namespace ORB_SLAM
