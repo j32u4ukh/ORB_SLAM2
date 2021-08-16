@@ -36,8 +36,7 @@ using namespace std;
 // 以上為管理執行續相關函式
 // ==================================================
 
-void LoadImages(const string &strSequence, vector<string> &vstrImageFilenames,
-                vector<double> &vTimestamps);
+void loadImages(const string &path, vector<string> &files, vector<double> &time_stamps);
 
 // ==================================================
 // 以下為非單目相關函式
@@ -63,7 +62,7 @@ int main(int argc, char **argv)
 
     // 以 KITTI Dataset 為例
     // argc[3] PATH_TO_DATASET_FOLDER/dataset/sequences/SEQUENCE_NUMBER
-    LoadImages(string(argv[3]), vstrImageFilenames, vTimestamps);
+    loadImages(string(argv[3]), vstrImageFilenames, vTimestamps);
 
     int nImages = vstrImageFilenames.size();
 
@@ -164,11 +163,10 @@ int main(int argc, char **argv)
     return 0;
 }
 
-void LoadImages(const string &strPathToSequence, vector<string> &vstrImageFilenames,
-                vector<double> &vTimestamps)
+void loadImages(const string &path, vector<string> &files, vector<double> &time_stamps)
 {
     ifstream fTimes;
-    string strPathTimeFile = strPathToSequence + "/times.txt";
+    string strPathTimeFile = path + "/times.txt";
     fTimes.open(strPathTimeFile.c_str());
 
     while (!fTimes.eof())
@@ -182,21 +180,21 @@ void LoadImages(const string &strPathToSequence, vector<string> &vstrImageFilena
             ss << s;
             double t;
             ss >> t;
-            vTimestamps.push_back(t);
+            time_stamps.push_back(t);
         }
     }
 
     // left: image_0; right: image_1
     // 由於此專案為單目相機，因此只使用其中一邊的圖像
-    string strPrefixLeft = strPathToSequence + "/image_0/";
+    string strPrefixLeft = path + "/image_0/";
 
-    const int nTimes = vTimestamps.size();
-    vstrImageFilenames.resize(nTimes);
+    const int nTimes = time_stamps.size();
+    files.resize(nTimes);
 
     for (int i = 0; i < nTimes; i++)
     {
         stringstream ss;
         ss << setfill('0') << setw(6) << i;
-        vstrImageFilenames[i] = strPrefixLeft + ss.str() + ".png";
+        files[i] = strPrefixLeft + ss.str() + ".png";
     }
 }

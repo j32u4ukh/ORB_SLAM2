@@ -566,7 +566,7 @@ namespace ORB_SLAM2
                     if (!pMPinKF->isBad())
                     {
                         // 被較多關鍵幀觀察到的地圖點取代被較少關鍵幀觀察到的地圖點
-                        if (pMPinKF->Observations() > pMP->Observations())
+                        if (pMPinKF->getObservationNumber() > pMP->getObservationNumber())
                         {
                             pMP->Replace(pMPinKF);
                         }
@@ -1466,7 +1466,7 @@ namespace ORB_SLAM2
                         if (CurrentFrame.mvpMapPoints[i2]){
 
                             // 若該地圖點被至少 1 個關鍵幀觀察到，則無須再進行後續匹配（因為已經匹配成功）
-                            if (CurrentFrame.mvpMapPoints[i2]->Observations() > 0){
+                            if (CurrentFrame.mvpMapPoints[i2]->getObservationNumber() > 0){
                                 continue;
                             }
                         }
@@ -1767,7 +1767,7 @@ namespace ORB_SLAM2
             for(const size_t idx : vIndices){
 
                 if (F.mvpMapPoints[idx]){
-                    if (F.mvpMapPoints[idx]->Observations() > 0){
+                    if (F.mvpMapPoints[idx]->getObservationNumber() > 0){
                         continue;
                     }
                 }

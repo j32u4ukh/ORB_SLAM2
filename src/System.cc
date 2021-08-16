@@ -89,8 +89,8 @@ namespace ORB_SLAM2
 #endif
 
         // typedef DBoW2::TemplatedVocabulary<DBoW2::FORB::TDescriptor, DBoW2::FORB> ORBVocabulary;
-        mpVocabulary = new ORBVocabulary();
-        bool bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
+        orb_vocabulary = new ORBVocabulary();
+        bool bVocLoad = orb_vocabulary->loadFromTextFile(strVocFile);
 
         if (!bVocLoad)
         {
@@ -110,7 +110,7 @@ namespace ORB_SLAM2
         cout << "Vocabulary loaded! Cost " << loading_time << " s." << endl << endl;
 
         // Create KeyFrame Database
-        mpKeyFrameDatabase = new KeyFrameDatabase(*mpVocabulary);
+        mpKeyFrameDatabase = new KeyFrameDatabase(*orb_vocabulary);
 
         // Create the Map
         mpMap = new Map();
@@ -121,7 +121,7 @@ namespace ORB_SLAM2
 
         // Initialize the Tracking thread
         // (it will live in the main thread of execution, the one that called this constructor)
-        mpTracker = new Tracking(this, mpVocabulary, mpFrameDrawer, mpMapDrawer,
+        mpTracker = new Tracking(this, orb_vocabulary, mpFrameDrawer, mpMapDrawer,
                                  mpMap, mpKeyFrameDatabase, strSettingsFile, mSensor);
 
         //Initialize the Local Mapping thread and launch
@@ -129,7 +129,7 @@ namespace ORB_SLAM2
         mptLocalMapping = new thread(&ORB_SLAM2::LocalMapping::Run, mpLocalMapper);
 
         //Initialize the Loop Closing thread and launch
-        mpLoopCloser = new LoopClosing(mpMap, mpKeyFrameDatabase, mpVocabulary, mSensor != MONOCULAR);
+        mpLoopCloser = new LoopClosing(mpMap, mpKeyFrameDatabase, orb_vocabulary, mSensor != MONOCULAR);
         mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
 
         //Initialize the Viewer thread and launch
@@ -275,8 +275,8 @@ namespace ORB_SLAM2
             pangolin::BindToContext("ORB-SLAM2: Map Viewer");
         }
 
-        int n_kf = mpMap->KeyFramesInMap();
-        int n_mappoint = mpMap->MapPointsInMap();
+        int n_kf = mpMap->getInMapKeyFrameNumber();
+        int n_mappoint = mpMap->getInMapMapPointNumber();
         cout << "#KeyFrame: " << n_kf << endl;
         cout << "#MapPoint: " << n_mappoint << endl;
     }

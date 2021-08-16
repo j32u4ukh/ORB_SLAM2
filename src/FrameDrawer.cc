@@ -188,8 +188,8 @@ namespace ORB_SLAM2
                 s << "LOCALIZATION | ";
             }
 
-            int nKFs = mpMap->KeyFramesInMap();
-            int nMPs = mpMap->MapPointsInMap();
+            int nKFs = mpMap->getInMapKeyFrameNumber();
+            int nMPs = mpMap->getInMapMapPointNumber();
             s << "KFs: " << nKFs << ", MPs: " << nMPs << ", Matches: " << mnTracked;
 
             if (mnTrackedVO > 0){
@@ -280,7 +280,7 @@ namespace ORB_SLAM2
                     if (!pTracker->mCurrentFrame.mvbOutlier[i])
                     {
                         // 若地圖點被至少 1 個關鍵幀觀察到
-                        if (pMP->Observations() > 0){
+                        if (pMP->getObservationNumber() > 0){
                             
                             // 地圖中匹配成功的地圖點
                             mvbMap[i] = true;

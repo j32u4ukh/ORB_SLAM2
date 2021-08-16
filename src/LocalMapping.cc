@@ -175,7 +175,7 @@ namespace ORB_SLAM2
 
             // Check if there are keyframes in the queue
             // 檢查『新關鍵幀容器 mlNewKeyFrames』是否『不為空』（有新關鍵幀）
-            if (CheckNewKeyFrames())
+            if (hasNewKeyFrames())
             {
                 // BoW conversion and insertion in Map
                 // 處理『關鍵幀 mpCurrentKeyFrame』和其他關鍵幀、地圖點、地圖之間的連結
@@ -189,9 +189,9 @@ namespace ORB_SLAM2
                 // 根據配對資訊，透過三角測量找出空間中的地圖點
                 CreateNewMapPoints();
 
-                // CheckNewKeyFrames：檢查『新關鍵幀容器 mlNewKeyFrames』是否不為空（有關鍵幀）
+                // hasNewKeyFrames：檢查『新關鍵幀容器 mlNewKeyFrames』是否不為空（有關鍵幀）
                 // 若關鍵幀容器為空
-                if (!CheckNewKeyFrames())
+                if (!hasNewKeyFrames())
                 {
                     // Find more matches in neighbor keyframes and fuse point duplications
                     // 將『關鍵幀 mpCurrentKeyFrame』觀察到的地圖點與現有的融合，更新關鍵幀之間的共視關係與連結
@@ -201,11 +201,11 @@ namespace ORB_SLAM2
                 mbAbortBA = false;
 
                 // 『新關鍵幀容器 mlNewKeyFrames』為空（沒有有關鍵幀） 且 沒有請求中止『執行續 LocalMapping』
-                if (!CheckNewKeyFrames() && !stopRequested())
+                if (!hasNewKeyFrames() && !stopRequested())
                 {
                     // Local BA
                     // 『地圖 mpMap』中的關鍵幀數量是否多於 2 個
-                    if (mpMap->KeyFramesInMap() > 2)
+                    if (mpMap->getInMapKeyFrameNumber() > 2)
                     {
                         // 根據區域的共視關係，取出關鍵幀與地圖點來進行多次優化，
                         // 優化後的誤差若仍過大的估計會被移除，並更新估計結果
@@ -254,7 +254,7 @@ namespace ORB_SLAM2
     }
 
     // 檢查『新關鍵幀容器 mlNewKeyFrames』是否不為空（有關鍵幀）
-    bool LocalMapping::CheckNewKeyFrames()
+    bool LocalMapping::hasNewKeyFrames()
     {
         unique_lock<mutex> lock(mMutexNewKFs);
 
@@ -386,8 +386,8 @@ namespace ORB_SLAM2
 
             // 第二篩選條件
             // 『當前幀』和『首個觀察到地圖點 pMP 的關鍵幀』之間應至少間隔 3 幀
-            // pMP->Observations() <= cnThObs 單目模式下，觀察到『地圖點 pMP』的關鍵幀，至少需要 3 個以上
-            else if (((int)nCurrentKFid - (int)pMP->mnFirstKFid) >= 2 && pMP->Observations() <= cnThObs)
+            // pMP->getObservationNumber() <= cnThObs 單目模式下，觀察到『地圖點 pMP』的關鍵幀，至少需要 3 個以上
+            else if (((int)nCurrentKFid - (int)pMP->mnFirstKFid) >= 2 && pMP->getObservationNumber() <= cnThObs)
             {
                 // 『地圖點 pMP』不夠好，清空這個地圖點、觀察到這個地圖點的所有關鍵幀，以及它自己對應的關鍵點索引值
                 pMP->SetBadFlag();
@@ -466,8 +466,8 @@ namespace ORB_SLAM2
         {
             // 1. 至少與一個關鍵幀配合，三角化能夠與之匹配的 ORB 特征點，構建新的地圖點。
             // 2. 如果有新的關鍵幀插入了，為了計算效率，就不再繼續與其它關鍵幀進行匹配三角化了。
-            // ＝ CheckNewKeyFrames：檢查『新關鍵幀容器 mlNewKeyFrames』是否不為空
-            if (i > 0 && CheckNewKeyFrames()){
+            // ＝ hasNewKeyFrames：檢查『新關鍵幀容器 mlNewKeyFrames』是否不為空
+            if (i > 0 && hasNewKeyFrames()){
                 return;
             }
 
@@ -1016,7 +1016,7 @@ namespace ORB_SLAM2
                         nMPs++;
 
                         // 這個地圖點被足夠多的關鍵幀觀察到
-                        if (pMP->Observations() > thObs)
+                        if (pMP->getObservationNumber() > thObs)
                         {
                             // 根據『關鍵點索引值 i』取得關鍵點，再取得其所在的金字塔層級
                             const int &scaleLevel = pKF->mvKeysUn[i].octave;

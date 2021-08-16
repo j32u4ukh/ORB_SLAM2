@@ -64,7 +64,7 @@ private:
 
     // ORB vocabulary used for place recognition and feature matching.
     // 用於特征匹配和場景識別的詞匯表
-    ORBVocabulary* mpVocabulary;
+    ORBVocabulary* orb_vocabulary;
 
     // KeyFrame database for place recognition (relocalization and loop detection).
     // 用於重定位和閉環檢測的關鍵幀數據庫

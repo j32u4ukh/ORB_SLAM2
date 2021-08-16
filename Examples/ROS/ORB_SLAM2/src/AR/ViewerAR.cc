@@ -403,7 +403,7 @@ Plane* ViewerAR::DetectPlane(const cv::Mat Tcw, const std::vector<MapPoint*> &vM
         MapPoint* pMP=vMPs[i];
         if(pMP)
         {
-            if(pMP->Observations()>5)
+            if(pMP->getObservationNumber()>5)
             {
                 vPoints.push_back(pMP->GetWorldPos());
                 vPointMP.push_back(pMP);

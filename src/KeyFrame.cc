@@ -857,7 +857,7 @@ namespace ORB_SLAM2
     }
 
     // 有多少個地圖點，是被足夠多的關鍵幀所觀察到的
-    int KeyFrame::TrackedMapPoints(const int &minObs)
+    int KeyFrame::getTrackedMapPointNumber(const int &minObs)
     {
         unique_lock<mutex> lock(mMutexFeatures);
         const bool bCheckObs = minObs > 0;
@@ -872,7 +872,7 @@ namespace ORB_SLAM2
                     if (bCheckObs)
                     {
                         // 這個地圖點被足過多的關鍵幀觀察到
-                        if (pMP->Observations() >= minObs)
+                        if (pMP->getObservationNumber() >= minObs)
                         {
                             nPoints++;
                         }

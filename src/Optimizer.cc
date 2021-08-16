@@ -128,13 +128,10 @@ namespace ORB_SLAM2
         // Setup optimizer
         g2o::SparseOptimizer optimizer;
         g2o::BlockSolver_6_3::LinearSolverType *linearSolver;
-
         linearSolver = new g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType>();
-
         g2o::BlockSolver_6_3 *solver_ptr = new g2o::BlockSolver_6_3(linearSolver);
-
-        g2o::OptimizationAlgorithmLevenberg *solver = 
-                                                new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
+        g2o::OptimizationAlgorithmLevenberg *solver;
+        solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
         optimizer.setAlgorithm(solver);
 
         if (pbStopFlag)
@@ -442,7 +439,9 @@ namespace ORB_SLAM2
             }
         }
 
-        // Recover optimized data
+        // ==================================================
+        // ==================================================
+        // 更新估計值 Recover optimized data
 
         // Keyframes
         // 利用 Local 關鍵幀的 mnId 取出相對應的頂點，並更新自身的位姿估計
@@ -477,13 +476,10 @@ namespace ORB_SLAM2
     {
         g2o::SparseOptimizer optimizer;
         g2o::BlockSolverX::LinearSolverType *linearSolver;
-
         linearSolver = new g2o::LinearSolverDense<g2o::BlockSolverX::PoseMatrixType>();
-
         g2o::BlockSolverX *solver_ptr = new g2o::BlockSolverX(linearSolver);
-
-        g2o::OptimizationAlgorithmLevenberg *solver = 
-                                                new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
+        g2o::OptimizationAlgorithmLevenberg *solver;
+        solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
         optimizer.setAlgorithm(solver);
 
         // Calibration 相機內參
@@ -752,11 +748,12 @@ namespace ORB_SLAM2
         // Setup optimizer
         g2o::SparseOptimizer optimizer;
         optimizer.setVerbose(false);
-        g2o::BlockSolver_7_3::LinearSolverType *linearSolver =
-            new g2o::LinearSolverEigen<g2o::BlockSolver_7_3::PoseMatrixType>();
+
+        g2o::BlockSolver_7_3::LinearSolverType *linearSolver;
+        linearSolver = new g2o::LinearSolverEigen<g2o::BlockSolver_7_3::PoseMatrixType>();
         g2o::BlockSolver_7_3 *solver_ptr = new g2o::BlockSolver_7_3(linearSolver);
-        g2o::OptimizationAlgorithmLevenberg *solver = 
-                                                new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
+        g2o::OptimizationAlgorithmLevenberg *solver;
+        solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
 
         solver->setUserLambdaInit(1e-16);
         optimizer.setAlgorithm(solver);
@@ -1101,13 +1098,10 @@ namespace ORB_SLAM2
 
         g2o::SparseOptimizer optimizer;
         g2o::BlockSolver_6_3::LinearSolverType *linearSolver;
-
         linearSolver = new g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType>();
-
         g2o::BlockSolver_6_3 *solver_ptr = new g2o::BlockSolver_6_3(linearSolver);
-
-        g2o::OptimizationAlgorithmLevenberg *solver = 
-                                                new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
+        g2o::OptimizationAlgorithmLevenberg *solver;
+        solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);                                    
         optimizer.setAlgorithm(solver);
 
         if (pbStopFlag){
@@ -1348,11 +1342,9 @@ namespace ORB_SLAM2
         g2o::SparseOptimizer optimizer;
         g2o::BlockSolver_6_3::LinearSolverType *linearSolver;
         linearSolver = new g2o::LinearSolverDense<g2o::BlockSolver_6_3::PoseMatrixType>();
-
         g2o::BlockSolver_6_3 *solver_ptr = new g2o::BlockSolver_6_3(linearSolver);
-
-        g2o::OptimizationAlgorithmLevenberg *solver = 
-                                                new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
+        g2o::OptimizationAlgorithmLevenberg *solver;
+        solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
         optimizer.setAlgorithm(solver);
 
         int nInitialCorrespondences = 0;

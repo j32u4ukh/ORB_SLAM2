@@ -123,7 +123,7 @@ namespace ORB_SLAM2
         {
             // Check if there are keyframes in the queue
             // 檢查『關鍵幀的隊列』是否有關鍵幀
-            if (CheckNewKeyFrames())
+            if (hasNewKeyFrames())
             {
                 // Detect loop candidates and check covisibility consistency
                 // 篩選和當前關鍵幀有相同單字的關鍵幀，若是第一次出現則加入容器，若之前出現過，則更新出現次數
@@ -165,7 +165,7 @@ namespace ORB_SLAM2
     }
 
     // 檢查『關鍵幀的隊列』是否有關鍵幀
-    bool LoopClosing::CheckNewKeyFrames()
+    bool LoopClosing::hasNewKeyFrames()
     {
         unique_lock<mutex> lock(mMutexLoopQueue);
 

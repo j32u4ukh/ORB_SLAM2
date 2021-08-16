@@ -74,7 +74,7 @@ public:
 
 protected:
 
-    bool CheckNewKeyFrames();
+    bool hasNewKeyFrames();
     void ProcessNewKeyFrame();
     void CreateNewMapPoints();
 

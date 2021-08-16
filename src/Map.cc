@@ -63,7 +63,7 @@ namespace ORB_SLAM2
     }
 
     // 返回地圖中的關鍵幀數量
-    long unsigned int Map::KeyFramesInMap()
+    long unsigned int Map::getInMapKeyFrameNumber()
     {
         unique_lock<mutex> lock(mMutexMap);
 
@@ -107,7 +107,7 @@ namespace ORB_SLAM2
         mnBigChangeIdx++;
     }
 
-    long unsigned int Map::MapPointsInMap()
+    long unsigned int Map::getInMapMapPointNumber()
     {
         unique_lock<mutex> lock(mMutexMap);
         return mspMapPoints.size();

@@ -260,7 +260,7 @@ namespace ORB_SLAM2
         /* mnFound 記錄了實際觀測到地圖點的關鍵幀數量，而 mnVisible 則是估計能夠看到該點的關鍵幀數量。
         mnFound 和 mnVisible 都是在 TRACKING 線程中得到更新的。在根據局部地圖優化位姿的時候，
         通過 Tracking 對象的成員函數 SearchLocalPoints 對局部地圖中的地圖點進行粗略篩選，會根據觀測到地圖點的
-        視角余弦值來估計當前幀能否觀測到響應的地圖點，並通過地圖點的接口 IncreaseVisible 增加 mnVisible 的計數。*/
+        視角余弦值來估計當前幀能否觀測到響應的地圖點，並通過地圖點的接口 increaseVisibleEstimateNumber 增加 mnVisible 的計數。*/
         return static_cast<float>(mnFound) / mnVisible;
     }
 
@@ -298,7 +298,7 @@ namespace ORB_SLAM2
     }
 
     // 這個地圖點被幾個關鍵幀觀察到
-    int MapPoint::Observations()
+    int MapPoint::getObservationNumber()
     {
         unique_lock<mutex> lock(mMutexFeatures);
 
@@ -430,10 +430,10 @@ namespace ORB_SLAM2
         }
 
         // 增加實際觀測到地圖點的關鍵幀數量
-        pMP->IncreaseFound(nfound);
+        pMP->increaseFoundNumber(nfound);
 
         // 增加對『能夠看到地圖點的關鍵幀數量』的估計
-        pMP->IncreaseVisible(nvisible);
+        pMP->increaseVisibleEstimateNumber(nvisible);
 
         // 以『所有描述這個地圖點的描述子的集合』的中心描述子，作為地圖點的描述子
         pMP->ComputeDistinctiveDescriptors();
@@ -443,7 +443,7 @@ namespace ORB_SLAM2
     }
 
     // 增加實際觀測到地圖點的關鍵幀數量
-    void MapPoint::IncreaseFound(int n)
+    void MapPoint::increaseFoundNumber(int n)
     {
         unique_lock<mutex> lock(mMutexFeatures);
 
@@ -452,7 +452,7 @@ namespace ORB_SLAM2
     }
 
     // 增加對『能夠看到地圖點的關鍵幀數量』的估計
-    void MapPoint::IncreaseVisible(int n)
+    void MapPoint::increaseVisibleEstimateNumber(int n)
     {
         unique_lock<mutex> lock(mMutexFeatures);
         mnVisible += n;

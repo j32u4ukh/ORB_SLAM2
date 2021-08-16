@@ -89,7 +89,7 @@ namespace ORB_SLAM2
         void ReplaceMapPointMatch(const size_t &idx, MapPoint *pMP);
         std::set<MapPoint *> GetMapPoints();
         std::vector<MapPoint *> GetMapPointMatches();
-        int TrackedMapPoints(const int &minObs);
+        int getTrackedMapPointNumber(const int &minObs);
         MapPoint *GetMapPoint(const size_t &idx);
 
         // KeyPoint functions

@@ -126,7 +126,7 @@ public:
 
 protected:
 
-    bool CheckNewKeyFrames();
+    bool hasNewKeyFrames();
 
     bool DetectLoop();
 

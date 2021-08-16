@@ -473,7 +473,7 @@ namespace ORB_SLAM2
                                 {
                                     if (mCurrentFrame.mvpMapPoints[i] && !mCurrentFrame.mvbOutlier[i])
                                     {
-                                        mCurrentFrame.mvpMapPoints[i]->IncreaseFound();
+                                        mCurrentFrame.mvpMapPoints[i]->increaseFoundNumber();
                                     }
                                 }
                             }
@@ -573,7 +573,7 @@ namespace ORB_SLAM2
                     {
                         // 若該地圖點未被任一關鍵幀觀察到，則從當前幀的地圖點中移除
                         /// NOTE: 這些點在 mpFrameDrawer 中被標注為『視覺里程計 VO』
-                        if (pMP->Observations() < 1)
+                        if (pMP->getObservationNumber() < 1)
                         {
                             mCurrentFrame.mvbOutlier[i] = false;
                             mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint *>(NULL);
@@ -619,7 +619,7 @@ namespace ORB_SLAM2
             if (mState == LOST)
             {
                 // 地圖中的關鍵幀數量不足 6 個
-                if (mpMap->KeyFramesInMap() <= 5)
+                if (mpMap->getInMapKeyFrameNumber() <= 5)
                 {
                     cout << "Track lost soon after initialisation, reseting..." << endl;
                     mpSystem->Reset();
@@ -845,7 +845,7 @@ namespace ORB_SLAM2
         pKFcur->UpdateConnections();
 
         // Bundle Adjustment
-        cout << "New Map created with " << mpMap->MapPointsInMap() << " points" << endl;
+        cout << "New Map created with " << mpMap->getInMapMapPointNumber() << " points" << endl;
 
         // 最後進行一次全局的 BA 優化，就完成了初始地圖的構建。
         Optimizer::GlobalBundleAdjustemnt(mpMap, 20);
@@ -860,8 +860,8 @@ namespace ORB_SLAM2
         float invMedianDepth = 1.0f / medianDepth;
 
         // 檢查該深度（深度中位數）以及當前關鍵幀跟蹤上的地圖點數量
-        // pKFcur->TrackedMapPoints(1) 有多少個地圖點，至少被 1 個關鍵幀所觀察到的
-        if (medianDepth < 0 || pKFcur->TrackedMapPoints(1) < 100)
+        // pKFcur->getTrackedMapPointNumber(1) 有多少個地圖點，至少被 1 個關鍵幀所觀察到的
+        if (medianDepth < 0 || pKFcur->getTrackedMapPointNumber(1) < 100)
         {
             cout << "Wrong initialization, reseting..." << endl;
 
@@ -996,7 +996,7 @@ namespace ORB_SLAM2
                 }
 
                 // 若地圖點被至少 1 個關鍵幀觀察到
-                else if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
+                else if (mCurrentFrame.mvpMapPoints[i]->getObservationNumber() > 0)
                 {
                     nmatchesMap++;
                 }
@@ -1100,7 +1100,7 @@ namespace ORB_SLAM2
                 }
 
                 // 若 mCurrentFrame 所觀察到的第 i 個地圖點，被至少 1 個關鍵幀觀察到
-                else if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
+                else if (mCurrentFrame.mvpMapPoints[i]->getObservationNumber() > 0)
                 {
                     nmatchesMap++;
                 }
@@ -1384,8 +1384,8 @@ namespace ORB_SLAM2
             {
                 if (!mCurrentFrame.mvbOutlier[i])
                 {
-                    // 相應的調用地圖點接口 IncreaseFound 增加 mnFound 計數（實際能觀察到該地圖點的特徵點數）。
-                    mCurrentFrame.mvpMapPoints[i]->IncreaseFound();
+                    // 相應的調用地圖點接口 increaseFoundNumber 增加 mnFound 計數（實際能觀察到該地圖點的特徵點數）。
+                    mCurrentFrame.mvpMapPoints[i]->increaseFoundNumber();
 
                     // 純定位模式
                     if (mbOnlyTracking)
@@ -1397,7 +1397,7 @@ namespace ORB_SLAM2
                     else
                     {
                         // 若這個地圖點，至少被 1 個關鍵幀觀察到
-                        if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
+                        if (mCurrentFrame.mvpMapPoints[i]->getObservationNumber() > 0)
                         {
                             mnMatchesInliers++;
                         }
@@ -1664,7 +1664,7 @@ namespace ORB_SLAM2
                 }
                 else
                 {
-                    pMP->IncreaseVisible();
+                    pMP->increaseVisibleEstimateNumber();
                     pMP->mnLastFrameSeen = mCurrentFrame.mnId;
                     pMP->mbTrackInView = false;
                 }
@@ -1694,7 +1694,7 @@ namespace ORB_SLAM2
             第二個參數則是拒絕待篩地圖點的視角余弦閾值，這里是 0.5 = cos60◦。*/
             if (mCurrentFrame.isInFrustum(pMP, 0.5))
             {
-                pMP->IncreaseVisible();
+                pMP->increaseVisibleEstimateNumber();
                 nToMatch++;
             }
         }
@@ -1748,7 +1748,7 @@ namespace ORB_SLAM2
         }
 
         // 地圖中的關鍵幀數量
-        const int nKFs = mpMap->KeyFramesInMap();
+        const int nKFs = mpMap->getInMapKeyFrameNumber();
 
         // Do not insert keyframes if not enough frames have passed from last relocalisation
         // mMaxFrames 在 Tracking 的構造函數里的賦值是相機的幀率，它是可以通過配置文件中的字段 Camera.fps 調整的
@@ -1768,7 +1768,7 @@ namespace ORB_SLAM2
         }
 
         // 有多少個地圖點，是被足夠多的關鍵幀所觀察到的
-        int nRefMatches = mpReferenceKF->TrackedMapPoints(nMinObs);
+        int nRefMatches = mpReferenceKF->getTrackedMapPointNumber(nMinObs);
 
         // Local Mapping accept keyframes?
         // 是否接受關鍵幀（此時 LOCAL MAPPING 線程是否處於空閑的狀態）
@@ -1918,7 +1918,7 @@ namespace ORB_SLAM2
                     MapPoint *pMP = mCurrentFrame.mvpMapPoints[i];
                     if (!pMP)
                         bCreateNew = true;
-                    else if (pMP->Observations() < 1)
+                    else if (pMP->getObservationNumber() < 1)
                     {
                         bCreateNew = true;
                         mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint *>(NULL);
@@ -2089,7 +2089,7 @@ namespace ORB_SLAM2
                 }
             }
 
-            cout << "New map created with " << mpMap->MapPointsInMap() << " points" << endl;
+            cout << "New map created with " << mpMap->getInMapMapPointNumber() << " points" << endl;
 
             // ==================================================
             // ===== 更新系統的相關變量和狀態 =====
@@ -2167,7 +2167,7 @@ namespace ORB_SLAM2
             MapPoint *pMP = mLastFrame.mvpMapPoints[i];
             if (!pMP)
                 bCreateNew = true;
-            else if (pMP->Observations() < 1)
+            else if (pMP->getObservationNumber() < 1)
             {
                 bCreateNew = true;
             }

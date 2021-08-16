@@ -49,7 +49,7 @@ public:
     KeyFrame* GetReferenceKeyFrame();
 
     std::map<KeyFrame*,size_t> GetObservations();
-    int Observations();
+    int getObservationNumber();
 
     void AddObservation(KeyFrame* pKF,size_t idx);
     void EraseObservation(KeyFrame* pKF);
@@ -63,8 +63,8 @@ public:
     void Replace(MapPoint* pMP);    
     MapPoint* GetReplaced();
 
-    void IncreaseVisible(int n=1);
-    void IncreaseFound(int n=1);
+    void increaseVisibleEstimateNumber(int n=1);
+    void increaseFoundNumber(int n=1);
     float GetFoundRatio();
     inline int GetFound(){
         return mnFound;
