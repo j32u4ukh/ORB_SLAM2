@@ -207,6 +207,28 @@ namespace ORB_SLAM2
         return cvMat.clone();
     }
     
+    /****************************************************************************
+     * 函數：Converter::toQuaternion()
+     * 功能：將Opencv的Mat轉化為四元數
+     * 輸入：const cv::Mat &M -- 輸入矩陣
+     * 輸出：無
+     * 返回：std::vector<float> -- 四元數
+     * 其他：其實當前有更好的方法！
+    *****************************************************************************/
+    std::vector<float> Converter::toQuaternion(const cv::Mat &M)
+    {
+        Eigen::Matrix<double, 3, 3> eigMat = toMatrix3d(M);
+        Eigen::Quaterniond q(eigMat);
+
+        std::vector<float> v(4);
+        v[0] = q.x();
+        v[1] = q.y();
+        v[2] = q.z();
+        v[3] = q.w();
+
+        return v;
+    }
+
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================
@@ -246,29 +268,6 @@ namespace ORB_SLAM2
     {
         Eigen::Matrix<double, 3, 1> v;
         v << cvPoint.x, cvPoint.y, cvPoint.z;
-
-        return v;
-    }
-
-
-    /****************************************************************************
-     * 函數：Converter::toQuaternion()
-     * 功能：將Opencv的Mat轉化為四元數
-     * 輸入：const cv::Mat &M -- 輸入矩陣
-     * 輸出：無
-     * 返回：std::vector<float> -- 四元數
-     * 其他：其實當前有更好的方法！
-    *****************************************************************************/
-    std::vector<float> Converter::toQuaternion(const cv::Mat &M)
-    {
-        Eigen::Matrix<double, 3, 3> eigMat = toMatrix3d(M);
-        Eigen::Quaterniond q(eigMat);
-
-        std::vector<float> v(4);
-        v[0] = q.x();
-        v[1] = q.y();
-        v[2] = q.z();
-        v[3] = q.w();
 
         return v;
     }

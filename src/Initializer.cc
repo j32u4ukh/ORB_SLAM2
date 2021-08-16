@@ -977,6 +977,26 @@ namespace ORB_SLAM2
         return nGood;
     }
 
+    // 進行三角測量，獲得空間點 x3D (x, y, z)
+    void Initializer::Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::Mat &P1,
+                                  const cv::Mat &P2, cv::Mat &x3D)
+    {
+        cv::Mat A(4, 4, CV_32F);
+
+        A.row(0) = kp1.pt.x * P1.row(2) - P1.row(0);
+        A.row(1) = kp1.pt.y * P1.row(2) - P1.row(1);
+        A.row(2) = kp2.pt.x * P2.row(2) - P2.row(0);
+        A.row(3) = kp2.pt.y * P2.row(2) - P2.row(1);
+
+        cv::Mat u, w, vt;
+        cv::SVD::compute(A, w, u, vt, cv::SVD::MODIFY_A | cv::SVD::FULL_UV);
+        x3D = vt.row(3).t();
+
+        // 三角測量所得空間點
+        // 四元數 轉 (x, y, z)
+        x3D = x3D.rowRange(0, 3) / x3D.at<float>(3);
+    }
+
     // 利用『基礎矩陣』估計空間點 vP3D（過程中包含估計旋轉和平移）時會有 4 種可能，比較各種可能的表現，挑選最佳的可能點
     bool Initializer::ReconstructF(vector<bool> &vbMatchesInliers, cv::Mat &F21, cv::Mat &K,
                                    cv::Mat &R21, cv::Mat &t21, vector<cv::Point3f> &vP3D,
@@ -1150,26 +1170,6 @@ namespace ORB_SLAM2
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================
-
-    // 進行三角測量，獲得空間點 x3D (x, y, z)
-    void Initializer::Triangulate(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, const cv::Mat &P1,
-                                  const cv::Mat &P2, cv::Mat &x3D)
-    {
-        cv::Mat A(4, 4, CV_32F);
-
-        A.row(0) = kp1.pt.x * P1.row(2) - P1.row(0);
-        A.row(1) = kp1.pt.y * P1.row(2) - P1.row(1);
-        A.row(2) = kp2.pt.x * P2.row(2) - P2.row(0);
-        A.row(3) = kp2.pt.y * P2.row(2) - P2.row(1);
-
-        cv::Mat u, w, vt;
-        cv::SVD::compute(A, w, u, vt, cv::SVD::MODIFY_A | cv::SVD::FULL_UV);
-        x3D = vt.row(3).t();
-
-        // 三角測量所得空間點
-        // 四元數 轉 (x, y, z)
-        x3D = x3D.rowRange(0, 3) / x3D.at<float>(3);
-    }
 
     
 } //namespace ORB_SLAM

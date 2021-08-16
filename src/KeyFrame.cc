@@ -30,6 +30,35 @@ namespace ORB_SLAM2
 
     // ==================================================
 
+    // 請求不要移除當前關鍵幀，避免在『執行續 LoopClosing』處理關鍵幀時被移除
+    void KeyFrame::SetNotErase()
+    {
+        unique_lock<mutex> lock(mMutexConnections);
+
+        // 請求不要移除當前關鍵幀
+        mbNotErase = true;
+    }
+
+    // 取消『不要移除當前關鍵幀』的請求，若有『移除當前關鍵幀』的請求，則設為移除當前關鍵幀，和觀察者不足的地圖點及其關鍵幀
+    void KeyFrame::SetErase()
+    {
+        {
+            unique_lock<mutex> lock(mMutexConnections);
+
+            if (mspLoopEdges.empty())
+            {
+                // 取消『不要移除當前關鍵幀』的請求
+                mbNotErase = false;
+            }
+        }
+
+        if (mbToBeErased)
+        {
+            // 移除當前關鍵幀，和當前關鍵幀觀察到的地圖點，但觀察者不足的地圖點及其關鍵幀
+            SetBadFlag();
+        }
+    }
+
     // ==================================================
     // 以上為管理執行續相關函式
     // ==================================================
@@ -410,29 +439,6 @@ namespace ORB_SLAM2
         return mvpMapPoints[idx];
     }
 
-    cv::Mat KeyFrame::UnprojectStereo(int i)
-    {
-        const float z = mvDepth[i];
-
-        if (z > 0)
-        {
-            const float u = mvKeys[i].pt.x;
-            const float v = mvKeys[i].pt.y;
-            const float x = (u - cx) * z * invfx;
-            const float y = (v - cy) * z * invfy;
-
-            cv::Mat x3Dc = (cv::Mat_<float>(3, 1) << x, y, z);
-
-            unique_lock<mutex> lock(mMutexPose);
-
-            return Twc.rowRange(0, 3).colRange(0, 3) * x3Dc + Twc.rowRange(0, 3).col(3);
-        }
-        else
-        {
-            return cv::Mat();
-        }
-    }
-
     // 關鍵幀的第 idx 個關鍵點觀察到了地圖點 pMP
     void KeyFrame::AddMapPoint(MapPoint *pMP, const size_t &idx)
     {
@@ -747,35 +753,6 @@ namespace ORB_SLAM2
         return Twc.clone();
     }
 
-    // 請求不要移除當前關鍵幀，避免在『執行續 LoopClosing』處理關鍵幀時被移除
-    void KeyFrame::SetNotErase()
-    {
-        unique_lock<mutex> lock(mMutexConnections);
-
-        // 請求不要移除當前關鍵幀
-        mbNotErase = true;
-    }
-
-    // 取消『不要移除當前關鍵幀』的請求，若有『移除當前關鍵幀』的請求，則設為移除當前關鍵幀，和觀察者不足的地圖點及其關鍵幀
-    void KeyFrame::SetErase()
-    {
-        {
-            unique_lock<mutex> lock(mMutexConnections);
-
-            if (mspLoopEdges.empty())
-            {
-                // 取消『不要移除當前關鍵幀』的請求
-                mbNotErase = false;
-            }
-        }
-
-        if (mbToBeErased)
-        {
-            // 移除當前關鍵幀，和當前關鍵幀觀察到的地圖點，但觀察者不足的地圖點及其關鍵幀
-            SetBadFlag();
-        }
-    }
-
     // 取得『已連結關鍵幀』
     set<KeyFrame *> KeyFrame::GetConnectedKeyFrames()
     {
@@ -918,6 +895,29 @@ namespace ORB_SLAM2
     {
         unique_lock<mutex> lock(mMutexPose);
         return Cw.clone();
+    }
+
+    cv::Mat KeyFrame::UnprojectStereo(int i)
+    {
+        const float z = mvDepth[i];
+
+        if (z > 0)
+        {
+            const float u = mvKeys[i].pt.x;
+            const float v = mvKeys[i].pt.y;
+            const float x = (u - cx) * z * invfx;
+            const float y = (v - cy) * z * invfy;
+
+            cv::Mat x3Dc = (cv::Mat_<float>(3, 1) << x, y, z);
+
+            unique_lock<mutex> lock(mMutexPose);
+
+            return Twc.rowRange(0, 3).colRange(0, 3) * x3Dc + Twc.rowRange(0, 3).col(3);
+        }
+        else
+        {
+            return cv::Mat();
+        }
     }
 
     

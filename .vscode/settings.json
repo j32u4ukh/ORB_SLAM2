@@ -61,7 +61,8 @@
         "typeinfo": "cpp",
         "variant": "cpp",
         "orderingmethods": "cpp",
-        "*.txx": "cpp"
+        "*.txx": "cpp",
+        "*.ipp": "cpp"
     },
     "C_Cpp.errorSquiggles": "Disabled"
 }

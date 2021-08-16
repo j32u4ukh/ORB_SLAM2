@@ -27,6 +27,74 @@ namespace ORB_SLAM2
 {
     // ==================================================
 
+    bool Viewer::Stop()
+    {
+        unique_lock<mutex> lock(mMutexStop);
+        unique_lock<mutex> lock2(mMutexFinish);
+
+        if (mbFinishRequested)
+        {
+            return false;
+        }
+        else if (mbStopRequested)
+        {
+            mbStopped = true;
+
+            // 將 mbStopRequested 狀態還原
+            mbStopRequested = false;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    bool Viewer::isStopped()
+    {
+        unique_lock<mutex> lock(mMutexStop);
+        return mbStopped;
+    }
+
+    bool Viewer::CheckFinish()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        return mbFinishRequested;
+    }
+
+    void Viewer::SetFinish()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        mbFinished = true;
+    }
+
+    void Viewer::RequestStop()
+    {
+        unique_lock<mutex> lock(mMutexStop);
+
+        if (!mbStopped)
+        {
+            mbStopRequested = true;
+        }
+    }
+
+    void Viewer::RequestFinish()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        mbFinishRequested = true;
+    }
+
+    bool Viewer::isFinished()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        return mbFinished;
+    }
+
+    void Viewer::Release()
+    {
+        unique_lock<mutex> lock(mMutexStop);
+        mbStopped = false;
+    }
+
     // ==================================================
     // 以上為管理執行續相關函式
     // ==================================================
@@ -213,76 +281,9 @@ namespace ORB_SLAM2
         SetFinish();
     }
 
-    bool Viewer::Stop()
-    {
-        unique_lock<mutex> lock(mMutexStop);
-        unique_lock<mutex> lock2(mMutexFinish);
-
-        if (mbFinishRequested)
-        {
-            return false;
-        }
-        else if (mbStopRequested)
-        {
-            mbStopped = true;
-
-            // 將 mbStopRequested 狀態還原
-            mbStopRequested = false;
-
-            return true;
-        }
-
-        return false;
-    }
-
-    bool Viewer::isStopped()
-    {
-        unique_lock<mutex> lock(mMutexStop);
-        return mbStopped;
-    }
-
-    bool Viewer::CheckFinish()
-    {
-        unique_lock<mutex> lock(mMutexFinish);
-        return mbFinishRequested;
-    }
-
-    void Viewer::SetFinish()
-    {
-        unique_lock<mutex> lock(mMutexFinish);
-        mbFinished = true;
-    }
-
-    void Viewer::RequestStop()
-    {
-        unique_lock<mutex> lock(mMutexStop);
-
-        if (!mbStopped)
-        {
-            mbStopRequested = true;
-        }
-    }
-
-    void Viewer::RequestFinish()
-    {
-        unique_lock<mutex> lock(mMutexFinish);
-        mbFinishRequested = true;
-    }
-
-    bool Viewer::isFinished()
-    {
-        unique_lock<mutex> lock(mMutexFinish);
-        return mbFinished;
-    }
-
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================
 
-    void Viewer::Release()
-    {
-        unique_lock<mutex> lock(mMutexStop);
-        mbStopped = false;
-    }
-
+    
 }

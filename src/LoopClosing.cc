@@ -36,6 +36,71 @@ namespace ORB_SLAM2
 {
     // ==================================================
 
+    // 若有重置請求，重置『關鍵幀隊列』、『最新一筆關鍵幀的 id』以及『重置請求』
+    void LoopClosing::ResetIfRequested()
+    {
+        unique_lock<mutex> lock(mMutexReset);
+
+        if (mbResetRequested)
+        {
+            mlpLoopKeyFrameQueue.clear();
+            mLastLoopKFid = 0;
+            mbResetRequested = false;
+        }
+    }
+
+    // 檢查結束 LoopClosing 執行續的請求
+    bool LoopClosing::CheckFinish()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        return mbFinishRequested;
+    }
+
+    // 標注 LoopClosing 執行續已停止
+    void LoopClosing::SetFinish()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        mbFinished = true;
+    }
+
+    // 請求結束 LoopClosing 執行續
+    void LoopClosing::RequestFinish()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        mbFinishRequested = true;
+    }
+
+    // LoopClosing 執行續是否已有效停止
+    bool LoopClosing::isFinished()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        return mbFinished;
+    }
+
+    // 請求重置狀態
+    void LoopClosing::RequestReset()
+    {
+        {
+            unique_lock<mutex> lock(mMutexReset);
+            mbResetRequested = true;
+        }
+
+        while (1)
+        {
+            {
+                unique_lock<mutex> lock2(mMutexReset);
+
+                // 完成重置後，mbResetRequested 會被改成 false，因此這個迴圈的目的是在等待確實被重置
+                if (!mbResetRequested){
+                    break;
+                }
+            }
+
+            // 確實被重置之前，暫停 LoopClosing
+            usleep(5000);
+        }
+    }
+
     // ==================================================
     // 以上為管理執行續相關函式
     // ==================================================
@@ -1036,8 +1101,6 @@ namespace ORB_SLAM2
             mbRunningGBA = false;
         }
     }
-
-    // **************************************************
     
     // 將『關鍵幀 pKF』加入『關鍵幀的隊列』當中
     void LoopClosing::InsertKeyFrame(KeyFrame *pKF)
@@ -1047,33 +1110,6 @@ namespace ORB_SLAM2
         if (pKF->mnId != 0){
             mlpLoopKeyFrameQueue.push_back(pKF);
         }
-    }
-
-    // 若有重置請求，重置『關鍵幀隊列』、『最新一筆關鍵幀的 id』以及『重置請求』
-    void LoopClosing::ResetIfRequested()
-    {
-        unique_lock<mutex> lock(mMutexReset);
-
-        if (mbResetRequested)
-        {
-            mlpLoopKeyFrameQueue.clear();
-            mLastLoopKFid = 0;
-            mbResetRequested = false;
-        }
-    }
-
-    // 檢查結束 LoopClosing 執行續的請求
-    bool LoopClosing::CheckFinish()
-    {
-        unique_lock<mutex> lock(mMutexFinish);
-        return mbFinishRequested;
-    }
-
-    // 標注 LoopClosing 執行續已停止
-    void LoopClosing::SetFinish()
-    {
-        unique_lock<mutex> lock(mMutexFinish);
-        mbFinished = true;
     }
 
     void LoopClosing::SetTracker(Tracking *pTracker)
@@ -1086,47 +1122,9 @@ namespace ORB_SLAM2
         mpLocalMapper = pLocalMapper;
     }
 
-    // 請求結束 LoopClosing 執行續
-    void LoopClosing::RequestFinish()
-    {
-        unique_lock<mutex> lock(mMutexFinish);
-        mbFinishRequested = true;
-    }
-
-    // LoopClosing 執行續是否已有效停止
-    bool LoopClosing::isFinished()
-    {
-        unique_lock<mutex> lock(mMutexFinish);
-        return mbFinished;
-    }
-
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================
-
-    // 請求重置狀態
-    void LoopClosing::RequestReset()
-    {
-        {
-            unique_lock<mutex> lock(mMutexReset);
-            mbResetRequested = true;
-        }
-
-        while (1)
-        {
-            {
-                unique_lock<mutex> lock2(mMutexReset);
-
-                // 完成重置後，mbResetRequested 會被改成 false，因此這個迴圈的目的是在等待確實被重置
-                if (!mbResetRequested){
-                    break;
-                }
-            }
-
-            // 確實被重置之前，暫停 LoopClosing
-            usleep(5000);
-        }
-    }
 
     
 } //namespace ORB_SLAM

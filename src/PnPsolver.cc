@@ -586,6 +586,13 @@ namespace ORB_SLAM2
     rho[5] = dist2(cws[2], cws[3]);
   }
 
+  double PnPsolver::dist2(const double *p1, const double *p2)
+  {
+    return (p1[0] - p2[0]) * (p1[0] - p2[0]) +
+           (p1[1] - p2[1]) * (p1[1] - p2[1]) +
+           (p1[2] - p2[2]) * (p1[2] - p2[2]);
+  }
+
   // betas10        = [B11 B12 B22 B13 B23 B33 B14 B24 B34 B44]
   // betas_approx_1 = [B11 B12     B13         B14]
   void PnPsolver::find_betas_approx_1(const CvMat *L_6x10, const CvMat *Rho,
@@ -1181,13 +1188,6 @@ namespace ORB_SLAM2
     bool bFlag;
 
     return iterate(mRansacMaxIts, bFlag, vbInliers, nInliers);
-  }
-
-  double PnPsolver::dist2(const double *p1, const double *p2)
-  {
-    return (p1[0] - p2[0]) * (p1[0] - p2[0]) +
-           (p1[1] - p2[1]) * (p1[1] - p2[1]) +
-           (p1[2] - p2[2]) * (p1[2] - p2[2]);
   }
 
   void PnPsolver::print_pose(const double R[3][3], const double t[3])

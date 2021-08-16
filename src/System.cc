@@ -29,6 +29,12 @@ namespace ORB_SLAM2
 {
     // ==================================================
 
+    void System::Reset()
+    {
+        unique_lock<mutex> lock(mMutexReset);
+        mbReset = true;
+    }
+
     // ==================================================
     // 以上為管理執行續相關函式
     // ==================================================
@@ -162,12 +168,6 @@ namespace ORB_SLAM2
 
         // 不啟用定位模式
         mbDeactivateLocalizationMode = true;
-    }
-
-    void System::Reset()
-    {
-        unique_lock<mutex> lock(mMutexReset);
-        mbReset = true;
     }
 
     cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)

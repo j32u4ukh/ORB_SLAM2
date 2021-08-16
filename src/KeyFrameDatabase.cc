@@ -406,15 +406,15 @@ namespace ORB_SLAM2
         return vpRelocCandidates;
     }
 
-    // ==================================================
-    // 以下為非單目相關函式
-    // ==================================================
-
     void KeyFrameDatabase::clear()
     {
         mvInvertedFile.clear();
         mvInvertedFile.resize(mpVoc->size());
     }
+
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
 
     
 } //namespace ORB_SLAM

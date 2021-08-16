@@ -2226,4 +2226,5 @@ namespace ORB_SLAM2
 
         Frame::mbInitialComputations = true;
     }
+
 } //namespace ORB_SLAM

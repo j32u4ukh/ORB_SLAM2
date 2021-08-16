@@ -51,6 +51,104 @@ namespace ORB_SLAM2
         return mbStopped;
     }
 
+    // 請求中止『執行續 LocalMapping』
+    bool LocalMapping::stopRequested()
+    {
+        unique_lock<mutex> lock(mMutexStop);
+
+        // 請求中止『執行續 LocalMapping』（不會光 mbStopRequested 被改為 true 就中止）
+        return mbStopRequested;
+    }
+
+    // 是否中止『執行續 LocalMapping』
+    bool LocalMapping::Stop()
+    {
+        unique_lock<mutex> lock(mMutexStop);
+
+        // 是否請求中止 且 沒有『請求不要中止』
+        if (mbStopRequested && !mbNotStop)
+        {
+            mbStopped = true;
+            cout << "Local Mapping STOP" << endl;
+            return true;
+        }
+
+        return false;
+    }
+
+    bool LocalMapping::CheckFinish()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        return mbFinishRequested;
+    }
+
+    void LocalMapping::SetFinish()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        mbFinished = true;
+        unique_lock<mutex> lock2(mMutexStop);
+        mbStopped = true;
+    }
+
+    // 『執行續 LocalMapping』是否已結束
+    bool LocalMapping::isFinished()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+
+        return mbFinished;
+    }
+
+    // 請求清空『新關鍵幀容器』以及『最近新增的地圖點』
+    void LocalMapping::RequestReset()
+    {
+        {
+            unique_lock<mutex> lock(mMutexReset);
+            mbResetRequested = true;
+        }
+
+        while (1)
+        {
+            {
+                unique_lock<mutex> lock2(mMutexReset);
+
+                if (!mbResetRequested){
+                    break;
+                }
+            }
+
+            usleep(3000);
+        }
+    }
+
+    // 將 mbAbortBA 設為 true
+    void LocalMapping::InterruptBA()
+    {
+        mbAbortBA = true;
+    }
+
+    // 防止 LocalMapping 暫停用
+    bool LocalMapping::SetNotStop(bool flag)
+    {
+        unique_lock<mutex> lock(mMutexStop);
+
+        if (flag && mbStopped)
+        {
+            return false;
+        }
+
+        // mbNotStop 決定了 Stop 函數是否能夠將成員變量 mbStopped 設置為 true
+        // 請求不要中止『執行續 LocalMapping』
+        mbNotStop = flag;
+
+        return true;
+    }
+
+    void LocalMapping::RequestFinish()
+    {
+        unique_lock<mutex> lock(mMutexFinish);
+        mbFinishRequested = true;
+    }
+
     // ==================================================
     // 以上為管理執行續相關函式
     // ==================================================
@@ -153,14 +251,6 @@ namespace ORB_SLAM2
         }
 
         SetFinish();
-    }
-
-    // 設置『是否接受關鍵幀（此時 LOCAL MAPPING 線程是否處於空閑的狀態）』
-    void LocalMapping::SetAcceptKeyFrames(bool flag)
-    {
-        unique_lock<mutex> lock(mMutexAccept);
-        
-        mbAcceptKeyFrames = flag;
     }
 
     // 檢查『新關鍵幀容器 mlNewKeyFrames』是否不為空（有關鍵幀）
@@ -871,15 +961,6 @@ namespace ORB_SLAM2
         mpCurrentKeyFrame->UpdateConnections();
     }
 
-    // 請求中止『執行續 LocalMapping』
-    bool LocalMapping::stopRequested()
-    {
-        unique_lock<mutex> lock(mMutexStop);
-
-        // 請求中止『執行續 LocalMapping』（不會光 mbStopRequested 被改為 true 就中止）
-        return mbStopRequested;
-    }
-
     // 地圖點在相對小關鍵幀（相同、高 1 階或更精細的比例）中看到，則該關鍵幀被認為是冗餘的 -> SetBadFlag()
     void LocalMapping::KeyFrameCulling()
     {        
@@ -988,28 +1069,6 @@ namespace ORB_SLAM2
 
     }
 
-    // 是否中止『執行續 LocalMapping』
-    bool LocalMapping::Stop()
-    {
-        unique_lock<mutex> lock(mMutexStop);
-
-        // 是否請求中止 且 沒有『請求不要中止』
-        if (mbStopRequested && !mbNotStop)
-        {
-            mbStopped = true;
-            cout << "Local Mapping STOP" << endl;
-            return true;
-        }
-
-        return false;
-    }
-
-    bool LocalMapping::CheckFinish()
-    {
-        unique_lock<mutex> lock(mMutexFinish);
-        return mbFinishRequested;
-    }
-
     // 若有需要，清空『新關鍵幀容器』以及『最近新增的地圖點』
     void LocalMapping::ResetIfRequested()
     {
@@ -1023,20 +1082,12 @@ namespace ORB_SLAM2
         }
     }
 
-    void LocalMapping::SetFinish()
+    // 設置『是否接受關鍵幀（此時 LOCAL MAPPING 線程是否處於空閑的狀態）』
+    void LocalMapping::SetAcceptKeyFrames(bool flag)
     {
-        unique_lock<mutex> lock(mMutexFinish);
-        mbFinished = true;
-        unique_lock<mutex> lock2(mMutexStop);
-        mbStopped = true;
-    }
-
-    // 『執行續 LocalMapping』是否已結束
-    bool LocalMapping::isFinished()
-    {
-        unique_lock<mutex> lock(mMutexFinish);
-
-        return mbFinished;
+        unique_lock<mutex> lock(mMutexAccept);
+        
+        mbAcceptKeyFrames = flag;
     }
 
     // 清空『新關鍵幀容器』
@@ -1073,28 +1124,6 @@ namespace ORB_SLAM2
         mpLoopCloser = pLoopCloser;
     }
 
-    // 請求清空『新關鍵幀容器』以及『最近新增的地圖點』
-    void LocalMapping::RequestReset()
-    {
-        {
-            unique_lock<mutex> lock(mMutexReset);
-            mbResetRequested = true;
-        }
-
-        while (1)
-        {
-            {
-                unique_lock<mutex> lock2(mMutexReset);
-
-                if (!mbResetRequested){
-                    break;
-                }
-            }
-
-            usleep(3000);
-        }
-    }
-
     void LocalMapping::InsertKeyFrame(KeyFrame *pKF)
     {
         unique_lock<mutex> lock(mMutexNewKFs);
@@ -1111,35 +1140,6 @@ namespace ORB_SLAM2
     {
         unique_lock<mutex> lock(mMutexAccept);
         return mbAcceptKeyFrames;
-    }
-
-    // 將 mbAbortBA 設為 true
-    void LocalMapping::InterruptBA()
-    {
-        mbAbortBA = true;
-    }
-
-    // 防止 LocalMapping 暫停用
-    bool LocalMapping::SetNotStop(bool flag)
-    {
-        unique_lock<mutex> lock(mMutexStop);
-
-        if (flag && mbStopped)
-        {
-            return false;
-        }
-
-        // mbNotStop 決定了 Stop 函數是否能夠將成員變量 mbStopped 設置為 true
-        // 請求不要中止『執行續 LocalMapping』
-        mbNotStop = flag;
-
-        return true;
-    }
-
-    void LocalMapping::RequestFinish()
-    {
-        unique_lock<mutex> lock(mMutexFinish);
-        mbFinishRequested = true;
     }
 
     // ==================================================
