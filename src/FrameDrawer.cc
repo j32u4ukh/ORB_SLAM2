@@ -37,13 +37,13 @@ namespace ORB_SLAM2
     FrameDrawer::FrameDrawer(Map *pMap) : mpMap(pMap)
     {
         mState = Tracking::SYSTEM_NOT_READY;
-        mIm = cv::Mat(480, 640, CV_8UC3, cv::Scalar(0, 0, 0));
+        img_buffer = cv::Mat(480, 640, CV_8UC3, cv::Scalar(0, 0, 0));
     }
 
     // 在灰階圖片上標注出特徵點的位置，並根據當前狀態，將文字寫在下方的黑色區域
     cv::Mat FrameDrawer::DrawFrame()
     {
-        cv::Mat im;
+        cv::Mat img;
 
         // Initialization: KeyPoints in reference frame
         vector<cv::KeyPoint> vIniKeys;     
@@ -73,7 +73,7 @@ namespace ORB_SLAM2
                 mState = Tracking::NO_IMAGES_YET;
             }
 
-            mIm.copyTo(im);
+            img_buffer.copyTo(img);
 
             if (mState == Tracking::NOT_INITIALIZED)
             {
@@ -94,8 +94,8 @@ namespace ORB_SLAM2
         } // destroy scoped mutex -> release mutex
 
         // this should be always true
-        if (im.channels() < 3) {
-            cvtColor(im, im, CV_GRAY2BGR);
+        if (img.channels() < 3) {
+            cvtColor(img, img, CV_GRAY2BGR);
         }
 
         // Draw
@@ -106,7 +106,7 @@ namespace ORB_SLAM2
             {
                 if (vMatches[i] >= 0)
                 {
-                    cv::line(im, 
+                    cv::line(img, 
                              vIniKeys[i].pt, vCurrentKeys[vMatches[i]].pt,
                              cv::Scalar(0, 255, 0));
                 }
@@ -136,10 +136,10 @@ namespace ORB_SLAM2
                     if (vbMap[i])
                     {
                         // 地圖點對應的特徵點的區域畫上綠色的矩形
-                        cv::rectangle(im, pt1, pt2, cv::Scalar(0, 255, 0));
+                        cv::rectangle(img, pt1, pt2, cv::Scalar(0, 255, 0));
 
                         // 特徵點的周圍則劃上半徑為 2 的綠色圓圈
-                        cv::circle(im, vCurrentKeys[i].pt, 2, cv::Scalar(0, 255, 0), -1);
+                        cv::circle(img, vCurrentKeys[i].pt, 2, cv::Scalar(0, 255, 0), -1);
 
                         mnTracked++;
                     }
@@ -149,10 +149,10 @@ namespace ORB_SLAM2
                     else 
                     {
                         // 對應的特徵點的區域畫上紅色的矩形
-                        cv::rectangle(im, pt1, pt2, cv::Scalar(255, 0, 0));
+                        cv::rectangle(img, pt1, pt2, cv::Scalar(255, 0, 0));
 
                         // 特徵點的周圍則劃上半徑為 2 的紅色圓圈
-                        cv::circle(im, vCurrentKeys[i].pt, 2, cv::Scalar(255, 0, 0), -1);
+                        cv::circle(img, vCurrentKeys[i].pt, 2, cv::Scalar(255, 0, 0), -1);
 
                         mnTrackedVO++;
                     }
@@ -163,7 +163,7 @@ namespace ORB_SLAM2
         cv::Mat imWithInfo;
 
         // 根據當前狀態，將文字寫在下方的黑色區域
-        DrawTextInfo(im, state, imWithInfo);
+        DrawTextInfo(img, state, imWithInfo);
 
         return imWithInfo;
     }
@@ -252,8 +252,8 @@ namespace ORB_SLAM2
     {
         unique_lock<mutex> lock(mMutex);
 
-        // 將 Tracking 當中的灰階圖片複製給 mIm 用於至地圖
-        pTracker->mImGray.copyTo(mIm);
+        // 將 Tracking 當中的灰階圖片複製給 img_buffer 用於至地圖
+        pTracker->mImGray.copyTo(img_buffer);
 
         // 當前幀的所有關鍵點
         mvCurrentKeys = pTracker->mCurrentFrame.mvKeys;

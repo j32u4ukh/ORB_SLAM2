@@ -64,12 +64,12 @@ namespace ORB_SLAM2
         float cy = fSettings["Camera.cy"];
 
         // 相機內參
-        cv::Mat K = cv::Mat::eye(3, 3, CV_32F);
-        K.at<float>(0, 0) = fx;
-        K.at<float>(1, 1) = fy;
-        K.at<float>(0, 2) = cx;
-        K.at<float>(1, 2) = cy;
-        K.copyTo(mK);
+        cv::Mat temp_K = cv::Mat::eye(3, 3, CV_32F);
+        temp_K.at<float>(0, 0) = fx;
+        temp_K.at<float>(1, 1) = fy;
+        temp_K.at<float>(0, 2) = cx;
+        temp_K.at<float>(1, 2) = cy;
+        temp_K.copyTo(K);
 
         cv::Mat DistCoef(4, 1, CV_32F);
         DistCoef.at<float>(0) = fSettings["Camera.k1"];
@@ -135,17 +135,27 @@ namespace ORB_SLAM2
         int fIniThFAST = fSettings["ORBextractor.iniThFAST"];
         int fMinThFAST = fSettings["ORBextractor.minThFAST"];
 
-        mpORBextractorLeft = new ORBextractor(nFeatures, fScaleFactor, nLevels, fIniThFAST, fMinThFAST);
+        mpORBextractorLeft = new ORBextractor(nFeatures, 
+                                              fScaleFactor, 
+                                              nLevels, 
+                                              fIniThFAST, 
+                                              fMinThFAST);
 
         if (sensor == System::STEREO)
         {
-            mpORBextractorRight = new ORBextractor(nFeatures, fScaleFactor, nLevels, 
-                                                                                fIniThFAST, fMinThFAST);
+            mpORBextractorRight = new ORBextractor(nFeatures, 
+                                                   fScaleFactor, 
+                                                   nLevels,
+                                                   fIniThFAST, 
+                                                   fMinThFAST);
         }
         else if (sensor == System::MONOCULAR)
         {
-            mpIniORBextractor = new ORBextractor(2 * nFeatures, fScaleFactor, nLevels, 
-                                                                                fIniThFAST, fMinThFAST);
+            mpIniORBextractor = new ORBextractor(2 * nFeatures, 
+                                                 fScaleFactor, 
+                                                 nLevels,
+                                                 fIniThFAST, 
+                                                 fMinThFAST);
         }
 
         cout << endl
@@ -295,12 +305,12 @@ namespace ORB_SLAM2
         if (mState == NOT_INITIALIZED || mState == NO_IMAGES_YET)
         {
             mCurrentFrame = Frame(mImGray, timestamp,
-                                  mpIniORBextractor, mpORBVocabulary, mK, mDistCoef, mbf, mThDepth);
+                                  mpIniORBextractor, mpORBVocabulary, K, mDistCoef, mbf, mThDepth);
         }
         else
         {
             mCurrentFrame = Frame(mImGray, timestamp,
-                                  mpORBextractorLeft, mpORBVocabulary, mK, mDistCoef, mbf, mThDepth);
+                                  mpORBextractorLeft, mpORBVocabulary, K, mDistCoef, mbf, mThDepth);
         }
 
         // 進行初始化
@@ -2001,7 +2011,7 @@ namespace ORB_SLAM2
                               mpORBextractorLeft, 
                               mpORBextractorRight, 
                               mpORBVocabulary, 
-                              mK, 
+                              K, 
                               mDistCoef, 
                               mbf, 
                               mThDepth);
@@ -2044,7 +2054,7 @@ namespace ORB_SLAM2
                               timestamp, 
                               mpORBextractorLeft, 
                               mpORBVocabulary, 
-                              mK, 
+                              K, 
                               mDistCoef, 
                               mbf, 
                               mThDepth);
@@ -2200,12 +2210,12 @@ namespace ORB_SLAM2
         float cx = fSettings["Camera.cx"];
         float cy = fSettings["Camera.cy"];
 
-        cv::Mat K = cv::Mat::eye(3, 3, CV_32F);
-        K.at<float>(0, 0) = fx;
-        K.at<float>(1, 1) = fy;
-        K.at<float>(0, 2) = cx;
-        K.at<float>(1, 2) = cy;
-        K.copyTo(mK);
+        cv::Mat temp_K = cv::Mat::eye(3, 3, CV_32F);
+        temp_K.at<float>(0, 0) = fx;
+        temp_K.at<float>(1, 1) = fy;
+        temp_K.at<float>(0, 2) = cx;
+        temp_K.at<float>(1, 2) = cy;
+        temp_K.copyTo(K);
 
         cv::Mat DistCoef(4, 1, CV_32F);
         DistCoef.at<float>(0) = fSettings["Camera.k1"];

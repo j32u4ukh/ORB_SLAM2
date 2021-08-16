@@ -232,7 +232,7 @@ protected:
 
     // Calibration matrix
     // 相機內參矩陣
-    cv::Mat mK;
+    cv::Mat K;
 
     // 鏡頭畸變系數
     cv::Mat mDistCoef;
