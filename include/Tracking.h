@@ -107,7 +107,7 @@ public:
     Frame mCurrentFrame;
 
     // 灰度圖，對於深度相機就是RGB圖像轉換而來的，對於雙目則是左目的灰度圖像。
-    cv::Mat mImGray;
+    cv::Mat gray;
 
     // Initialization Variables (Monocular)
     std::vector<int> mvIniLastMatches;

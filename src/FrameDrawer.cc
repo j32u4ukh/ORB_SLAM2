@@ -253,7 +253,7 @@ namespace ORB_SLAM2
         unique_lock<mutex> lock(mMutex);
 
         // 將 Tracking 當中的灰階圖片複製給 img_buffer 用於至地圖
-        pTracker->mImGray.copyTo(img_buffer);
+        pTracker->gray.copyTo(img_buffer);
 
         // 當前幀的所有關鍵點
         mvCurrentKeys = pTracker->mCurrentFrame.mvKeys;

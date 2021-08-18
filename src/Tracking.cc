@@ -135,6 +135,7 @@ namespace ORB_SLAM2
         int fIniThFAST = fSettings["ORBextractor.iniThFAST"];
         int fMinThFAST = fSettings["ORBextractor.minThFAST"];
 
+        // 用於單目初始化後，要求的特徵數量較初始化時來得少（nFeatures < 2 * nFeatures）
         mpORBextractorLeft = new ORBextractor(nFeatures, 
                                               fScaleFactor, 
                                               nLevels, 
@@ -151,6 +152,7 @@ namespace ORB_SLAM2
         }
         else if (sensor == System::MONOCULAR)
         {
+            // 用於單目初始化，要求較多的特徵數量（2 * nFeatures）
             mpIniORBextractor = new ORBextractor(2 * nFeatures, 
                                                  fScaleFactor, 
                                                  nLevels,
@@ -188,115 +190,31 @@ namespace ORB_SLAM2
         }
     }
 
-    void Tracking::SetViewer(Viewer *pViewer)
-    {
-        mpViewer = pViewer;
-    }
-
-    void Tracking::SetLocalMapper(LocalMapping *pLocalMapper)
-    {
-        mpLocalMapper = pLocalMapper;
-    }
-
-    void Tracking::SetLoopClosing(LoopClosing *pLoopClosing)
-    {
-        mpLoopClosing = pLoopClosing;
-    }
-
-    // 設置是否僅追蹤不建圖
-    void Tracking::InformOnlyTracking(const bool &flag)
-    {
-        // 是否僅追蹤不建圖
-        mbOnlyTracking = flag;
-    }
-
-    void Tracking::Reset()
-    {
-        /* 被呼叫的可能情境：
-        1. 關鍵幀所觀察到的地圖點的深度為負數
-        2. 至少被 1 個關鍵幀所觀察到的地圖點不足 100 個
-        */
-
-        cout << "System Reseting" << endl;
-
-        if (mpViewer)
-        {
-            mpViewer->RequestStop();
-
-            while (!mpViewer->isStopped()){
-                usleep(3000);
-            }
-        }
-
-        // Reset Local Mapping
-        cout << "Reseting Local Mapper...";
-
-        // 請求清空『新關鍵幀容器』以及『最近新增的地圖點』
-        mpLocalMapper->RequestReset();
-        
-        cout << " done" << endl;
-
-        // Reset Loop Closing
-        cout << "Reseting Loop Closing...";
-
-        // 請求重置狀態
-        mpLoopClosing->RequestReset();
-        
-        cout << " done" << endl;
-
-        // Clear BoW Database
-        cout << "Reseting Database...";
-        mpKeyFrameDB->clear();
-        cout << " done" << endl;
-
-        // Clear Map (this erase MapPoints and KeyFrames)
-        mpMap->clear();
-
-        KeyFrame::nNextId = 0;
-        Frame::nNextId = 0;
-        mState = NO_IMAGES_YET;
-
-        if (mpInitializer)
-        {
-            delete mpInitializer;
-            mpInitializer = static_cast<Initializer *>(NULL);
-        }
-
-        mlRelativeFramePoses.clear();
-        mlpReferences.clear();
-        mlFrameTimes.clear();
-        mlbLost.clear();
-
-        if (mpViewer){
-            mpViewer->Release();
-        }
-    }
-    
     cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
     {
-        mImGray = im;
+        gray = im;
 
         // 根據輸入影像的類型，轉換所需的灰階影像
-        if (mImGray.channels() == 3)
+        if (gray.channels() == 3)
         {
             if (mbRGB)
             {
-                cvtColor(mImGray, mImGray, CV_RGB2GRAY);
+                cvtColor(gray, gray, CV_RGB2GRAY);
             }
             else
             {
-                cvtColor(mImGray, mImGray, CV_BGR2GRAY);
+                cvtColor(gray, gray, CV_BGR2GRAY);
             }
         }
-        else if (mImGray.channels() == 4)
+        else if (gray.channels() == 4)
         {
             if (mbRGB)
             {
-                cvtColor(mImGray, mImGray, CV_RGBA2GRAY);
+                cvtColor(gray, gray, CV_RGBA2GRAY);
             }
             else
             {
-                cvtColor(mImGray, mImGray, CV_BGRA2GRAY);
+                cvtColor(gray, gray, CV_BGRA2GRAY);
             }
         }
 
@@ -304,12 +222,12 @@ namespace ORB_SLAM2
         // 建構當前幀 Frame 物件
         if (mState == NOT_INITIALIZED || mState == NO_IMAGES_YET)
         {
-            mCurrentFrame = Frame(mImGray, timestamp,
+            mCurrentFrame = Frame(gray, timestamp,
                                   mpIniORBextractor, mpORBVocabulary, K, mDistCoef, mbf, mThDepth);
         }
         else
         {
-            mCurrentFrame = Frame(mImGray, timestamp,
+            mCurrentFrame = Frame(gray, timestamp,
                                   mpORBextractorLeft, mpORBVocabulary, K, mDistCoef, mbf, mThDepth);
         }
 
@@ -1968,6 +1886,90 @@ namespace ORB_SLAM2
         mpLastKeyFrame = pKF;
     }
 
+    void Tracking::SetViewer(Viewer *pViewer)
+    {
+        mpViewer = pViewer;
+    }
+
+    void Tracking::SetLocalMapper(LocalMapping *pLocalMapper)
+    {
+        mpLocalMapper = pLocalMapper;
+    }
+
+    void Tracking::SetLoopClosing(LoopClosing *pLoopClosing)
+    {
+        mpLoopClosing = pLoopClosing;
+    }
+
+    // 設置是否僅追蹤不建圖
+    void Tracking::InformOnlyTracking(const bool &flag)
+    {
+        // 是否僅追蹤不建圖
+        mbOnlyTracking = flag;
+    }
+
+    void Tracking::Reset()
+    {
+        /* 被呼叫的可能情境：
+        1. 關鍵幀所觀察到的地圖點的深度為負數
+        2. 至少被 1 個關鍵幀所觀察到的地圖點不足 100 個
+        */
+
+        cout << "System Reseting" << endl;
+
+        if (mpViewer)
+        {
+            mpViewer->RequestStop();
+
+            while (!mpViewer->isStopped()){
+                usleep(3000);
+            }
+        }
+
+        // Reset Local Mapping
+        cout << "Reseting Local Mapper...";
+
+        // 請求清空『新關鍵幀容器』以及『最近新增的地圖點』
+        mpLocalMapper->RequestReset();
+        
+        cout << " done" << endl;
+
+        // Reset Loop Closing
+        cout << "Reseting Loop Closing...";
+
+        // 請求重置狀態
+        mpLoopClosing->RequestReset();
+        
+        cout << " done" << endl;
+
+        // Clear BoW Database
+        cout << "Reseting Database...";
+        mpKeyFrameDB->clear();
+        cout << " done" << endl;
+
+        // Clear Map (this erase MapPoints and KeyFrames)
+        mpMap->clear();
+
+        KeyFrame::nNextId = 0;
+        Frame::nNextId = 0;
+        mState = NO_IMAGES_YET;
+
+        if (mpInitializer)
+        {
+            delete mpInitializer;
+            mpInitializer = static_cast<Initializer *>(NULL);
+        }
+
+        mlRelativeFramePoses.clear();
+        mlpReferences.clear();
+        mlFrameTimes.clear();
+        mlbLost.clear();
+
+        if (mpViewer){
+            mpViewer->Release();
+        }
+    }
+    
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================
@@ -1975,37 +1977,37 @@ namespace ORB_SLAM2
     cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRectRight, 
                                       const double &timestamp)
     {
-        mImGray = imRectLeft;
+        gray = imRectLeft;
         cv::Mat imGrayRight = imRectRight;
 
-        if (mImGray.channels() == 3)
+        if (gray.channels() == 3)
         {
             if (mbRGB)
             {
-                cvtColor(mImGray, mImGray, CV_RGB2GRAY);
+                cvtColor(gray, gray, CV_RGB2GRAY);
                 cvtColor(imGrayRight, imGrayRight, CV_RGB2GRAY);
             }
             else
             {
-                cvtColor(mImGray, mImGray, CV_BGR2GRAY);
+                cvtColor(gray, gray, CV_BGR2GRAY);
                 cvtColor(imGrayRight, imGrayRight, CV_BGR2GRAY);
             }
         }
-        else if (mImGray.channels() == 4)
+        else if (gray.channels() == 4)
         {
             if (mbRGB)
             {
-                cvtColor(mImGray, mImGray, CV_RGBA2GRAY);
+                cvtColor(gray, gray, CV_RGBA2GRAY);
                 cvtColor(imGrayRight, imGrayRight, CV_RGBA2GRAY);
             }
             else
             {
-                cvtColor(mImGray, mImGray, CV_BGRA2GRAY);
+                cvtColor(gray, gray, CV_BGRA2GRAY);
                 cvtColor(imGrayRight, imGrayRight, CV_BGRA2GRAY);
             }
         }
 
-        mCurrentFrame = Frame(mImGray, 
+        mCurrentFrame = Frame(gray, 
                               imGrayRight, 
                               timestamp, 
                               mpORBextractorLeft, 
@@ -2023,25 +2025,25 @@ namespace ORB_SLAM2
 
     cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const double &timestamp)
     {
-        mImGray = imRGB;
+        gray = imRGB;
         cv::Mat imDepth = imD;
 
-        if (mImGray.channels() == 3)
+        if (gray.channels() == 3)
         {
             if (mbRGB){
-                cvtColor(mImGray, mImGray, CV_RGB2GRAY);
+                cvtColor(gray, gray, CV_RGB2GRAY);
             }
             else{
-                cvtColor(mImGray, mImGray, CV_BGR2GRAY);
+                cvtColor(gray, gray, CV_BGR2GRAY);
             }
         }
-        else if (mImGray.channels() == 4)
+        else if (gray.channels() == 4)
         {
             if (mbRGB){
-                cvtColor(mImGray, mImGray, CV_RGBA2GRAY);
+                cvtColor(gray, gray, CV_RGBA2GRAY);
             }
             else{
-                cvtColor(mImGray, mImGray, CV_BGRA2GRAY);
+                cvtColor(gray, gray, CV_BGRA2GRAY);
             }
         }
 
@@ -2049,7 +2051,7 @@ namespace ORB_SLAM2
             imDepth.convertTo(imDepth, CV_32F, mDepthMapFactor);
         }
 
-        mCurrentFrame = Frame(mImGray, 
+        mCurrentFrame = Frame(gray, 
                               imDepth, 
                               timestamp, 
                               mpORBextractorLeft, 

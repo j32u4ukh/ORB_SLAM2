@@ -58,6 +58,7 @@
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <vector>
+#include <map>
 
 #include "ORBextractor.h"
 
@@ -466,10 +467,16 @@ namespace ORB_SLAM2
         mvInvScaleFactor.resize(nlevels);
         mvInvLevelSigma2.resize(nlevels);
 
+        // 1.0, 1.2, 1.44, 1.728, 2.0736
         mvScaleFactor[0] = 1.0f;
+
+        // 1.0, 1.44, 2.0736, 2.9860, 4.2998
         mvLevelSigma2[0] = 1.0f;
 
+        // 1.0, 0.8333, 0.6944, 0.5787, 0.4823
         mvInvScaleFactor[0] = 1.0f;
+
+        // 1.0 , 0.6944, 0.4823, 0.3349, 0.2326
         mvInvLevelSigma2[0] = 1.0f;
 
         for (int i = 1; i < nlevels; i++)
@@ -490,22 +497,27 @@ namespace ORB_SLAM2
         mvImagePyramid.resize(nlevels);
         mnFeaturesPerLevel.resize(nlevels);
 
+        // 1.0 / 1.2 = 0.8333
         float factor = 1.0f / scaleFactor;
+
         float nDesiredFeaturesPerScale = nfeatures * (1 - factor) / 
                                                     (1 - (float)pow((double)factor, (double)nlevels));
 
         int sumFeatures = 0;
         int end_level = nlevels - 1;
 
-        // for (int level = 0; level < nlevels - 1; level++)
         for (int level = 0; level < end_level; level++)
         {
+            // cvRound()：返回跟參數最接近的整數值，即四捨五入
             mnFeaturesPerLevel[level] = cvRound(nDesiredFeaturesPerScale);
+
             sumFeatures += mnFeaturesPerLevel[level];
+
+            // factor < 1, 表示每下一個層級，圖片越大，要求特徵數量越少
             nDesiredFeaturesPerScale *= factor;
         }
 
-        // mnFeaturesPerLevel[nlevels - 1] = std::max(nfeatures - sumFeatures, 0);
+        // 確保所有層級的特徵數加總為 nfeatures（有可能超過）
         mnFeaturesPerLevel[end_level] = std::max(nfeatures - sumFeatures, 0);
         
         const int npoints = 512;
@@ -518,15 +530,23 @@ namespace ORB_SLAM2
         // pre-compute the end of a row in a circular patch
         umax.resize(HALF_PATCH_SIZE + 1);
 
+        // vmax = 11 cvFloor()：返回不大於參數的最大整數值，即向下取整；
         int v, v0, vmax = cvFloor(HALF_PATCH_SIZE * sqrt(2.f) / 2 + 1);
+
+        // vmin = 11 cvCeil()：返回不小於參數的最小整數值，即向上取整；
         int vmin = cvCeil(HALF_PATCH_SIZE * sqrt(2.f) / 2);
+
+        // 15^2 = 225
         const double hp2 = HALF_PATCH_SIZE * HALF_PATCH_SIZE;
 
-        for (v = 0; v <= vmax; v++){
+        // v: 0 ~ 11
+        for (v = 0; v <= vmax; v++)
+        {
             umax[v] = cvRound(sqrt(hp2 - v * v));
         }
 
         // Make sure we are symmetric
+        // v: 15 ~ 11
         for (v = HALF_PATCH_SIZE, v0 = 0; v >= vmin; v--)
         {
             while (umax[v0] == umax[v0 + 1]){
@@ -648,16 +668,19 @@ namespace ORB_SLAM2
             Size wholeSize(sz.width + EDGE_THRESHOLD * 2, sz.height + EDGE_THRESHOLD * 2);
             Mat temp(wholeSize, image.type()), masktemp;
 
-            // 縮放後的 Mat
+            // 初始化第 level 層的影像金字塔 mvImagePyramid[level]
             mvImagePyramid[level] = temp(Rect(EDGE_THRESHOLD, EDGE_THRESHOLD, sz.width, sz.height));
 
             // Compute the resized image
             // 縮放並加上邊框的影像，存入 temp，即 mvImagePyramid[level] 
             if (level != 0)
             {
-                // 縮放圖片
+                // 上一層級的圖片，放大後存入下一層
+                // mvImagePyramid[level - 1] 放大到『尺寸 sz』，存入 mvImagePyramid[level]
                 resize(mvImagePyramid[level - 1], mvImagePyramid[level], sz, 0, 0, INTER_LINEAR);
 
+                /* 搭配 Size wholeSize(sz.width + EDGE_THRESHOLD * 2, sz.height + EDGE_THRESHOLD * 2);
+                形成 copyMakeBorder 不會複製到 temp，而是直接在 mvImagePyramid[level] 上加邊框*/
                 copyMakeBorder(mvImagePyramid[level], temp, EDGE_THRESHOLD, EDGE_THRESHOLD, 
                                EDGE_THRESHOLD, EDGE_THRESHOLD, BORDER_REFLECT_101 + BORDER_ISOLATED);
             }
@@ -679,108 +702,112 @@ namespace ORB_SLAM2
         const float W = 30;
 
         // 遍歷影像金字塔各層
-        for (int level = 0; level < nlevels; ++level)
+        for (int level = 0; level < nlevels; level++)
         {
-            const int minBorderX = EDGE_THRESHOLD - 3;
-            const int minBorderY = minBorderX;
-            const int maxBorderX = mvImagePyramid[level].cols - EDGE_THRESHOLD + 3;
-            const int maxBorderY = mvImagePyramid[level].rows - EDGE_THRESHOLD + 3;
+            // ===== Start computeKeyPoints =====
+            computeKeyPoints(allKeypoints, W, level);
+            // const int minBorderX = EDGE_THRESHOLD - 3;
+            // const int minBorderY = minBorderX;
+            // const int maxBorderX = mvImagePyramid[level].cols - EDGE_THRESHOLD + 3;
+            // const int maxBorderY = mvImagePyramid[level].rows - EDGE_THRESHOLD + 3;
 
-            vector<cv::KeyPoint> vToDistributeKeys;
-            vToDistributeKeys.reserve(nfeatures * 10);
+            // vector<cv::KeyPoint> vToDistributeKeys;
+            // vToDistributeKeys.reserve(nfeatures * 10);
 
-            const float width = (maxBorderX - minBorderX);
-            const float height = (maxBorderY - minBorderY);
+            // const float width = (maxBorderX - minBorderX);
+            // const float height = (maxBorderY - minBorderY);
 
-            const int nCols = width / W;
-            const int nRows = height / W;
-            const int wCell = ceil(width / nCols);
-            const int hCell = ceil(height / nRows);
+            // const int nCols = width / W;
+            // const int nRows = height / W;
+            // const int wCell = ceil(width / nCols);
+            // const int hCell = ceil(height / nRows);
 
-            // 將影像化分成多個區塊，在各區塊中尋找 FAST 特徵
-            for (int i = 0; i < nRows; i++)
-            {
-                const float iniY = minBorderY + i * hCell;
-                float maxY = iniY + hCell + 6;
+            // // 將影像化分成多個區塊，在各區塊中尋找 FAST 特徵
+            // for (int i = 0; i < nRows; i++)
+            // {
+            //     const float iniY = minBorderY + i * hCell;
+            //     float maxY = iniY + hCell + 6;
 
-                if (iniY >= maxBorderY - 3){
-                    continue;
-                }
+            //     if (iniY >= maxBorderY - 3){
+            //         continue;
+            //     }
                     
-                if (maxY > maxBorderY){
-                    maxY = maxBorderY;
-                }                    
+            //     if (maxY > maxBorderY){
+            //         maxY = maxBorderY;
+            //     }                    
 
-                for (int j = 0; j < nCols; j++)
-                {
-                    const float iniX = minBorderX + j * wCell;
-                    float maxX = iniX + wCell + 6;
+            //     for (int j = 0; j < nCols; j++)
+            //     {
+            //         const float iniX = minBorderX + j * wCell;
+            //         float maxX = iniX + wCell + 6;
 
-                    if (iniX >= maxBorderX - 6){
-                        continue;
-                    }
+            //         if (iniX >= maxBorderX - 6){
+            //             continue;
+            //         }
                         
-                    if (maxX > maxBorderX){
-                        maxX = maxBorderX;
-                    }                        
+            //         if (maxX > maxBorderX){
+            //             maxX = maxBorderX;
+            //         }                        
 
-                    vector<cv::KeyPoint> vKeysCell;
+            //         vector<cv::KeyPoint> vKeysCell;
 
-                    /*void FAST( InputArray image, CV_OUT std::vector<KeyPoint>& keypoints,
-                      int threshold, bool nonmaxSuppression=true )
+            //         /*void FAST( InputArray image, CV_OUT std::vector<KeyPoint>& keypoints,
+            //           int threshold, bool nonmaxSuppression=true )
                     
-                    image：在此圖片中尋找特徵點
-                    vKeysCell： 存入找到的特徵點之容器
-                    iniThFAST：中心像素強度與該像素周圍圓圈像素之間差異的閾值。
-                    true: 對鄰近得分較低的點的抑制。
-                    */
-                    FAST(mvImagePyramid[level].rowRange(iniY, maxY).colRange(iniX, maxX),
-                         vKeysCell, iniThFAST, true);
+            //         image：在此圖片中尋找特徵點
+            //         vKeysCell： 存入找到的特徵點之容器
+            //         iniThFAST：中心像素強度與該像素周圍圓圈像素之間差異的閾值。
+            //         true: 對鄰近得分較低的點的抑制。
+            //         */
+            //         FAST(mvImagePyramid[level].rowRange(iniY, maxY).colRange(iniX, maxX),
+            //              vKeysCell, iniThFAST, true);
 
-                    // 若找不到特徵點
-                    if (vKeysCell.empty())
-                    {
-                        // 使用最低門檻來重新搜尋
-                        FAST(mvImagePyramid[level].rowRange(iniY, maxY).colRange(iniX, maxX),
-                             vKeysCell, minThFAST, true);
-                    }
+            //         // 若找不到特徵點
+            //         if (vKeysCell.empty())
+            //         {
+            //             // 使用最低門檻來重新搜尋
+            //             FAST(mvImagePyramid[level].rowRange(iniY, maxY).colRange(iniX, maxX),
+            //                  vKeysCell, minThFAST, true);
+            //         }
 
-                    // 若特徵點不為空
-                    if (!vKeysCell.empty())
-                    {
-                        for(cv::KeyPoint keypoint : vKeysCell){
+            //         // 若特徵點不為空
+            //         if (!vKeysCell.empty())
+            //         {
+            //             for(cv::KeyPoint keypoint : vKeysCell){
 
-                            // 將特徵點的位置，校正為各層級圖中的位置
-                            keypoint.pt.x += j * wCell;
-                            keypoint.pt.y += i * hCell;
+            //                 // 將特徵點的位置，校正為各層級圖中的位置
+            //                 keypoint.pt.x += j * wCell;
+            //                 keypoint.pt.y += i * hCell;
 
-                            vToDistributeKeys.push_back(keypoint);
-                        }
-                    }
-                }
-            }
+            //                 vToDistributeKeys.push_back(keypoint);
+            //             }
+            //         }
+            //     }
+            // }
 
-            vector<KeyPoint> &keypoints = allKeypoints[level];
-            keypoints.reserve(nfeatures);
+            // vector<KeyPoint> &keypoints = allKeypoints[level];
+            // keypoints.reserve(nfeatures);
 
-            // 持續將影像拆分成 4 個 ExtractorNode ，直到個數達到指定數量或再拆分也無法增加個數
-            // 並篩選出各個 ExtractorNode 當中 response 值最高的 cv::KeyPoint，存入 keypoints
-            keypoints = DistributeOctTree(vToDistributeKeys, minBorderX, maxBorderX,
-                                          minBorderY, maxBorderY, mnFeaturesPerLevel[level], level);
+            // // 持續將影像拆分成 4 個 ExtractorNode ，直到個數達到指定數量或再拆分也無法增加個數
+            // // 並篩選出各個 ExtractorNode 當中 response 值最高的 cv::KeyPoint，存入 keypoints
+            // keypoints = DistributeOctTree(vToDistributeKeys, minBorderX, maxBorderX,
+            //                               minBorderY, maxBorderY, mnFeaturesPerLevel[level], level);
 
-            const int scaledPatchSize = PATCH_SIZE * mvScaleFactor[level];
+            // const int scaledPatchSize = PATCH_SIZE * mvScaleFactor[level];
 
-            // Add border to coordinates and scale information
-            const int nkps = keypoints.size();
+            // // Add border to coordinates and scale information
+            // const int nkps = keypoints.size();
 
-            for (int i = 0; i < nkps; i++)
-            {
-                // 特徵點的位置是以縮放後的影像為依據，而非原圖
-                keypoints[i].pt.x += minBorderX;
-                keypoints[i].pt.y += minBorderY;
-                keypoints[i].octave = level;
-                keypoints[i].size = scaledPatchSize;
-            }
+            // for (int i = 0; i < nkps; i++)
+            // {
+            //     // 特徵點的位置是以縮放後的影像為依據，而非原圖
+            //     keypoints[i].pt.x += minBorderX;
+            //     keypoints[i].pt.y += minBorderY;
+            //     keypoints[i].octave = level;
+            //     keypoints[i].size = scaledPatchSize;
+            // }
+
+            // ===== End computeKeyPoints =====
         }
 
         // compute orientations
@@ -788,6 +815,125 @@ namespace ORB_SLAM2
         {
             // 利用灰階質心法計算特徵點的角度（角度資訊儲存於 KeyPoint 當中）
             computeOrientation(mvImagePyramid[level], allKeypoints[level], umax);
+        }
+    }
+
+    void ORBextractor::computeKeyPoints(vector<vector<KeyPoint>> &all_keypoints, const float W, 
+                                        const int level){
+        const int min_x = EDGE_THRESHOLD - 3;
+        const int min_y = min_x;
+        const int max_x = mvImagePyramid[level].cols - EDGE_THRESHOLD + 3;
+        const int max_y = mvImagePyramid[level].rows - EDGE_THRESHOLD + 3;
+
+        const float width = (max_x - min_x);
+        const float height = (max_y - min_y);
+
+        const int n_col = width / W;
+        const int n_row = height / W;
+        const int cell_w = ceil(width / n_col);
+        const int cell_h = ceil(height / n_row);
+
+        vector<cv::KeyPoint> distribute_keys;
+        distribute_keys.reserve(nfeatures * 10);
+
+        // 將影像化分成多個區塊，在各區塊中尋找 FAST 特徵
+        for (int i = 0; i < n_row; i++)
+        {
+            computeFastFeature(i, level, n_col, 
+                               min_x, max_x, min_y, max_y, cell_w, cell_h, distribute_keys);
+        }
+
+        vector<KeyPoint> &keypoints = all_keypoints[level];
+        keypoints.reserve(nfeatures);
+
+        // 持續將影像拆分成 4 個 ExtractorNode ，直到個數達到指定數量或再拆分也無法增加個數
+        // 並篩選出各個 ExtractorNode 當中 response 值最高的 cv::KeyPoint，存入 keypoints
+        keypoints = DistributeOctTree(distribute_keys, min_x, max_x,
+                                      min_y, max_y, mnFeaturesPerLevel[level], level);
+
+        const int scaled_patch_size = PATCH_SIZE * mvScaleFactor[level];
+
+        // Add border to coordinates and scale information
+        const int nkps = keypoints.size();
+
+        for (int i = 0; i < nkps; i++)
+        {
+            // 特徵點的位置是以縮放後的影像為依據，而非原圖
+            keypoints[i].pt.x += min_x;
+            keypoints[i].pt.y += min_y;
+            keypoints[i].octave = level;
+            keypoints[i].size = scaled_patch_size;
+        }
+    }
+
+    void ORBextractor::computeFastFeature(const int i, const int level, const int n_col,
+                                          const int min_x, const int max_x, 
+                                          const int min_y, const int max_y, 
+                                          const int cell_w, const int cell_h,
+                                          vector<cv::KeyPoint> &distribute_keys)
+    {
+        const float init_y = min_y + i * cell_h;
+        float _max_y = init_y + cell_h + 6;
+        float _max_x;
+
+        if (init_y >= max_y - 3){
+            return;
+        }
+            
+        if (_max_y > max_y){
+            _max_y = max_y;
+        }
+        
+        vector<cv::KeyPoint> keypoints;
+        cv::Mat img;
+
+        for (int j = 0; j < n_col; j++)
+        {
+            keypoints.clear();
+
+            const float init_x = min_x + j * cell_w;
+            _max_x = init_x + cell_w + 6;
+
+            /// NOTE: 隨著 j 的增加，init_x 只會越來越大，應該就直接結束迴圈了
+            if (init_x >= max_x - 6){
+                continue;
+            }
+                
+            if (_max_x > max_x){
+                _max_x = max_x;
+            } 
+
+            img = mvImagePyramid[level].rowRange(init_y, _max_y).colRange(init_x, _max_x);
+
+            /*void FAST( InputArray image, CV_OUT std::vector<KeyPoint>& keypoints,
+                int threshold, bool nonmaxSuppression=true )
+            
+            image：在此圖片中尋找特徵點
+            keypoints： 存入找到的特徵點之容器
+            iniThFAST：中心像素強度與該像素周圍圓圈像素之間差異的閾值。
+            true: 對鄰近得分較低的點的抑制。
+            */
+            FAST(img, keypoints, iniThFAST, true);
+
+            // 若找不到特徵點
+            if (keypoints.empty())
+            {
+                // 使用最低門檻來重新搜尋
+                FAST(img, keypoints, minThFAST, true);
+            }
+
+            // 若特徵點不為空
+            if (!keypoints.empty())
+            {
+                for(cv::KeyPoint keypoint : keypoints){
+
+                    // 將特徵點的位置，校正為各層級圖中的位置
+                    keypoint.pt.x += j * cell_w;
+                    keypoint.pt.y += i * cell_h;
+
+                    distribute_keys.push_back(keypoint);
+                }
+            }
         }
     }
 

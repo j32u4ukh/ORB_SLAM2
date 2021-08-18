@@ -106,10 +106,20 @@ protected:
     std::vector<cv::KeyPoint> DistributeOctTree(const std::vector<cv::KeyPoint>& vToDistributeKeys, const int &minX,
                                            const int &maxX, const int &minY, const int &maxY, const int &nFeatures, const int &level);
 
+    void computeKeyPoints(std::vector<std::vector<cv::KeyPoint>> &all_keypoints, 
+                                        const float W, const int level);
+    void computeFastFeature(const int i, const int level, const int n_col,
+                                          const int min_x, const int max_x, 
+                                          const int min_y, const int max_y, 
+                                          const int cell_w, const int cell_h,
+                                          std::vector<cv::KeyPoint> &distribute_keys);
+
     void ComputeKeyPointsOld(std::vector<std::vector<cv::KeyPoint> >& allKeypoints);
     std::vector<cv::Point> pattern;
 
+    // 影像金字塔各層級全部的特徵數總和（至少，可能超過）
     int nfeatures;
+
     double scaleFactor;
     int nlevels;
     int iniThFAST;
@@ -117,11 +127,19 @@ protected:
 
     std::vector<int> mnFeaturesPerLevel;
 
+    // 用於 IC_Angle 的計算當中
     std::vector<int> umax;
 
+    // 1.0, 1.2, 1.44, 1.728, 2.0736
     std::vector<float> mvScaleFactor;
-    std::vector<float> mvInvScaleFactor;    
+
+    // 1.0, 0.8333, 0.6944, 0.5787, 0.4823
+    std::vector<float> mvInvScaleFactor;
+    
+    // 1.0, 1.44, 2.0736, 2.9860, 4.2998
     std::vector<float> mvLevelSigma2;
+
+    // 1.0 , 0.6944, 0.4823, 0.3349, 0.2326
     std::vector<float> mvInvLevelSigma2;
 };
 

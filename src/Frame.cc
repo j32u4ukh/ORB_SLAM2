@@ -49,6 +49,7 @@ namespace ORB_SLAM2
         mnId = nNextId++;
 
         // Scale Level Info
+        // 第一幀的 mpORBextractorLeft 其實是 mpIniORBextractor
         mnScaleLevels = mpORBextractorLeft->GetLevels();
         mfScaleFactor = mpORBextractorLeft->GetScaleFactor();
         mfLogScaleFactor = log(mfScaleFactor);
