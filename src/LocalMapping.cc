@@ -832,8 +832,8 @@ namespace ORB_SLAM2
         // 向量 t12 的『反對稱矩陣』 t^
         cv::Mat t12x = SkewSymmetricMatrix(t12);
 
-        const cv::Mat &K1 = pKF1->mK;
-        const cv::Mat &K2 = pKF2->mK;
+        const cv::Mat &K1 = pKF1->K;
+        const cv::Mat &K2 = pKF2->K;
 
         // E = (t^)R = t12x * R12
         // F = K^-T * E * K^-1

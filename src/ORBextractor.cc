@@ -638,15 +638,13 @@ namespace ORB_SLAM2
             if (level != 0)
             {
                 // getScale(level, firstLevel, scaleFactor);
-                float scale = mvScaleFactor[level];
-                
-                vector<KeyPoint>::iterator keypoint = keypoints.begin();
-                vector<KeyPoint>::iterator keypointEnd = keypoints.end();
+                float scale = mvScaleFactor[level];                
+                vector<KeyPoint>::iterator kp_it, kp_end = keypoints.end();
 
-                for (; keypoint != keypointEnd; ++keypoint)
+                for (kp_it = keypoints.begin(); kp_it != kp_end; kp_it++)
                 {
                     // 根據縮放尺度校正關鍵點的位置（應該是校正到原圖上的位置？）
-                    keypoint->pt *= scale;
+                    kp_it->pt *= scale;
                 }
             }
 

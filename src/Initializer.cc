@@ -39,7 +39,7 @@ namespace ORB_SLAM2
     Initializer::Initializer(const Frame &ReferenceFrame, float sigma, int iterations)
     {
         // 相機的內參矩陣
-        mK = ReferenceFrame.mK.clone();
+        mK = ReferenceFrame.K.clone();
 
         // 參考幀中提取的特征點（已校正）
         mvKeys1 = ReferenceFrame.mvKeysUn;

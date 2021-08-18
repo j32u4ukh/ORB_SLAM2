@@ -113,8 +113,8 @@ namespace ORB_SLAM2
             }
         }
 
-        mK1 = pKF1->mK;
-        mK2 = pKF2->mK;
+        mK1 = pKF1->K;
+        mK2 = pKF2->K;
 
         // 利用『相機內參 mK1』將『空間點 mvX3Dc1』由世界座標轉換到『成像平面座標 mvP1im1』
         FromCameraToImage(mvX3Dc1, mvP1im1, mK1);

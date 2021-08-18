@@ -39,11 +39,11 @@ namespace ORB_SLAM2
 
     // 第一幀初始化用 Frame
     Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor *extractor, 
-                 ORBVocabulary *voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, 
+                 ORBVocabulary *voc, cv::Mat &_K, cv::Mat &distCoef, const float &bf, 
                  const float &thDepth) : 
                  mpORBvocabulary(voc), mpORBextractorLeft(extractor), 
                  mpORBextractorRight(static_cast<ORBextractor *>(NULL)), mTimeStamp(timeStamp), 
-                 mK(K.clone()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
+                 K(_K.clone()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
     {
         // Frame ID
         mnId = nNextId++;
@@ -88,10 +88,10 @@ namespace ORB_SLAM2
             mfGridElementHeightInv = static_cast<float>(FRAME_GRID_ROWS) / 
                                                                     static_cast<float>(mnMaxY - mnMinY);
 
-            fx = K.at<float>(0, 0);
-            fy = K.at<float>(1, 1);
-            cx = K.at<float>(0, 2);
-            cy = K.at<float>(1, 2);
+            fx = _K.at<float>(0, 0);
+            fy = _K.at<float>(1, 1);
+            cx = _K.at<float>(0, 2);
+            cy = _K.at<float>(1, 2);
 
             invfx = 1.0f / fx;
             invfy = 1.0f / fy;
@@ -108,7 +108,7 @@ namespace ORB_SLAM2
     Frame::Frame(const Frame &frame) : 
         mpORBvocabulary(frame.mpORBvocabulary), mpORBextractorLeft(frame.mpORBextractorLeft), 
         mpORBextractorRight(frame.mpORBextractorRight), mTimeStamp(frame.mTimeStamp), 
-        mK(frame.mK.clone()), mDistCoef(frame.mDistCoef.clone()), mbf(frame.mbf), mb(frame.mb), 
+        K(frame.K.clone()), mDistCoef(frame.mDistCoef.clone()), mbf(frame.mbf), mb(frame.mb), 
         mThDepth(frame.mThDepth), N(frame.N), mvKeys(frame.mvKeys), mvKeysRight(frame.mvKeysRight), 
         mvKeysUn(frame.mvKeysUn), mvuRight(frame.mvuRight), mvDepth(frame.mvDepth), 
         mBowVec(frame.mBowVec), mFeatVec(frame.mFeatVec), mDescriptors(frame.mDescriptors.clone()), 
@@ -194,7 +194,7 @@ namespace ORB_SLAM2
 
         參考：https://blog.csdn.net/jonathanzh/article/details/104418758
         */
-        cv::undistortPoints(mat, mat, mK, mDistCoef, cv::Mat(), mK);
+        cv::undistortPoints(mat, mat, K, mDistCoef, cv::Mat(), K);
 
         mat = mat.reshape(1);
 
@@ -230,7 +230,7 @@ namespace ORB_SLAM2
 
             // Undistort corners
             mat = mat.reshape(2);
-            cv::undistortPoints(mat, mat, mK, mDistCoef, cv::Mat(), mK);
+            cv::undistortPoints(mat, mat, K, mDistCoef, cv::Mat(), K);
             mat = mat.reshape(1);
 
             mnMinX = min(mat.at<float>(0, 0), mat.at<float>(2, 0));
@@ -250,27 +250,28 @@ namespace ORB_SLAM2
     // 寫入各個網格所包含的關鍵點的索引值
     void Frame::AssignFeaturesToGrid()
     {
-        int nReserve = 0.5f * N / (FRAME_GRID_COLS * FRAME_GRID_ROWS);
+        int n_reserve = 0.5f * N / (FRAME_GRID_COLS * FRAME_GRID_ROWS);
+        unsigned int i, j;
+        int idx, nGridPosX, nGridPosY;
 
-        for (unsigned int i = 0; i < FRAME_GRID_COLS; i++)
+        for (i = 0; i < FRAME_GRID_COLS; i++)
         {
-            for (unsigned int j = 0; j < FRAME_GRID_ROWS; j++)
+            for (j = 0; j < FRAME_GRID_ROWS; j++)
             {                
                 // 配置足夠的記憶體大小
-                mGrid[i][j].reserve(nReserve);
+                mGrid[i][j].reserve(n_reserve);
             }
         }
         
-        for (int i = 0; i < N; i++)
+        for (idx = 0; idx < N; idx++)
         {
-            const cv::KeyPoint &kp = mvKeysUn[i];
-            int nGridPosX, nGridPosY;
+            const cv::KeyPoint &kp = mvKeysUn[idx];
 
             // 判斷關鍵點是否在影像區域內，並將關鍵點所在網格位置返回至 nGridPosX 和 nGridPosY
             if (PosInGrid(kp, nGridPosX, nGridPosY))
             {
                 // 紀錄網格 mGrid[nGridPosX][nGridPosY] 所包含的關鍵點的索引值
-                mGrid[nGridPosX][nGridPosY].push_back(i);
+                mGrid[nGridPosX][nGridPosY].push_back(idx);
             }
         }
     }
@@ -500,9 +501,9 @@ namespace ORB_SLAM2
 
     Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp, 
                  ORBextractor *extractorLeft, ORBextractor *extractorRight, ORBVocabulary *voc, 
-                 cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth) : 
+                 cv::Mat &_K, cv::Mat &distCoef, const float &bf, const float &thDepth) : 
                  mpORBvocabulary(voc), mpORBextractorLeft(extractorLeft), 
-                 mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), mK(K.clone()), 
+                 mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), K(_K.clone()), 
                  mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth), 
                  mpReferenceKF(static_cast<KeyFrame *>(NULL))
     {
@@ -546,10 +547,10 @@ namespace ORB_SLAM2
             mfGridElementWidthInv = static_cast<float>(FRAME_GRID_COLS) / (mnMaxX - mnMinX);
             mfGridElementHeightInv = static_cast<float>(FRAME_GRID_ROWS) / (mnMaxY - mnMinY);
 
-            fx = K.at<float>(0, 0);
-            fy = K.at<float>(1, 1);
-            cx = K.at<float>(0, 2);
-            cy = K.at<float>(1, 2);
+            fx = _K.at<float>(0, 0);
+            fy = _K.at<float>(1, 1);
+            cx = _K.at<float>(0, 2);
+            cy = _K.at<float>(1, 2);
             invfx = 1.0f / fx;
             invfy = 1.0f / fy;
 
@@ -562,11 +563,11 @@ namespace ORB_SLAM2
     }
 
     Frame::Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, 
-                 ORBextractor *extractor, ORBVocabulary *voc, cv::Mat &K, cv::Mat &distCoef, 
+                 ORBextractor *extractor, ORBVocabulary *voc, cv::Mat &_K, cv::Mat &distCoef, 
                  const float &bf, const float &thDepth) : 
                  mpORBvocabulary(voc), mpORBextractorLeft(extractor), 
                  mpORBextractorRight(static_cast<ORBextractor *>(NULL)), mTimeStamp(timeStamp), 
-                 mK(K.clone()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
+                 K(_K.clone()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
     {
         // Frame ID
         mnId = nNextId++;
@@ -606,10 +607,10 @@ namespace ORB_SLAM2
             mfGridElementHeightInv = static_cast<float>(FRAME_GRID_ROWS) / 
                                                                 static_cast<float>(mnMaxY - mnMinY);
 
-            fx = K.at<float>(0, 0);
-            fy = K.at<float>(1, 1);
-            cx = K.at<float>(0, 2);
-            cy = K.at<float>(1, 2);
+            fx = _K.at<float>(0, 0);
+            fy = _K.at<float>(1, 1);
+            cx = _K.at<float>(0, 2);
+            cy = _K.at<float>(1, 2);
 
             invfx = 1.0f / fx;
             invfy = 1.0f / fy;

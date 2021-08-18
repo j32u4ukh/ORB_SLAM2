@@ -216,6 +216,7 @@ namespace ORB_SLAM2
         }
 
         // Check reset
+        /// TODO: 目前按了 Reset 就會崩潰，應重新檢查這個執行續
         {
             unique_lock<mutex> lock(mMutexReset);
 

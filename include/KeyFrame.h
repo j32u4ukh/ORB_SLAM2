@@ -207,7 +207,7 @@ namespace ORB_SLAM2
         const int mnMinY;
         const int mnMaxX;
         const int mnMaxY;
-        const cv::Mat mK;
+        const cv::Mat K;
 
         // The following variables need to be accessed trough a mutex to be thread safe.
     protected:

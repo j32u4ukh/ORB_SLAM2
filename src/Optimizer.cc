@@ -483,8 +483,8 @@ namespace ORB_SLAM2
         optimizer.setAlgorithm(solver);
 
         // Calibration 相機內參
-        const cv::Mat &K1 = pKF1->mK;
-        const cv::Mat &K2 = pKF2->mK;
+        const cv::Mat &K1 = pKF1->K;
+        const cv::Mat &K2 = pKF2->K;
 
         // Camera poses
         const cv::Mat R1w = pKF1->GetRotation();
