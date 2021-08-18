@@ -106,13 +106,21 @@ protected:
     std::vector<cv::KeyPoint> DistributeOctTree(const std::vector<cv::KeyPoint>& vToDistributeKeys, const int &minX,
                                            const int &maxX, const int &minY, const int &maxY, const int &nFeatures, const int &level);
 
-    void computeKeyPoints(std::vector<std::vector<cv::KeyPoint>> &all_keypoints, 
+    inline void computeKeyPoints(std::vector<std::vector<cv::KeyPoint>> &all_keypoints, 
                                         const float W, const int level);
-    void computeFastFeature(const int i, const int level, const int n_col,
+    inline void computeFastFeature(const int i, const int level, const int n_col,
                                           const int min_x, const int max_x, 
                                           const int min_y, const int max_y, 
                                           const int cell_w, const int cell_h,
                                           std::vector<cv::KeyPoint> &distribute_keys);
+
+    static float IC_Angle(const cv::Mat &image, cv::Point2f pt, const std::vector<int> &u_max);
+    static void computeOrbDescriptor(const cv::KeyPoint &kpt, const cv::Mat &img, 
+                                     const cv::Point *pattern, uchar *desc);
+    static void computeOrientation(const cv::Mat &image, std::vector<cv::KeyPoint> &keypoints, 
+                                   const std::vector<int> &umax);
+    static void computeDescriptors(const cv::Mat &image, std::vector<cv::KeyPoint> &keypoints, 
+                                   cv::Mat &descriptors, const std::vector<cv::Point> &pattern);
 
     void ComputeKeyPointsOld(std::vector<std::vector<cv::KeyPoint> >& allKeypoints);
     std::vector<cv::Point> pattern;

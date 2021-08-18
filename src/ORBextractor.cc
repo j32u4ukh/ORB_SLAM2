@@ -74,7 +74,7 @@ namespace ORB_SLAM2
     const float factorPI = (float)(CV_PI / 180.f);
     
     // 灰階質心法，計算區塊 image 的角度
-    static float IC_Angle(const Mat &image, Point2f pt, const vector<int> &u_max)
+    float ORBextractor::IC_Angle(const Mat &image, Point2f pt, const vector<int> &u_max)
     {
         int m_01 = 0, m_10 = 0;
 
@@ -109,8 +109,8 @@ namespace ORB_SLAM2
 
     // 計算 KeyPoint &kpt 的 ORB 描述子，更新 descriptors[row_i] 的數值
     // uchar *desc 為 Mat &descriptors row_i 的指標（參考 computeDescriptors）
-    static void computeOrbDescriptor(const KeyPoint &kpt, const Mat &img, const Point *pattern, 
-                                     uchar *desc)
+    void ORBextractor::computeOrbDescriptor(const KeyPoint &kpt, const Mat &img, const Point *pattern, 
+                                            uchar *desc)
     {
         // factorPI = math.pi / 180 = 0.01745
         // 將 kpt.angle 轉換為弧度
@@ -427,7 +427,7 @@ namespace ORB_SLAM2
     };
 
     // 利用灰階質心法計算特徵點的角度（角度資訊儲存於 KeyPoint 當中）
-    static void computeOrientation(const Mat &image, vector<KeyPoint> &keypoints, 
+    void ORBextractor::computeOrientation(const Mat &image, vector<KeyPoint> &keypoints, 
                                    const vector<int> &umax)
     {
         for(cv::KeyPoint keypoint : keypoints)
@@ -438,8 +438,8 @@ namespace ORB_SLAM2
     }
     
     // 計算 ORB 描述子，儲存至 descriptors
-    static void computeDescriptors(const Mat &image, vector<KeyPoint> &keypoints, Mat &descriptors,
-                                   const vector<Point> &pattern)
+    void ORBextractor::computeDescriptors(const Mat &image, vector<KeyPoint> &keypoints, 
+                                          Mat &descriptors, const vector<Point> &pattern)
     {
         descriptors = Mat::zeros((int)keypoints.size(), 32, CV_8UC1);
 
@@ -575,10 +575,10 @@ namespace ORB_SLAM2
         ComputePyramid(image);
 
         // 影像金字塔各層級的 ORB 特徵點 shape = (金字塔層數, 特徵點數)
-        vector<vector<KeyPoint>> allKeypoints;
+        vector<vector<KeyPoint>> all_keypoints;
 
         // 計算影像金字塔各層級的 ORB 特徵點(包含位置與角度，角度資訊儲存於 KeyPoint 當中)
-        ComputeKeyPointsOctTree(allKeypoints);
+        ComputeKeyPointsOctTree(all_keypoints);
         //ComputeKeyPointsOld(allKeypoints);
 
         Mat descriptors;
@@ -588,7 +588,7 @@ namespace ORB_SLAM2
 
         for (int level = 0; level < nlevels; ++level)
         {
-            nkeypoints += (int)allKeypoints[level].size();
+            nkeypoints += (int)all_keypoints[level].size();
         }
 
         if (nkeypoints == 0)
@@ -608,7 +608,7 @@ namespace ORB_SLAM2
 
         for (int level = 0; level < nlevels; ++level)
         {
-            vector<KeyPoint> &keypoints = allKeypoints[level];
+            vector<KeyPoint> &keypoints = all_keypoints[level];
 
             // 金字塔第 level 層的 ORB 特徵點個數
             int nkeypointsLevel = (int)keypoints.size();
@@ -704,110 +704,7 @@ namespace ORB_SLAM2
         // 遍歷影像金字塔各層
         for (int level = 0; level < nlevels; level++)
         {
-            // ===== Start computeKeyPoints =====
             computeKeyPoints(allKeypoints, W, level);
-            // const int minBorderX = EDGE_THRESHOLD - 3;
-            // const int minBorderY = minBorderX;
-            // const int maxBorderX = mvImagePyramid[level].cols - EDGE_THRESHOLD + 3;
-            // const int maxBorderY = mvImagePyramid[level].rows - EDGE_THRESHOLD + 3;
-
-            // vector<cv::KeyPoint> vToDistributeKeys;
-            // vToDistributeKeys.reserve(nfeatures * 10);
-
-            // const float width = (maxBorderX - minBorderX);
-            // const float height = (maxBorderY - minBorderY);
-
-            // const int nCols = width / W;
-            // const int nRows = height / W;
-            // const int wCell = ceil(width / nCols);
-            // const int hCell = ceil(height / nRows);
-
-            // // 將影像化分成多個區塊，在各區塊中尋找 FAST 特徵
-            // for (int i = 0; i < nRows; i++)
-            // {
-            //     const float iniY = minBorderY + i * hCell;
-            //     float maxY = iniY + hCell + 6;
-
-            //     if (iniY >= maxBorderY - 3){
-            //         continue;
-            //     }
-                    
-            //     if (maxY > maxBorderY){
-            //         maxY = maxBorderY;
-            //     }                    
-
-            //     for (int j = 0; j < nCols; j++)
-            //     {
-            //         const float iniX = minBorderX + j * wCell;
-            //         float maxX = iniX + wCell + 6;
-
-            //         if (iniX >= maxBorderX - 6){
-            //             continue;
-            //         }
-                        
-            //         if (maxX > maxBorderX){
-            //             maxX = maxBorderX;
-            //         }                        
-
-            //         vector<cv::KeyPoint> vKeysCell;
-
-            //         /*void FAST( InputArray image, CV_OUT std::vector<KeyPoint>& keypoints,
-            //           int threshold, bool nonmaxSuppression=true )
-                    
-            //         image：在此圖片中尋找特徵點
-            //         vKeysCell： 存入找到的特徵點之容器
-            //         iniThFAST：中心像素強度與該像素周圍圓圈像素之間差異的閾值。
-            //         true: 對鄰近得分較低的點的抑制。
-            //         */
-            //         FAST(mvImagePyramid[level].rowRange(iniY, maxY).colRange(iniX, maxX),
-            //              vKeysCell, iniThFAST, true);
-
-            //         // 若找不到特徵點
-            //         if (vKeysCell.empty())
-            //         {
-            //             // 使用最低門檻來重新搜尋
-            //             FAST(mvImagePyramid[level].rowRange(iniY, maxY).colRange(iniX, maxX),
-            //                  vKeysCell, minThFAST, true);
-            //         }
-
-            //         // 若特徵點不為空
-            //         if (!vKeysCell.empty())
-            //         {
-            //             for(cv::KeyPoint keypoint : vKeysCell){
-
-            //                 // 將特徵點的位置，校正為各層級圖中的位置
-            //                 keypoint.pt.x += j * wCell;
-            //                 keypoint.pt.y += i * hCell;
-
-            //                 vToDistributeKeys.push_back(keypoint);
-            //             }
-            //         }
-            //     }
-            // }
-
-            // vector<KeyPoint> &keypoints = allKeypoints[level];
-            // keypoints.reserve(nfeatures);
-
-            // // 持續將影像拆分成 4 個 ExtractorNode ，直到個數達到指定數量或再拆分也無法增加個數
-            // // 並篩選出各個 ExtractorNode 當中 response 值最高的 cv::KeyPoint，存入 keypoints
-            // keypoints = DistributeOctTree(vToDistributeKeys, minBorderX, maxBorderX,
-            //                               minBorderY, maxBorderY, mnFeaturesPerLevel[level], level);
-
-            // const int scaledPatchSize = PATCH_SIZE * mvScaleFactor[level];
-
-            // // Add border to coordinates and scale information
-            // const int nkps = keypoints.size();
-
-            // for (int i = 0; i < nkps; i++)
-            // {
-            //     // 特徵點的位置是以縮放後的影像為依據，而非原圖
-            //     keypoints[i].pt.x += minBorderX;
-            //     keypoints[i].pt.y += minBorderY;
-            //     keypoints[i].octave = level;
-            //     keypoints[i].size = scaledPatchSize;
-            // }
-
-            // ===== End computeKeyPoints =====
         }
 
         // compute orientations
