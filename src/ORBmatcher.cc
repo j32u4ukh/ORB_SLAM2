@@ -1960,35 +1960,36 @@ namespace ORB_SLAM2
         // 檢查方向
         if (mbCheckOrientation)
         {
-            int ind1 = -1;
-            int ind2 = -1;
-            int ind3 = -1;
+            nmatches = convergenceMatched(nmatches, rotHist, vnMatches12, -1);
+            // int ind1 = -1;
+            // int ind2 = -1;
+            // int ind3 = -1;
 
-            // ind1, ind2, ind3：前三多角度的直方格的索引值
-            // 篩選前三多直方格的索引值
-            ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
+            // // ind1, ind2, ind3：前三多角度的直方格的索引值
+            // // 篩選前三多直方格的索引值
+            // ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
 
-            for (int i = 0; i < HISTO_LENGTH; i++)
-            {
-                if (i == ind1 || i == ind2 || i == ind3){
-                    continue;
-                }
+            // for (int i = 0; i < HISTO_LENGTH; i++)
+            // {
+            //     if (i == ind1 || i == ind2 || i == ind3){
+            //         continue;
+            //     }
                 
-                // 不屬於『前三多角度的直方格的索引值』，表示第 i 個直方格的角度和大部分的不同
-                // F1 運動到 F2，關鍵點的變化情形（如角度）應該相似，若角度不同，很可能是誤匹配
-                for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
-                {
-                    int idx1 = rotHist[i][j];
+            //     // 不屬於『前三多角度的直方格的索引值』，表示第 i 個直方格的角度和大部分的不同
+            //     // F1 運動到 F2，關鍵點的變化情形（如角度）應該相似，若角度不同，很可能是誤匹配
+            //     for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+            //     {
+            //         int idx1 = rotHist[i][j];
 
-                    // 若有匹配到
-                    if (vnMatches12[idx1] >= 0)
-                    {
-                        // 取消匹配認定
-                        vnMatches12[idx1] = -1;
-                        nmatches--;
-                    }
-                }
-            }
+            //         // 若有匹配到
+            //         if (vnMatches12[idx1] >= 0)
+            //         {
+            //             // 取消匹配認定
+            //             vnMatches12[idx1] = -1;
+            //             nmatches--;
+            //         }
+            //     }
+            // }
         }
 
         // Update prev matched
@@ -2188,6 +2189,65 @@ namespace ORB_SLAM2
         }
     }
     
+    // int ORBmatcher::convergenceMatched(int n_match, vector<int> &rot_hist, vector<int> &v_matched){
+    //     int i, ind1 = -1, ind2 = -1, ind3 = -1;
+    //     size_t j, jend;
+
+    //     // 篩選前三多直方格的索引值
+    //     ComputeThreeMaxima(rot_hist, HISTO_LENGTH, ind1, ind2, ind3);
+
+    //     for (i = 0; i < HISTO_LENGTH; i++)
+    //     {
+    //         if (i == ind1 || i == ind2 || i == ind3)
+    //         {
+    //             continue;
+    //         }
+
+    //         jend = rot_hist[i].size();
+
+    //         for (j = 0; j < jend; j++)
+    //         {
+    //             v_matched[rot_hist[i][j]] = -1;
+    //             n_match--;
+    //         }
+    //     }
+
+    //     return n_match;
+    // }
+
+    // T: vector<int> / vector<MapPoint *>
+    // default_value: -1 / static_cast<MapPoint *>(NULL)
+    template<class T, class D>
+    int ORBmatcher::convergenceMatched(int n_match, vector<int> *rot_hist, 
+                                       vector<T> &v_matched, D default_value){
+        int i, ind1 = -1, ind2 = -1, ind3 = -1;
+        size_t j, jend;
+
+        // 篩選前三多直方格的索引值
+        ComputeThreeMaxima(rot_hist, HISTO_LENGTH, ind1, ind2, ind3);
+
+        for (i = 0; i < HISTO_LENGTH; i++)
+        {
+            if (i == ind1 || i == ind2 || i == ind3)
+            {
+                continue;
+            }
+
+            jend = rot_hist[i].size();
+
+            for (j = 0; j < jend; j++)
+            {
+                /// TODO: rot_hist 當中就是儲存配對到的資訊，因此不檢查也可以
+                if(v_matched[rot_hist[i][j]])
+                {
+                    v_matched[rot_hist[i][j]] = default_value;
+                    n_match--;
+                }
+            }
+        }
+
+        return n_match;
+    }
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================

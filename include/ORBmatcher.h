@@ -81,6 +81,9 @@ namespace ORB_SLAM2
         // Project MapPoints into KeyFrame using a given Sim3 and search for duplicated MapPoints.
         int Fuse(KeyFrame *pKF, cv::Mat Scw, const std::vector<MapPoint *> &vpPoints, float th, vector<MapPoint *> &vpReplacePoint);
 
+        template<class T, class D>
+        int convergenceMatched(int n_match, vector<int> *rot_hist,
+                               vector<T> &v_matched, D default_value);
     public:
         static const int TH_LOW;
         static const int TH_HIGH;

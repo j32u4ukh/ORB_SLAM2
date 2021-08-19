@@ -43,11 +43,11 @@ mean tracking time: 0.0943997
 #MapPoint: 76626
 
 Vocabulary loaded! Cost 10.8229 s.
-#KeyFrame: 708
-#MapPoint: 91166
-Total time: 7:12.1813
-Median tracking time: 0.0855836
-Mean tracking time: 0.0951732
+#KeyFrame: 788
+#MapPoint: 100013
+Total time: 6:12.6663
+Median tracking time: 0.0735099
+Mean tracking time: 0.082067
 
 
 
@@ -128,6 +128,96 @@ if (mbCheckOrientation)
     int ind2 = -1;
     int ind3 = -1;
 
+    // 篩選前三多直方格的索引值
+    ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
+
+    for (int i = 0; i < HISTO_LENGTH; i++)
+    {
+        if (i == ind1 || i == ind2 || i == ind3)
+            continue;
+        for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+        {
+            vMatches12[rotHist[i][j]] = -1;
+            nmatches--;
+        }
+    }
+}
+
+if (mbCheckOrientation)
+{
+    int ind1 = -1;
+    int ind2 = -1;
+    int ind3 = -1;
+
+    // 篩選前三多直方格的索引值
+    ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
+
+    for (int i = 0; i < HISTO_LENGTH; i++)
+    {
+        if (i == ind1 || i == ind2 || i == ind3){
+            continue;
+        }
+
+        for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+        {
+            vpMatches12[rotHist[i][j]] = static_cast<MapPoint *>(NULL);
+            nmatches--;
+        }
+    }
+}
+
+if (mbCheckOrientation)
+{
+    int ind1 = -1;
+    int ind2 = -1;
+    int ind3 = -1;
+
+    // ind1, ind2, ind3：前三多角度的直方格的索引值
+    // 篩選前三多直方格的索引值
+    ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
+
+    for (int i = 0; i < HISTO_LENGTH; i++)
+    {
+        if (i != ind1 && i != ind2 && i != ind3)
+        {
+            for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+            {
+                CurrentFrame.mvpMapPoints[rotHist[i][j]] = static_cast<MapPoint *>(NULL);
+                nmatches--;
+            }
+        }
+    }
+}
+
+if (mbCheckOrientation)
+{
+    int ind1 = -1;
+    int ind2 = -1;
+    int ind3 = -1;
+
+    // ind1, ind2, ind3：前三多角度的直方格的索引值
+    // 篩選前三多直方格的索引值
+    ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
+
+    for (int i = 0; i < HISTO_LENGTH; i++)
+    {
+        if (i != ind1 && i != ind2 && i != ind3)
+        {
+            for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+            {
+                CurrentFrame.mvpMapPoints[rotHist[i][j]] = NULL;
+                nmatches--;
+            }
+        }
+    }
+}
+
+if (mbCheckOrientation)
+{
+    int ind1 = -1;
+    int ind2 = -1;
+    int ind3 = -1;
+
     // ind1, ind2, ind3：前三多角度的直方格的索引值
     // 篩選前三多直方格的索引值
     ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
@@ -155,4 +245,26 @@ if (mbCheckOrientation)
     }
 }
 
+if (mbCheckOrientation)
+{
+    int ind1 = -1;
+    int ind2 = -1;
+    int ind3 = -1;
+
+    // 篩選前三多直方格的索引值
+    ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
+
+    for (int i = 0; i < HISTO_LENGTH; i++)
+    {
+        if (i == ind1 || i == ind2 || i == ind3){
+            continue;
+        }
+
+        for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+        {
+            vpMapPointMatches[rotHist[i][j]] = static_cast<MapPoint *>(NULL);
+            nmatches--;
+        }
+    }
+}
 
