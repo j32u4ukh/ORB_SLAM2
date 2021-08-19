@@ -273,6 +273,8 @@ namespace ORB_SLAM2
 
             mpFrameDrawer->Update(this);
 
+            // 若是 MonocularInitialization 階段判斷特徵點數量不足，
+            // 會直接返回，mState 仍維持著 NOT_INITIALIZED，在這裡的判斷也會直接返回
             if (mState != OK)
             {
                 return;
@@ -620,6 +622,7 @@ namespace ORB_SLAM2
 
                 if (mpInitializer)
                 {
+                    std::cout << "delete mpInitializer in MonocularInitialization" << std::endl;
                     delete mpInitializer;
                 }
 
@@ -637,9 +640,10 @@ namespace ORB_SLAM2
         else
         {
             // Try to initialize
-            // 我們再次檢查當前幀的特征點數量，如果太少將銷毀參考幀，重新構建mpInitializer。
+            // 我們再次檢查當前幀（第 2 幀）的特征點數量，如果太少將銷毀參考幀，重新構建 mpInitializer。
             if ((int)mCurrentFrame.mvKeys.size() <= 100)
             {
+                // mpInitializer 設置為空，下次會再從第一幀開始累積
                 delete mpInitializer;
                 mpInitializer = static_cast<Initializer *>(NULL);
                 fill(mvIniMatches.begin(), mvIniMatches.end(), -1);

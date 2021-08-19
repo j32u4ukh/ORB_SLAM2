@@ -43,11 +43,11 @@ mean tracking time: 0.0943997
 #MapPoint: 76626
 
 Vocabulary loaded! Cost 10.8229 s.
-#KeyFrame: 751
-#MapPoint: 91259
-Total time: 7:24.2551
-Median tracking time: 0.0842678
-Mean tracking time: 0.097832
+#KeyFrame: 708
+#MapPoint: 91166
+Total time: 7:12.1813
+Median tracking time: 0.0855836
+Mean tracking time: 0.0951732
 
 
 
@@ -120,6 +120,39 @@ e12->setMeasurement(obs1);
 
 
 
+[檢查方向]
 
+if (mbCheckOrientation)
+{
+    int ind1 = -1;
+    int ind2 = -1;
+    int ind3 = -1;
+
+    // ind1, ind2, ind3：前三多角度的直方格的索引值
+    // 篩選前三多直方格的索引值
+    ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
+
+    for (int i = 0; i < HISTO_LENGTH; i++)
+    {
+        if (i == ind1 || i == ind2 || i == ind3){
+            continue;
+        }
+        
+        // 不屬於『前三多角度的直方格的索引值』，表示第 i 個直方格的角度和大部分的不同
+        // F1 運動到 F2，關鍵點的變化情形（如角度）應該相似，若角度不同，很可能是誤匹配
+        for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+        {
+            int idx1 = rotHist[i][j];
+
+            // 若有匹配到
+            if (vnMatches12[idx1] >= 0)
+            {
+                // 取消匹配認定
+                vnMatches12[idx1] = -1;
+                nmatches--;
+            }
+        }
+    }
+}
 
 

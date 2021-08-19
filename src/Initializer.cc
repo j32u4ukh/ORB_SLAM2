@@ -39,7 +39,7 @@ namespace ORB_SLAM2
     Initializer::Initializer(const Frame &ReferenceFrame, float sigma, int iterations)
     {
         // 相機的內參矩陣
-        mK = ReferenceFrame.K.clone();
+        K = ReferenceFrame.K.clone();
 
         // 參考幀中提取的特征點（已校正）
         mvKeys1 = ReferenceFrame.mvKeysUn;
@@ -158,7 +158,7 @@ namespace ORB_SLAM2
         {
             // 『兩相機間有足夠的夾角，且分別相機上的重投影誤差都足夠小』條件下，
             // 估計空間點 vP3D（過程中包含估計旋轉和平移）時，單應矩陣會有 8 種可能，比較各種可能的表現，挑選最佳的可能點
-            return ReconstructH(vbMatchesInliersH, H, mK, R21, t21, vP3D, vbTriangulated, 1.0, 50);
+            return ReconstructH(vbMatchesInliersH, H, K, R21, t21, vP3D, vbTriangulated, 1.0, 50);
         }
 
         // if(pF_HF > 0.6)
@@ -166,7 +166,7 @@ namespace ORB_SLAM2
         {
             // 利用『基礎矩陣』估計空間點 vP3D（過程中包含估計旋轉和平移）時會有 4 種可能，比較各種可能的表現，
             // 挑選最佳的可能點
-            return ReconstructF(vbMatchesInliersF, F, mK, R21, t21, vP3D, vbTriangulated, 1.0, 50);
+            return ReconstructF(vbMatchesInliersF, F, K, R21, t21, vP3D, vbTriangulated, 1.0, 50);
         }
 
         return false;

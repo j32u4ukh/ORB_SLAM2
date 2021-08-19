@@ -83,6 +83,7 @@ namespace ORB_SLAM2
             // 計算（扭曲校正後的）影像的四個頂點 mnMaxX, mnMinX, mnMaxY, mnMinY
             ComputeImageBounds(imGray);
 
+            // 格數 / X 總距離
             mfGridElementWidthInv = static_cast<float>(FRAME_GRID_COLS) / 
                                                                     static_cast<float>(mnMaxX - mnMinX);
             mfGridElementHeightInv = static_cast<float>(FRAME_GRID_ROWS) / 
@@ -315,41 +316,53 @@ namespace ORB_SLAM2
         vector<size_t> vIndices;
         vIndices.reserve(N);
 
-        // X 方向網格最小個數
-        const int nMinCellX = max(0, (int)floor((x - mnMinX - r) * mfGridElementWidthInv));
-
-        if (nMinCellX >= FRAME_GRID_COLS){
+        // mfGridElementWidthInv = FRAME_GRID_COLS / (mnMaxX - mnMinX)
+        // X 網格距離(x - mnMinX - r) * 格數 / X 總距離 ＝ 網格 X 方向網格索引值最小值
+        // nMinCellX >= FRAME_GRID_COLS => x - r >= x_max
+        // nMaxCellX < 0 => x + r < mnMinX
+        // nMinCellY >= FRAME_GRID_ROWS => y - r >= mnMaxY
+        // nMaxCellY < 0 => y + r < mnMinY
+        if((x - r >= mnMaxX) || (x + r < mnMinX) || (y - r >= mnMaxY) || (y + r < mnMinY))
+        {
             return vIndices;
         }
+        
+        const int nMinCellX = max(0, (int)floor((x - mnMinX - r) * mfGridElementWidthInv));
 
-        // X 方向網格最大個數
+        // if (nMinCellX >= FRAME_GRID_COLS){
+        //     return vIndices;
+        // }
+
+        // X 網格距離(x - mnMinX + r) * 格數 / X 總距離 ＝ 網格 X 方向網格索引值最大值
         const int nMaxCellX = min((int)FRAME_GRID_COLS - 1, 
                                   (int)ceil((x - mnMinX + r) * mfGridElementWidthInv));
 
-        if (nMaxCellX < 0){
-            return vIndices;
-        }
+        // if (nMaxCellX < 0){
+        //     return vIndices;
+        // }
 
+        // mfGridElementHeightInv = FRAME_GRID_ROWS / (mnMaxY - mnMinY)
         // Y 方向網格最小個數
         const int nMinCellY = max(0, (int)floor((y - mnMinY - r) * mfGridElementHeightInv));
 
-        if (nMinCellY >= FRAME_GRID_ROWS){
-            return vIndices;
-        }
+        // if (nMinCellY >= FRAME_GRID_ROWS){
+        //     return vIndices;
+        // }
 
         // Y 方向網格最大個數
         const int nMaxCellY = min((int)FRAME_GRID_ROWS - 1, 
                                   (int)ceil((y - mnMinY + r) * mfGridElementHeightInv));
 
-        if (nMaxCellY < 0){
-            return vIndices;
-        }
+        // if (nMaxCellY < 0){
+        //     return vIndices;
+        // }
 
         const bool bCheckLevels = (minLevel > 0) || (maxLevel >= 0);
+        int ix, iy;
 
-        for (int ix = nMinCellX; ix <= nMaxCellX; ix++)
+        for (ix = nMinCellX; ix <= nMaxCellX; ix++)
         {
-            for (int iy = nMinCellY; iy <= nMaxCellY; iy++)
+            for (iy = nMinCellY; iy <= nMaxCellY; iy++)
             {
                 // 網格(ix, iy) 所包含的關鍵點的索引值
                 const vector<size_t> vCell = mGrid[ix][iy];
@@ -366,12 +379,15 @@ namespace ORB_SLAM2
                     // 檢查層級是否超出 minLevel 與 maxLevel 的範圍
                     if (bCheckLevels)
                     {
-                        if (kpUn.octave < minLevel){
+                        if (kpUn.octave < minLevel)
+                        {
                             continue;
                         }
                         
-                        if (maxLevel >= 0){
-                            if (kpUn.octave > maxLevel){
+                        if (maxLevel >= 0)
+                        {
+                            if (kpUn.octave > maxLevel)
+                            {
                                 continue;
                             }
                         }   

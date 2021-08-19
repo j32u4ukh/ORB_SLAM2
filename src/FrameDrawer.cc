@@ -269,6 +269,7 @@ namespace ORB_SLAM2
             mvIniKeys = pTracker->mInitialFrame.mvKeys;
             mvIniMatches = pTracker->mvIniMatches;
         }
+        
         else if (pTracker->mLastProcessedState == Tracking::OK)
         {
             for (int i = 0; i < N; i++)

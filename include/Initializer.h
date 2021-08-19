@@ -83,7 +83,7 @@ private:
     vector<bool> mvbMatched1;
 
     // Calibration
-    cv::Mat mK;
+    cv::Mat K;
 
     // Standard Deviation and Variance
     float mSigma, mSigma2;
