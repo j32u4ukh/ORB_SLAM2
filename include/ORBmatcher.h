@@ -82,8 +82,11 @@ namespace ORB_SLAM2
         int Fuse(KeyFrame *pKF, cv::Mat Scw, const std::vector<MapPoint *> &vpPoints, float th, vector<MapPoint *> &vpReplacePoint);
 
         template<class T, class D>
-        inline int convergenceMatched(int n_match, vector<int> *rot_hist, 
-                                      vector<T> &v_matched, D default_value);
+        inline int convergenceMatched(int n_match, std::vector<int> *rot_hist, 
+                                      std::vector<T> &v_matched, D default_value);
+
+        void updateRotHist(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, 
+                           const float factor, const int idx, std::vector<int> *rot_hist);
     public:
         static const int TH_LOW;
         static const int TH_HIGH;

@@ -231,22 +231,24 @@ namespace ORB_SLAM2
                         // 檢查方向
                         if (mbCheckOrientation)
                         {
-                            // 計算角度差
-                            float rot = kp1.angle - kp2.angle;
+                            updateRotHist(kp1, kp2, factor, idx1, rotHist);
 
-                            if (rot < 0.0){
-                                rot += 360.0f;
-                            }
+                            // // 計算角度差
+                            // float rot = kp1.angle - kp2.angle;
 
-                            // 角度差換算成直方圖的格子索引值
-                            int bin = round(rot * factor);
+                            // if (rot < 0.0){
+                            //     rot += 360.0f;
+                            // }
 
-                            if (bin == HISTO_LENGTH){
-                                bin = 0;
-                            }
+                            // // 角度差換算成直方圖的格子索引值
+                            // int bin = round(rot * factor);
 
-                            assert(bin >= 0 && bin < HISTO_LENGTH);
-                            rotHist[bin].push_back(idx1);
+                            // if (bin == HISTO_LENGTH){
+                            //     bin = 0;
+                            // }
+
+                            // assert(bin >= 0 && bin < HISTO_LENGTH);
+                            // rotHist[bin].push_back(idx1);
                         }
                     }
                 }
@@ -271,24 +273,6 @@ namespace ORB_SLAM2
         if (mbCheckOrientation)
         {
             nmatches = convergenceMatched(nmatches, rotHist, vMatches12, -1);
-
-            // int ind1 = -1;
-            // int ind2 = -1;
-            // int ind3 = -1;
-
-            // // 篩選前三多直方格的索引值
-            // ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
-
-            // for (int i = 0; i < HISTO_LENGTH; i++)
-            // {
-            //     if (i == ind1 || i == ind2 || i == ind3)
-            //         continue;
-            //     for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
-            //     {
-            //         vMatches12[rotHist[i][j]] = -1;
-            //         nmatches--;
-            //     }
-            // }
         }
 
         vMatchedPairs.clear();
@@ -851,26 +835,28 @@ namespace ORB_SLAM2
                             // 『關鍵幀 pKF1』的第 idx1 個關鍵點，對應著『關鍵幀 pKF2』的第 bestIdx2 個地圖點
                             vpMatches12[idx1] = vpMapPoints2[bestIdx2];
                             vbMatched2[bestIdx2] = true;
+                            nmatches++;
 
                             if (mbCheckOrientation)
                             {
-                                float rot = vKeysUn1[idx1].angle - vKeysUn2[bestIdx2].angle;
+                                updateRotHist(vKeysUn1[idx1], vKeysUn2[bestIdx2], 
+                                              factor, idx1, rotHist);
 
-                                if (rot < 0.0){
-                                    rot += 360.0f;
-                                }
+                                // float rot = vKeysUn1[idx1].angle - vKeysUn2[bestIdx2].angle;
 
-                                int bin = round(rot * factor);
+                                // if (rot < 0.0){
+                                //     rot += 360.0f;
+                                // }
 
-                                if (bin == HISTO_LENGTH){
-                                    bin = 0;
-                                }
+                                // int bin = round(rot * factor);
+
+                                // if (bin == HISTO_LENGTH){
+                                //     bin = 0;
+                                // }
                                 
-                                assert(bin >= 0 && bin < HISTO_LENGTH);
-                                rotHist[bin].push_back(idx1);
-                            }
-
-                            nmatches++;
+                                // assert(bin >= 0 && bin < HISTO_LENGTH);
+                                // rotHist[bin].push_back(idx1);
+                            }                            
                         }
                     }
                 }
@@ -894,26 +880,6 @@ namespace ORB_SLAM2
         {
             nmatches = convergenceMatched(nmatches, rotHist, 
                                           vpMatches12, static_cast<MapPoint *>(NULL));
-
-            // int ind1 = -1;
-            // int ind2 = -1;
-            // int ind3 = -1;
-
-            // // 篩選前三多直方格的索引值
-            // ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
-
-            // for (int i = 0; i < HISTO_LENGTH; i++)
-            // {
-            //     if (i == ind1 || i == ind2 || i == ind3){
-            //         continue;
-            //     }
-
-            //     for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
-            //     {
-            //         vpMatches12[rotHist[i][j]] = static_cast<MapPoint *>(NULL);
-            //         nmatches--;
-            //     }
-            // }
         }
 
         return nmatches;
@@ -1513,23 +1479,26 @@ namespace ORB_SLAM2
 
                         if (mbCheckOrientation)
                         {
-                            // 計算兩特徵點之間的角度差
-                            float rot = LastFrame.mvKeysUn[i].angle - 
-                                                                CurrentFrame.mvKeysUn[bestIdx2].angle;
+                            updateRotHist(LastFrame.mvKeysUn[i], CurrentFrame.mvKeysUn[bestIdx2], 
+                                          factor, bestIdx2, rotHist);
+
+                            // // 計算兩特徵點之間的角度差
+                            // float rot = LastFrame.mvKeysUn[i].angle - 
+                            //                                     CurrentFrame.mvKeysUn[bestIdx2].angle;
                             
-                            if (rot < 0.0){
-                                rot += 360.0f;
-                            }
+                            // if (rot < 0.0){
+                            //     rot += 360.0f;
+                            // }
 
-                            // 將角度差換算成直方圖的索引值
-                            int bin = round(rot * factor);
+                            // // 將角度差換算成直方圖的索引值
+                            // int bin = round(rot * factor);
 
-                            if (bin == HISTO_LENGTH){
-                                bin = 0;
-                            }
+                            // if (bin == HISTO_LENGTH){
+                            //     bin = 0;
+                            // }
 
-                            assert(bin >= 0 && bin < HISTO_LENGTH);
-                            rotHist[bin].push_back(bestIdx2);
+                            // assert(bin >= 0 && bin < HISTO_LENGTH);
+                            // rotHist[bin].push_back(bestIdx2);
                         }
                     }
                 }
@@ -1541,26 +1510,6 @@ namespace ORB_SLAM2
         {
             nmatches = convergenceMatched(nmatches, rotHist, 
                                           CurrentFrame.mvpMapPoints, static_cast<MapPoint *>(NULL));
-
-            // int ind1 = -1;
-            // int ind2 = -1;
-            // int ind3 = -1;
-
-            // // ind1, ind2, ind3：前三多角度的直方格的索引值
-            // // 篩選前三多直方格的索引值
-            // ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
-
-            // for (int i = 0; i < HISTO_LENGTH; i++)
-            // {
-            //     if (i != ind1 && i != ind2 && i != ind3)
-            //     {
-            //         for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
-            //         {
-            //             CurrentFrame.mvpMapPoints[rotHist[i][j]] = static_cast<MapPoint *>(NULL);
-            //             nmatches--;
-            //         }
-            //     }
-            // }
         }
 
         return nmatches;
@@ -1678,20 +1627,23 @@ namespace ORB_SLAM2
 
                         if (mbCheckOrientation)
                         {
-                            float rot = pKF->mvKeysUn[i].angle - CurrentFrame.mvKeysUn[bestIdx2].angle;
+                            updateRotHist(pKF->mvKeysUn[i], CurrentFrame.mvKeysUn[bestIdx2], 
+                                          factor, bestIdx2, rotHist);
 
-                            if (rot < 0.0){
-                                rot += 360.0f;
-                            }
+                            // float rot = pKF->mvKeysUn[i].angle - CurrentFrame.mvKeysUn[bestIdx2].angle;
 
-                            int bin = round(rot * factor);
+                            // if (rot < 0.0){
+                            //     rot += 360.0f;
+                            // }
 
-                            if (bin == HISTO_LENGTH){
-                                bin = 0;                            
-                            }
+                            // int bin = round(rot * factor);
 
-                            assert(bin >= 0 && bin < HISTO_LENGTH);
-                            rotHist[bin].push_back(bestIdx2);
+                            // if (bin == HISTO_LENGTH){
+                            //     bin = 0;                            
+                            // }
+
+                            // assert(bin >= 0 && bin < HISTO_LENGTH);
+                            // rotHist[bin].push_back(bestIdx2);
                         }
                     }
                 }
@@ -1702,26 +1654,6 @@ namespace ORB_SLAM2
         {
             nmatches = convergenceMatched(nmatches, rotHist, 
                                           CurrentFrame.mvpMapPoints, static_cast<MapPoint *>(NULL));
-
-            // int ind1 = -1;
-            // int ind2 = -1;
-            // int ind3 = -1;
-
-            // // ind1, ind2, ind3：前三多角度的直方格的索引值
-            // // 篩選前三多直方格的索引值
-            // ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
-
-            // for (int i = 0; i < HISTO_LENGTH; i++)
-            // {
-            //     if (i != ind1 && i != ind2 && i != ind3)
-            //     {
-            //         for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
-            //         {
-            //             CurrentFrame.mvpMapPoints[rotHist[i][j]] = NULL;
-            //             nmatches--;
-            //         }
-            //     }
-            // }
         }
 
         return nmatches;
@@ -1944,25 +1876,27 @@ namespace ORB_SLAM2
                     // 檢查方向
                     if (mbCheckOrientation)
                     {
-                        // 計算兩關鍵點之間的角度
-                        float rot = F1.mvKeysUn[i1].angle - F2.mvKeysUn[bestIdx2].angle;
+                        updateRotHist(F1.mvKeysUn[i1], F2.mvKeysUn[bestIdx2], factor, i1, rotHist);
 
-                        if (rot < 0.0){
-                            rot += 360.0f;
-                        }
+                        // // 計算兩關鍵點之間的角度
+                        // float rot = F1.mvKeysUn[i1].angle - F2.mvKeysUn[bestIdx2].angle;
 
-                        // 角度換算到直方圖中的序號
-                        int bin = round(rot * factor);
+                        // if (rot < 0.0){
+                        //     rot += 360.0f;
+                        // }
 
-                        if (bin == HISTO_LENGTH){
-                            bin = 0;
-                        }
+                        // // 角度換算到直方圖中的序號
+                        // int bin = round(rot * factor);
 
-                        assert(bin >= 0 && bin < HISTO_LENGTH);
+                        // if (bin == HISTO_LENGTH){
+                        //     bin = 0;
+                        // }
 
-                        // 直方圖，長度為 HISTO_LENGTH，用於紀錄關鍵點分別落在哪些角度區間
-                        // i1 和其匹配到的關鍵點之夾角，落在第 bin 個區間
-                        rotHist[bin].push_back(i1);
+                        // assert(bin >= 0 && bin < HISTO_LENGTH);
+
+                        // // 直方圖，長度為 HISTO_LENGTH，用於紀錄關鍵點分別落在哪些角度區間
+                        // // i1 和其匹配到的關鍵點之夾角，落在第 bin 個區間
+                        // rotHist[bin].push_back(i1);
                     }
                 }
             }
@@ -1972,35 +1906,6 @@ namespace ORB_SLAM2
         if (mbCheckOrientation)
         {
             nmatches = convergenceMatched(nmatches, rotHist, vnMatches12, -1);
-            // int ind1 = -1;
-            // int ind2 = -1;
-            // int ind3 = -1;
-
-            // // ind1, ind2, ind3：前三多角度的直方格的索引值
-            // // 篩選前三多直方格的索引值
-            // ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
-
-            // for (int i = 0; i < HISTO_LENGTH; i++)
-            // {
-            //     if (i == ind1 || i == ind2 || i == ind3){
-            //         continue;
-            //     }
-                
-            //     // 不屬於『前三多角度的直方格的索引值』，表示第 i 個直方格的角度和大部分的不同
-            //     // F1 運動到 F2，關鍵點的變化情形（如角度）應該相似，若角度不同，很可能是誤匹配
-            //     for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
-            //     {
-            //         int idx1 = rotHist[i][j];
-
-            //         // 若有匹配到
-            //         if (vnMatches12[idx1] >= 0)
-            //         {
-            //             // 取消匹配認定
-            //             vnMatches12[idx1] = -1;
-            //             nmatches--;
-            //         }
-            //     }
-            // }
         }
 
         // Update prev matched
@@ -2117,28 +2022,30 @@ namespace ORB_SLAM2
                             // 取得第 realIdxKF 個地圖點相對應的（已校正）關鍵點
                             const cv::KeyPoint &kp = pKF->mvKeysUn[realIdxKF];
 
-                            if (mbCheckOrientation)
-                            {
-                                // 計算兩特徵點的角度差
-                                float rot = kp.angle - F.mvKeys[bestIdxF].angle;
-
-                                if (rot < 0.0){
-                                    rot += 360.0f;
-                                }
-
-                                // 將角度差換算成直方圖的索引值
-                                int bin = round(rot * factor);
-
-                                if (bin == HISTO_LENGTH){
-                                    bin = 0;
-                                }
-
-                                assert(bin >= 0 && bin < HISTO_LENGTH);
-                                rotHist[bin].push_back(bestIdxF);
-                            }
-
                             // 成功配對數
                             nmatches++;
+
+                            if (mbCheckOrientation)
+                            {
+                                updateRotHist(kp, F.mvKeys[bestIdxF], factor, bestIdxF, rotHist);
+
+                                // // 計算兩特徵點的角度差
+                                // float rot = kp.angle - F.mvKeys[bestIdxF].angle;
+
+                                // if (rot < 0.0){
+                                //     rot += 360.0f;
+                                // }
+
+                                // // 將角度差換算成直方圖的索引值
+                                // int bin = round(rot * factor);
+
+                                // if (bin == HISTO_LENGTH){
+                                //     bin = 0;
+                                // }
+
+                                // assert(bin >= 0 && bin < HISTO_LENGTH);
+                                // rotHist[bin].push_back(bestIdxF);
+                            }                            
                         }
                     }
                 }
@@ -2167,26 +2074,6 @@ namespace ORB_SLAM2
         {
             nmatches = convergenceMatched(nmatches, rotHist, 
                                           vpMapPointMatches, static_cast<MapPoint *>(NULL));
-
-            // int ind1 = -1;
-            // int ind2 = -1;
-            // int ind3 = -1;
-
-            // // 篩選前三多直方格的索引值
-            // ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
-
-            // for (int i = 0; i < HISTO_LENGTH; i++)
-            // {
-            //     if (i == ind1 || i == ind2 || i == ind3){
-            //         continue;
-            //     }
-
-            //     for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
-            //     {
-            //         vpMapPointMatches[rotHist[i][j]] = static_cast<MapPoint *>(NULL);
-            //         nmatches--;
-            //     }
-            // }
         }
 
         return nmatches;
@@ -2203,32 +2090,6 @@ namespace ORB_SLAM2
         }
     }
     
-    // int ORBmatcher::convergenceMatched(int n_match, vector<int> &rot_hist, vector<int> &v_matched){
-    //     int i, ind1 = -1, ind2 = -1, ind3 = -1;
-    //     size_t j, jend;
-
-    //     // 篩選前三多直方格的索引值
-    //     ComputeThreeMaxima(rot_hist, HISTO_LENGTH, ind1, ind2, ind3);
-
-    //     for (i = 0; i < HISTO_LENGTH; i++)
-    //     {
-    //         if (i == ind1 || i == ind2 || i == ind3)
-    //         {
-    //             continue;
-    //         }
-
-    //         jend = rot_hist[i].size();
-
-    //         for (j = 0; j < jend; j++)
-    //         {
-    //             v_matched[rot_hist[i][j]] = -1;
-    //             n_match--;
-    //         }
-    //     }
-
-    //     return n_match;
-    // }
-
     // T: vector<int> / vector<MapPoint *>
     // default_value: -1 / static_cast<MapPoint *>(NULL)
     template<class T, class D>
@@ -2251,18 +2112,36 @@ namespace ORB_SLAM2
 
             for (j = 0; j < jend; j++)
             {
-                /// TODO: rot_hist 當中就是儲存配對到的資訊，因此不檢查也可以
-                // if(v_matched[rot_hist[i][j]])
-                // {
-                    
-                // }
-
+                /// NOTE: rot_hist 當中就是儲存配對到的資訊，因此不檢查也可以
                 v_matched[rot_hist[i][j]] = default_value;
                 n_match--;
             }
         }
 
         return n_match;
+    }
+
+    void ORBmatcher::updateRotHist(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, 
+                                   const float factor, const int idx, std::vector<int> *rot_hist){
+        // 計算角度差
+        float rot = kp1.angle - kp2.angle;
+
+        if (rot < 0.0){
+            rot += 360.0f;
+        }
+
+        // 角度差換算成直方圖的格子索引值
+        int bin = round(rot * factor);
+
+        // HISTO_LENGTH >= bin >= 0
+        bin = min(HISTO_LENGTH, max(bin, 0));
+
+        if (bin == HISTO_LENGTH){
+            bin = 0;
+        }
+        
+        // assert(bin >= 0 && bin < HISTO_LENGTH);
+        rot_hist[bin].push_back(idx);
     }
     // ==================================================
     // 以下為非單目相關函式
