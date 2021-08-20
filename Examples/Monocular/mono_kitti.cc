@@ -83,6 +83,14 @@ int main(int argc, char **argv)
     cout << "Images in the sequence: " << nImages << endl
          << endl;
 
+#ifdef COMPILEDWITHC11
+        std::chrono::steady_clock::time_point main_t1 = std::chrono::steady_clock::now();
+#else
+        // 此問題為 C++ 版本兼容問題，可利用上方 COMPILEDWITHC11 根據 C++ 版本不同使用不同程式碼
+        // COMPILEDWITHC11 則在 CMakeLists.txt 當中作定義
+        std::chrono::monotonic_clock::time_point main_t1 = std::chrono::monotonic_clock::now();
+#endif
+
     // Main loop
     for (int ni = 0; ni < nImages; ni++)
     {
@@ -136,6 +144,12 @@ int main(int argc, char **argv)
         }
     }
 
+#ifdef COMPILEDWITHC11
+        std::chrono::steady_clock::time_point main_t2 = std::chrono::steady_clock::now();
+#else
+        std::chrono::monotonic_clock::time_point main_t2 = std::chrono::monotonic_clock::now();
+#endif
+
     // Stop all threads
     SLAM.Shutdown();
 
@@ -143,19 +157,20 @@ int main(int argc, char **argv)
 
     // 排序每一幀花費的時間，將用於找出中位數，以衡量每幀追蹤時間
     sort(vTimesTrack.begin(), vTimesTrack.end());
-    float total_time = 0;
+    float tracking_time = 0;
+    double total = std::chrono::duration_cast<std::chrono::duration<double>>(main_t2 - main_t1).count();
 
     for(float time : vTimesTrack){
 
-        total_time += time;
+        tracking_time += time;
     }
 
-    int minute = (int)(total_time / 60.0f);
-    float second = total_time - 60.0f * minute;
+    int minute = (int)(total / 60.0);
+    double second = total - 60.0 * total;
 
     cout << "Total time: " << minute << ":" << second << endl;
     cout << "Median tracking time: " << vTimesTrack[nImages / 2] << endl;
-    cout << "Mean tracking time: " << total_time / nImages << endl;
+    cout << "Mean tracking time: " << tracking_time / nImages << endl;
 
     // Save camera trajectory
     SLAM.SaveKeyFrameTrajectoryTUM("KeyFrameTrajectory.txt");

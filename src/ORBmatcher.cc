@@ -428,8 +428,6 @@ namespace ORB_SLAM2
                 continue;
             }
 
-            const float ur = u - bf * invz;
-
             // 考慮金字塔層級的『地圖點 pMP』最大可能深度
             const float maxDistance = pMP->GetMaxDistanceInvariance();
 
@@ -477,6 +475,15 @@ namespace ORB_SLAM2
             int bestDist = 256;
             int bestIdx = -1;
 
+            // ==================================================
+            /// TODO: 這個迴圈差異性較大，不封裝到同一個函式中，由於會使用到上方的部份變數，
+            /// 因此上方封裝成函式後需回傳所需的變數。篩選出下方迴圈會需要的變數。
+            // ==================================================
+            
+            // ＝＝＝＝＝ For stero ＝＝＝＝＝
+            const float ur = u - bf * invz;
+            // ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
+            
             for(const size_t idx : vIndices)
             {
                 // 指定區域內的候選關鍵點
@@ -626,9 +633,12 @@ namespace ORB_SLAM2
 
             // Project into Image
             const float invz = 1.0 / p3Dc.at<float>(2);
+
+            // 重投影之歸一化平面座標
             const float x = p3Dc.at<float>(0) * invz;
             const float y = p3Dc.at<float>(1) * invz;
 
+            // 重投影之像素座標
             const float u = fx * x + cx;
             const float v = fy * y + cy;
 
@@ -638,9 +648,16 @@ namespace ORB_SLAM2
             }
 
             // Depth must be inside the scale pyramid of the image
+            // 考慮金字塔層級的『地圖點 pMP』最大可能深度
             const float maxDistance = pMP->GetMaxDistanceInvariance();
+            
+            // 考慮金字塔層級的『地圖點 pMP』最小可能深度
             const float minDistance = pMP->GetMinDistanceInvariance();
+            
+            // 『相機中心 Ow』指向『地圖點 pMP』之向量
             cv::Mat PO = p3Dw - Ow;
+
+            // 『地圖點 pMP』深度（『相機中心 Ow』到『地圖點 pMP』之距離）
             const float dist3D = cv::norm(PO);
 
             if (dist3D < minDistance || dist3D > maxDistance){
