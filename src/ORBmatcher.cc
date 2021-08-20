@@ -2252,11 +2252,13 @@ namespace ORB_SLAM2
             for (j = 0; j < jend; j++)
             {
                 /// TODO: rot_hist 當中就是儲存配對到的資訊，因此不檢查也可以
-                if(v_matched[rot_hist[i][j]])
-                {
-                    v_matched[rot_hist[i][j]] = default_value;
-                    n_match--;
-                }
+                // if(v_matched[rot_hist[i][j]])
+                // {
+                    
+                // }
+
+                v_matched[rot_hist[i][j]] = default_value;
+                n_match--;
             }
         }
 
