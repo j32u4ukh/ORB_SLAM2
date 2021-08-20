@@ -270,23 +270,25 @@ namespace ORB_SLAM2
 
         if (mbCheckOrientation)
         {
-            int ind1 = -1;
-            int ind2 = -1;
-            int ind3 = -1;
+            nmatches = convergenceMatched(nmatches, rotHist, vMatches12, -1);
 
-            // 篩選前三多直方格的索引值
-            ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
+            // int ind1 = -1;
+            // int ind2 = -1;
+            // int ind3 = -1;
 
-            for (int i = 0; i < HISTO_LENGTH; i++)
-            {
-                if (i == ind1 || i == ind2 || i == ind3)
-                    continue;
-                for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
-                {
-                    vMatches12[rotHist[i][j]] = -1;
-                    nmatches--;
-                }
-            }
+            // // 篩選前三多直方格的索引值
+            // ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
+
+            // for (int i = 0; i < HISTO_LENGTH; i++)
+            // {
+            //     if (i == ind1 || i == ind2 || i == ind3)
+            //         continue;
+            //     for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+            //     {
+            //         vMatches12[rotHist[i][j]] = -1;
+            //         nmatches--;
+            //     }
+            // }
         }
 
         vMatchedPairs.clear();
@@ -890,25 +892,28 @@ namespace ORB_SLAM2
 
         if (mbCheckOrientation)
         {
-            int ind1 = -1;
-            int ind2 = -1;
-            int ind3 = -1;
+            nmatches = convergenceMatched(nmatches, rotHist, 
+                                          vpMatches12, static_cast<MapPoint *>(NULL));
 
-            // 篩選前三多直方格的索引值
-            ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
+            // int ind1 = -1;
+            // int ind2 = -1;
+            // int ind3 = -1;
 
-            for (int i = 0; i < HISTO_LENGTH; i++)
-            {
-                if (i == ind1 || i == ind2 || i == ind3){
-                    continue;
-                }
+            // // 篩選前三多直方格的索引值
+            // ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
 
-                for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
-                {
-                    vpMatches12[rotHist[i][j]] = static_cast<MapPoint *>(NULL);
-                    nmatches--;
-                }
-            }
+            // for (int i = 0; i < HISTO_LENGTH; i++)
+            // {
+            //     if (i == ind1 || i == ind2 || i == ind3){
+            //         continue;
+            //     }
+
+            //     for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+            //     {
+            //         vpMatches12[rotHist[i][j]] = static_cast<MapPoint *>(NULL);
+            //         nmatches--;
+            //     }
+            // }
         }
 
         return nmatches;
@@ -1534,25 +1539,28 @@ namespace ORB_SLAM2
         //Apply rotation consistency
         if (mbCheckOrientation)
         {
-            int ind1 = -1;
-            int ind2 = -1;
-            int ind3 = -1;
+            nmatches = convergenceMatched(nmatches, rotHist, 
+                                          CurrentFrame.mvpMapPoints, static_cast<MapPoint *>(NULL));
 
-            // ind1, ind2, ind3：前三多角度的直方格的索引值
-            // 篩選前三多直方格的索引值
-            ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
+            // int ind1 = -1;
+            // int ind2 = -1;
+            // int ind3 = -1;
 
-            for (int i = 0; i < HISTO_LENGTH; i++)
-            {
-                if (i != ind1 && i != ind2 && i != ind3)
-                {
-                    for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
-                    {
-                        CurrentFrame.mvpMapPoints[rotHist[i][j]] = static_cast<MapPoint *>(NULL);
-                        nmatches--;
-                    }
-                }
-            }
+            // // ind1, ind2, ind3：前三多角度的直方格的索引值
+            // // 篩選前三多直方格的索引值
+            // ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
+
+            // for (int i = 0; i < HISTO_LENGTH; i++)
+            // {
+            //     if (i != ind1 && i != ind2 && i != ind3)
+            //     {
+            //         for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+            //         {
+            //             CurrentFrame.mvpMapPoints[rotHist[i][j]] = static_cast<MapPoint *>(NULL);
+            //             nmatches--;
+            //         }
+            //     }
+            // }
         }
 
         return nmatches;
@@ -1692,25 +1700,28 @@ namespace ORB_SLAM2
 
         if (mbCheckOrientation)
         {
-            int ind1 = -1;
-            int ind2 = -1;
-            int ind3 = -1;
+            nmatches = convergenceMatched(nmatches, rotHist, 
+                                          CurrentFrame.mvpMapPoints, static_cast<MapPoint *>(NULL));
 
-            // ind1, ind2, ind3：前三多角度的直方格的索引值
-            // 篩選前三多直方格的索引值
-            ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
+            // int ind1 = -1;
+            // int ind2 = -1;
+            // int ind3 = -1;
 
-            for (int i = 0; i < HISTO_LENGTH; i++)
-            {
-                if (i != ind1 && i != ind2 && i != ind3)
-                {
-                    for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
-                    {
-                        CurrentFrame.mvpMapPoints[rotHist[i][j]] = NULL;
-                        nmatches--;
-                    }
-                }
-            }
+            // // ind1, ind2, ind3：前三多角度的直方格的索引值
+            // // 篩選前三多直方格的索引值
+            // ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
+
+            // for (int i = 0; i < HISTO_LENGTH; i++)
+            // {
+            //     if (i != ind1 && i != ind2 && i != ind3)
+            //     {
+            //         for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+            //         {
+            //             CurrentFrame.mvpMapPoints[rotHist[i][j]] = NULL;
+            //             nmatches--;
+            //         }
+            //     }
+            // }
         }
 
         return nmatches;
@@ -2154,25 +2165,28 @@ namespace ORB_SLAM2
 
         if (mbCheckOrientation)
         {
-            int ind1 = -1;
-            int ind2 = -1;
-            int ind3 = -1;
+            nmatches = convergenceMatched(nmatches, rotHist, 
+                                          vpMapPointMatches, static_cast<MapPoint *>(NULL));
 
-            // 篩選前三多直方格的索引值
-            ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
+            // int ind1 = -1;
+            // int ind2 = -1;
+            // int ind3 = -1;
 
-            for (int i = 0; i < HISTO_LENGTH; i++)
-            {
-                if (i == ind1 || i == ind2 || i == ind3){
-                    continue;
-                }
+            // // 篩選前三多直方格的索引值
+            // ComputeThreeMaxima(rotHist, HISTO_LENGTH, ind1, ind2, ind3);
 
-                for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
-                {
-                    vpMapPointMatches[rotHist[i][j]] = static_cast<MapPoint *>(NULL);
-                    nmatches--;
-                }
-            }
+            // for (int i = 0; i < HISTO_LENGTH; i++)
+            // {
+            //     if (i == ind1 || i == ind2 || i == ind3){
+            //         continue;
+            //     }
+
+            //     for (size_t j = 0, jend = rotHist[i].size(); j < jend; j++)
+            //     {
+            //         vpMapPointMatches[rotHist[i][j]] = static_cast<MapPoint *>(NULL);
+            //         nmatches--;
+            //     }
+            // }
         }
 
         return nmatches;
