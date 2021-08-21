@@ -82,12 +82,28 @@ namespace ORB_SLAM2
         // Project MapPoints into KeyFrame using a given Sim3 and search for duplicated MapPoints.
         int Fuse(KeyFrame *pKF, cv::Mat Scw, const std::vector<MapPoint *> &vpPoints, float th, vector<MapPoint *> &vpReplacePoint);
 
-        template<class T, class D>
-        inline int convergenceMatched(int n_match, std::vector<int> *rot_hist, 
+        template <class T, class D>
+        inline int convergenceMatched(int n_match, std::vector<int> *rot_hist,
                                       std::vector<T> &v_matched, D default_value);
 
         void updateRotHist(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2,
                            const float factor, const int idx, std::vector<int> *rot_hist);
+
+        std::tuple<bool, float, float, float> getPixelCoordinates(KeyFrame *pKF, cv::Mat sp3Dc,
+                                                                  const float fx, const float fy,
+                                                                  const float cx, const float cy);
+
+        std::tuple<bool, float, float, float> getPixelCoordinatesStereo(KeyFrame *pKF, cv::Mat sp3Dc,
+                                                                        const float bf,
+                                                                        const float fx, const float fy,
+                                                                        const float cx, const float cy);
+
+        std::tuple<bool, float> isValidDistance(MapPoint *pMP, cv::Mat p3Dw, cv::Mat Ow);
+        std::tuple<bool, float> isValidDistanceSim3(MapPoint *pMP, cv::Mat sp3Dc);
+        std::tuple<bool, cv::KeyPoint, int> checkFuseTarget(KeyFrame *pKF, const size_t idx,
+                                                            int nPredictedLevel);
+        void updateFuseTarget(KeyFrame *pKF, const size_t idx, const cv::Mat dMP,
+                              int &bestDist, int &bestIdx);
 
         std::tuple<bool, int, int> selectFuseTarget(KeyFrame *pKF, MapPoint *pMP, float th,
                                                     cv::Mat sim3, cv::Mat Rcw,
