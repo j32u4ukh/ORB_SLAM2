@@ -214,7 +214,7 @@ else
 }   
 
 
-4. 共同參數準備 selectFuseTarget
+4. 共同參數準備
 
 // 『關鍵幀 pKF』根據當前『地圖點 pMP』的深度，估計場景規模
 int nPredictedLevel = pMP->PredictScale(dist3D, pKF);
@@ -222,33 +222,29 @@ int nPredictedLevel = pMP->PredictScale(dist3D, pKF);
 // Search in a radius
 const float radius = th * pKF->mvScaleFactors[nPredictedLevel];
 
+// 指定區域內的候選關鍵點的索引值
+const vector<size_t> vIndices = pKF->GetFeaturesInArea(u, v, radius);
+
+if (vIndices.empty()){
+continue;
+}
 
 // Match to the most similar keypoint in the radius
 // 取得『地圖點 pMP』描述子
 const cv::Mat dMP = pMP->GetDescriptor();
 
+bestDist = INT_MAX;
+bestIdx = -1;
 
-5. 檢查 kpLevel 是否在有效區域
-// 指定區域內的候選關鍵點
-const cv::KeyPoint &kp = pKF->mvKeysUn[idx];
+5. for(const size_t idx : vIndices) 當中
 
-// 『關鍵點 kp』的金字塔層級
-const int &kpLevel = kp.octave;
+continue_kp_level = checkFuseTarget(pKF, idx, nPredictedLevel);
 
-// kpLevel 可以是：(nPredictedLevel - 1) 或 nPredictedLevel
-if (kpLevel < nPredictedLevel - 1 || kpLevel > nPredictedLevel)
-{
-	continue;
-}
+///// 不同需求客製化 /////
 
-6. 不同需求客製化
+updateFuseTarget(pKF, idx, dMP, bestDist, bestIdx);
 
-is_error_too_large = isErrorTooLarge(pKF, idx, kp, kpLevel, u, v, ur);
 
-// 誤差過大時，則跳過
-if (is_error_too_large)
-{
-    continue;
 }
 
 
