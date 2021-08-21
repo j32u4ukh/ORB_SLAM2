@@ -396,7 +396,7 @@ namespace ORB_SLAM2
         const cv::Mat sim3 = cv::Mat::eye(3, 3, CV_32F);
         const cv::Mat t21 = cv::Mat::zeros(3, 1, CV_32F);
 
-        std::tuple<bool, float, float, float> continue_u_v_ur;
+        std::tuple<float, float, float> u_v_ur;
         std::tuple<bool, float> valid_dist;
         float dist3D, u, v, ur;
 
@@ -435,15 +435,25 @@ namespace ORB_SLAM2
             // 『地圖點 pMP』由世紀座標系 轉換到 相機座標系
             cv::Mat p3Dc = Rcw * p3Dw + tcw;
 
-            continue_u_v_ur = getPixelCoordinatesStereo(pKF, p3Dc, bf, fx, fy, cx, cy);
+            // Depth must be positive
+            if (p3Dc.at<float>(2) < 0.0f)
+            {
+                continue;
+            }
+            
+            u_v_ur = getPixelCoordinatesStereo(p3Dc, bf, fx, fy, cx, cy);
 
-            if(std::get<0>(continue_u_v_ur)){
+            u = std::get<0>(u_v_ur);
+            v = std::get<1>(u_v_ur);
+            
+            // Point must be inside the image
+            // 傳入座標點是否超出關鍵幀的成像範圍
+            if (!pKF->IsInImage(u, v))
+            {
                 continue;
             }
 
-            u = std::get<1>(continue_u_v_ur);
-            v = std::get<2>(continue_u_v_ur);
-            ur = std::get<3>(continue_u_v_ur);
+            ur = std::get<2>(u_v_ur);
 
             // // Depth must be positive
             // if (p3Dc.at<float>(2) < 0.0f){
@@ -655,7 +665,7 @@ namespace ORB_SLAM2
         // const cv::Mat sim3 = cv::Mat::eye(3, 3, CV_32F);
         // const cv::Mat t21 = cv::Mat::zeros(3, 1, CV_32F);
 
-        std::tuple<bool, float, float, float> continue_u_v_invz;
+        std::tuple<float, float, float> u_v_invz;
         std::tuple<bool, cv::KeyPoint, int> continue_kp_level;
         std::tuple<bool, float> valid_dist;
         float dist3D, u, v;
@@ -701,14 +711,22 @@ namespace ORB_SLAM2
             // 『地圖點 pMP』由世界座標轉換到『關鍵幀 pKF』座標系
             p3Dc = Rcw * p3Dw + tcw;
 
-            continue_u_v_invz = getPixelCoordinates(pKF, p3Dc, fx, fy, cx, cy);
-
-            if(std::get<0>(continue_u_v_invz)){
+            // Depth must be positive
+            if (p3Dc.at<float>(2) < 0.0f)
+            {
                 continue;
             }
+            
+            u_v_invz = getPixelCoordinates(p3Dc, fx, fy, cx, cy);
+            u = std::get<0>(u_v_invz);
+            v = std::get<1>(u_v_invz);
 
-            u = std::get<1>(continue_u_v_invz);
-            v = std::get<2>(continue_u_v_invz);
+            // Point must be inside the image
+            // 傳入座標點是否超出關鍵幀的成像範圍
+            if (!pKF->IsInImage(u, v))
+            {
+                continue;
+            }
 
             // // Depth must be positive
             // if (p3Dc.at<float>(2) < 0.0f){
@@ -1492,7 +1510,7 @@ namespace ORB_SLAM2
         // Get 3D Coords.
         cv::Mat p3Dw, p3Dc;
 
-        std::tuple<bool, float, float, float> continue_u_v_invz;
+        std::tuple<float, float, float> u_v_invz;
         std::tuple<bool, cv::KeyPoint, int> continue_kp_level;
         std::tuple<bool, float> valid_dist;
         float u, v, dist;
@@ -1512,16 +1530,23 @@ namespace ORB_SLAM2
             // Transform into Camera Coords.
             cv::Mat p3Dc = Rcw * p3Dw + tcw;
 
-            continue_u_v_invz = getPixelCoordinates(pKF, p3Dc, fx, fy, cx, cy);
-
-            if(std::get<0>(continue_u_v_invz))
+            // Depth must be positive
+            if (p3Dc.at<float>(2) < 0.0f)
             {
                 continue;
             }
+            
+            u_v_invz = getPixelCoordinates(p3Dc, fx, fy, cx, cy);
+            u = std::get<0>(u_v_invz);
+            v = std::get<1>(u_v_invz);
 
-            u = std::get<1>(continue_u_v_invz);
-            v = std::get<2>(continue_u_v_invz);
-
+            // Point must be inside the image
+            // 傳入座標點是否超出關鍵幀的成像範圍
+            if (!pKF->IsInImage(u, v))
+            {
+                continue;
+            }
+            
             // // Depth must be positive
             // if (p3Dc.at<float>(2) < 0.0){
             //     continue;
@@ -1667,11 +1692,17 @@ namespace ORB_SLAM2
         const bool bForward = tlc.at<float>(2) > CurrentFrame.mb && !bMono;
         const bool bBackward = -tlc.at<float>(2) > CurrentFrame.mb && !bMono;
 
+        std::tuple<float, float, float> u_v_invz;
+        int nLastOctave, bestDist, bestIdx;
+        vector<size_t> vIndices2;
+        float radius, u, v, invz;
+        MapPoint *pMP;
+        
         for (int i = 0; i < LastFrame.N; i++)
         {
             // 依序取出前一幀觀察到的地圖點
             // LastFrame 的第 i 個地圖點
-            MapPoint *pMP = LastFrame.mvpMapPoints[i];
+            pMP = LastFrame.mvpMapPoints[i];
 
             if (pMP)
             {
@@ -1685,20 +1716,34 @@ namespace ORB_SLAM2
                     // 將地圖點轉換到相機座標下
                     cv::Mat x3Dc = Rcw * x3Dw + tcw;
 
-                    const float xc = x3Dc.at<float>(0);
-                    const float yc = x3Dc.at<float>(1);
+                    // const float xc = x3Dc.at<float>(0);
+                    // const float yc = x3Dc.at<float>(1);
 
-                    // 取得逆深度
-                    const float invzc = 1.0 / x3Dc.at<float>(2);
+                    // // 取得逆深度
+                    // const float invzc = 1.0 / x3Dc.at<float>(2);
 
-                    // 深度必定為正，不會有負數
-                    if (invzc < 0){
+                    // // 深度必定為正，不會有負數
+                    // if (invzc < 0){
+                    //     continue;
+                    // }
+
+                    // // 相機座標 轉換到 像素座標
+                    // float u = CurrentFrame.fx * xc * invzc + CurrentFrame.cx;
+                    // float v = CurrentFrame.fy * yc * invzc + CurrentFrame.cy;
+
+                    // Depth must be positive
+                    if (x3Dc.at<float>(2) < 0.0f)
+                    {
                         continue;
                     }
+            
+                    u_v_invz = getPixelCoordinates(x3Dc,
+                                                   CurrentFrame.fx, CurrentFrame.fy, 
+                                                   CurrentFrame.cx, CurrentFrame.cy);
 
-                    // 相機座標 轉換到 像素座標
-                    float u = CurrentFrame.fx * xc * invzc + CurrentFrame.cx;
-                    float v = CurrentFrame.fy * yc * invzc + CurrentFrame.cy;
+                    u = std::get<0>(u_v_invz);
+                    v = std::get<1>(u_v_invz);
+                    invz = std::get<2>(u_v_invz);
 
                     // 檢查像素點位置是否超出成像範圍
                     if (u < CurrentFrame.mnMinX || u > CurrentFrame.mnMaxX){
@@ -1710,13 +1755,11 @@ namespace ORB_SLAM2
                     }
 
                     // 取得前一幀影像金字塔的層級
-                    int nLastOctave = LastFrame.mvKeys[i].octave;
+                    nLastOctave = LastFrame.mvKeys[i].octave;
 
                     // Search in a window. Size depends on scale
                     // 計算金字塔層級對應的搜索半徑
-                    float radius = th * CurrentFrame.mvScaleFactors[nLastOctave];
-
-                    vector<size_t> vIndices2;
+                    radius = th * CurrentFrame.mvScaleFactors[nLastOctave];
 
                     if (bForward){
                         vIndices2 = CurrentFrame.GetFeaturesInArea(u, v, radius, nLastOctave);
@@ -1740,8 +1783,8 @@ namespace ORB_SLAM2
                     // 『LastFrame 的第 i 個地圖點』的描述子
                     const cv::Mat dMP = pMP->GetDescriptor();
 
-                    int bestDist = 256;
-                    int bestIdx2 = -1;
+                    bestDist = INT_MAX;
+                    bestIdx = -1;
 
                     // 遍歷搜索半徑內找到的特徵點的索引值
                     for(const size_t i2 : vIndices2)
@@ -1760,13 +1803,15 @@ namespace ORB_SLAM2
                         // 單目的 mvuRight 會是負值，因此暫時跳過
                         if (CurrentFrame.mvuRight[i2] > 0)
                         {
-                            const float ur = u - CurrentFrame.mbf * invzc;
+                            const float ur = u - CurrentFrame.mbf * invz;
                             const float er = fabs(ur - CurrentFrame.mvuRight[i2]);
 
                             if (er > radius){
                                 continue;
                             }
                         }
+
+                        // updateFuseTarget(&CurrentFrame, i2, dMP, bestDist, bestIdx);
 
                         // 取得 CurrentFrame 的第 i2 個特徵點的描述子
                         const cv::Mat &d = CurrentFrame.mDescriptors.row(i2);
@@ -1779,7 +1824,7 @@ namespace ORB_SLAM2
                         if (dist < bestDist)
                         {
                             bestDist = dist;
-                            bestIdx2 = i2;
+                            bestIdx = i2;
                         }
                     }
 
@@ -1787,33 +1832,15 @@ namespace ORB_SLAM2
                     if (bestDist <= TH_HIGH)
                     {
                         // 將 CurrentFrame 第 bestIdx2 個地圖點替換成 pMP
-                        CurrentFrame.mvpMapPoints[bestIdx2] = pMP;
+                        CurrentFrame.mvpMapPoints[bestIdx] = pMP;
 
                         // 配對數 +1
                         nmatches++;
 
                         if (mbCheckOrientation)
                         {
-                            updateRotHist(LastFrame.mvKeysUn[i], CurrentFrame.mvKeysUn[bestIdx2], 
-                                          factor, bestIdx2, rotHist);
-
-                            // // 計算兩特徵點之間的角度差
-                            // float rot = LastFrame.mvKeysUn[i].angle - 
-                            //                                     CurrentFrame.mvKeysUn[bestIdx2].angle;
-                            
-                            // if (rot < 0.0){
-                            //     rot += 360.0f;
-                            // }
-
-                            // // 將角度差換算成直方圖的索引值
-                            // int bin = round(rot * factor);
-
-                            // if (bin == HISTO_LENGTH){
-                            //     bin = 0;
-                            // }
-
-                            // assert(bin >= 0 && bin < HISTO_LENGTH);
-                            // rotHist[bin].push_back(bestIdx2);
+                            updateRotHist(LastFrame.mvKeysUn[i], CurrentFrame.mvKeysUn[bestIdx], 
+                                          factor, bestIdx, rotHist);
                         }
                     }
                 }
@@ -2301,20 +2328,13 @@ namespace ORB_SLAM2
         rot_hist[bin].push_back(idx);
     }
 
-    // std::tuple<bool, float, float, float>{need_continue, u, v, invz}
-    std::tuple<bool, float, float, float> ORBmatcher::getPixelCoordinates(KeyFrame *pKF, 
-                                                                          cv::Mat sp3Dc, 
-                                                                          const float fx, 
-                                                                          const float fy, 
-                                                                          const float cx, 
-                                                                          const float cy)
+    // std::tuple<float, float, float>{u, v, invz}
+    std::tuple<float, float, float> ORBmatcher::getPixelCoordinates(cv::Mat sp3Dc,
+                                                                    const float fx,
+                                                                    const float fy,
+                                                                    const float cx,
+                                                                    const float cy)
     {
-        // Depth must be positive
-        if (sp3Dc.at<float>(2) < 0.0f)
-        {
-            return std::tuple<bool, float, float, float>{true, -1.0f, -1.0f, -1.0f};
-        }
-
         const float invz = 1 / sp3Dc.at<float>(2);
         
         // 重投影之歸一化平面座標
@@ -2324,38 +2344,28 @@ namespace ORB_SLAM2
         // 重投影之像素座標
         const float u = fx * x + cx;
         const float v = fy * y + cy;
-
-        // Point must be inside the image
-        // 傳入座標點是否超出關鍵幀的成像範圍
-        if (!pKF->IsInImage(u, v))
-        {
-            return std::tuple<bool, float, float, float>{true, -1.0f, -1.0f, -1.0f};
-        }
-
-        return std::tuple<bool, float, float, float>{true, u, v, invz};
+        
+        return std::tuple<float, float, float>{u, v, invz};
     }
 
     // std::tuple<bool, float, float, float>{need_continue, u, v, ur}
-    std::tuple<bool, float, float, float> ORBmatcher::getPixelCoordinatesStereo(KeyFrame *pKF, 
-                                                                                cv::Mat sp3Dc, 
+    std::tuple<float, float, float> ORBmatcher::getPixelCoordinatesStereo(cv::Mat sp3Dc, 
                                                                                 const float bf, 
                                                                                 const float fx, 
                                                                                 const float fy,
                                                                                 const float cx, 
                                                                                 const float cy)
     {
-        std::tuple<bool, float, float, float> continue_u_v_invz;
-        continue_u_v_invz = getPixelCoordinates(pKF, sp3Dc, fx, fy, cx, cy);
+        // std::tuple<float, float, float>{u, v, invz}
+        std::tuple<float, float, float> u_v_invz;
+        u_v_invz = getPixelCoordinates(sp3Dc, fx, fy, cx, cy);
 
-        if(!std::get<0>(continue_u_v_invz))
-        {
-            float u = std::get<0>(continue_u_v_invz);
-            float invz = std::get<3>(continue_u_v_invz);
-            float ur = u - bf * invz;
-            std::get<3>(continue_u_v_invz) = ur;
-        }
+        float u = std::get<0>(u_v_invz);
+        float invz = std::get<2>(u_v_invz);
+        float ur = u - bf * invz;
+        std::get<2>(u_v_invz) = ur;
 
-        return continue_u_v_invz;
+        return u_v_invz;
     }
     
     std::tuple<bool, float> ORBmatcher::isValidDistance(MapPoint *pMP, cv::Mat p3Dw, cv::Mat Ow)
@@ -2436,12 +2446,27 @@ namespace ORB_SLAM2
         return std::tuple<bool, cv::KeyPoint, int>{need_continue, kp, kpLevel};
     }
 
+    void ORBmatcher::updateFuseTarget(Frame *frame, const size_t idx, const cv::Mat dMP, 
+                                      int &bestDist, int &bestIdx)
+    {
+        // 取得『關鍵幀 pKF』的第 idx 個特徵點的描述子
+        const cv::Mat dKF = frame->mDescriptors.row(idx);
+
+        updateFuseTarget(dKF, idx, dMP, bestDist, bestIdx);
+    }
+
     void ORBmatcher::updateFuseTarget(KeyFrame *pKF, const size_t idx, const cv::Mat dMP, 
                                       int &bestDist, int &bestIdx)
     {
         // 取得『關鍵幀 pKF』的第 idx 個特徵點的描述子
-        const cv::Mat &dKF = pKF->mDescriptors.row(idx);
+        const cv::Mat dKF = pKF->mDescriptors.row(idx);
 
+        updateFuseTarget(dKF, idx, dMP, bestDist, bestIdx);
+    } 
+
+    void ORBmatcher::updateFuseTarget(const cv::Mat dKF, const size_t idx, const cv::Mat dMP, 
+                                      int &bestDist, int &bestIdx)
+    {
         // 計算『地圖點 pMP』描述子和『關鍵幀 pKF』的第 idx 個特徵點的描述子之間的距離
         int dist = DescriptorDistance(dMP, dKF);
 
@@ -2451,7 +2476,7 @@ namespace ORB_SLAM2
             bestDist = dist;
             bestIdx = idx;
         }
-    }
+    }   
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================

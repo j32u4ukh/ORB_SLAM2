@@ -89,23 +89,27 @@ namespace ORB_SLAM2
         inline void updateRotHist(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2,
                                   const float factor, const int idx, std::vector<int> *rot_hist);
 
-        inline std::tuple<bool, float, float, float> getPixelCoordinates(KeyFrame *pKF, cv::Mat sp3Dc,
-                                                                         const float fx, const float fy,
-                                                                         const float cx, const float cy);
+        inline std::tuple<float, float, float> getPixelCoordinates(cv::Mat sp3Dc,
+                                                                   const float fx, const float fy,
+                                                                   const float cx, const float cy);
 
-        inline std::tuple<bool, float, float, float> getPixelCoordinatesStereo(KeyFrame *pKF, 
-                                                                               cv::Mat sp3Dc,
-                                                                               const float bf,
-                                                                               const float fx, 
-                                                                               const float fy,
-                                                                               const float cx, 
-                                                                               const float cy);
+        inline std::tuple<float, float, float> getPixelCoordinatesStereo(cv::Mat sp3Dc,
+                                                                         const float bf,
+                                                                         const float fx,
+                                                                         const float fy,
+                                                                         const float cx,
+                                                                         const float cy);
 
         inline std::tuple<bool, float> isValidDistance(MapPoint *pMP, cv::Mat p3Dw, cv::Mat Ow);
         inline std::tuple<bool, float> isValidDistanceSim3(MapPoint *pMP, cv::Mat sp3Dc);
         inline std::tuple<bool, cv::KeyPoint, int> checkFuseTarget(KeyFrame *pKF, const size_t idx,
                                                                    int nPredictedLevel);
+
+        inline void updateFuseTarget(Frame *frame, const size_t idx, const cv::Mat dMP,
+                                     int &bestDist, int &bestIdx);
         inline void updateFuseTarget(KeyFrame *pKF, const size_t idx, const cv::Mat dMP,
+                                     int &bestDist, int &bestIdx);
+        inline void updateFuseTarget(const cv::Mat dKF, const size_t idx, const cv::Mat dMP,
                                      int &bestDist, int &bestIdx);
 
     public:
