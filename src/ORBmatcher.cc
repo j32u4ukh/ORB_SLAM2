@@ -392,6 +392,8 @@ namespace ORB_SLAM2
         MapPoint *pMP;
         MapPoint *pMPinKF;
         std::tuple<bool, int, int> continue_dist_idx;
+        const cv::Mat sim3 = cv::Mat::eye(3, 3, CV_32F);
+        const cv::Mat t21 = cv::Mat::zeros(3, 1, CV_32F);
 
         for (int i = 0; i < nMPs; i++)
         {
@@ -406,13 +408,15 @@ namespace ORB_SLAM2
             }
 
             /* std::tuple<bool, int, int> 
-            ORBmatcher::selectFuseTarget(KeyFrame *pKF, MapPoint *pMP, float th,
-                                         cv::Mat Rcw, cv::Mat tcw, cv::Mat Ow,
-                                         const float fx, const float fy,
-                                         const float cx, const float cy,
-                                         const float bf, bool consider_error)
+            ORBmatcher::selectFuseTarget(KeyFrame *pKF, MapPoint *pMP, float th, 
+                                         cv::Mat sim3, cv::Mat Rcw, cv::Mat t1w, cv::Mat t21, cv::Mat Ow, 
+                                         const float fx, const float fy, const float cx, const float cy, 
+                                         const float bf, bool consider_error, bool consider_included_angle)
             */
-            continue_dist_idx = selectFuseTarget(pKF, pMP, th, Rcw, tcw, Ow, fx, fy, cx, cy, bf, true);
+            continue_dist_idx = selectFuseTarget(pKF, pMP, th, 
+                                                 sim3, Rcw, tcw, t21, Ow, 
+                                                 fx, fy, cx, cy, 
+                                                 bf, true, true);
 
             if(std::get<0>(continue_dist_idx))
             {
@@ -636,6 +640,8 @@ namespace ORB_SLAM2
         const int nPoints = vpPoints.size();
         MapPoint *pMP, *pMPinKF;
         std::tuple<bool, int, int> continue_dist_idx;
+        const cv::Mat sim3 = cv::Mat::eye(3, 3, CV_32F);
+        const cv::Mat t21 = cv::Mat::zeros(3, 1, CV_32F);
 
         // For each candidate MapPoint project and match
         for (int iMP = 0; iMP < nPoints; iMP++)
@@ -648,15 +654,17 @@ namespace ORB_SLAM2
             }
 
             /* std::tuple<bool, int, int> 
-            ORBmatcher::selectFuseTarget(KeyFrame *pKF, MapPoint *pMP, float th,
-                                         cv::Mat Rcw, cv::Mat tcw, cv::Mat Ow,
-                                         const float fx, const float fy,
-                                         const float cx, const float cy,
-                                         const float bf, bool consider_error)
+            ORBmatcher::selectFuseTarget(KeyFrame *pKF, MapPoint *pMP, float th, 
+                                         cv::Mat sim3, cv::Mat Rcw, cv::Mat t1w, cv::Mat t21, cv::Mat Ow, 
+                                         const float fx, const float fy, const float cx, const float cy, 
+                                         const float bf, bool consider_error, bool consider_included_angle)
 
             bf 在需要考慮誤差時才會用到，因此這裡無須 bf
             */
-            continue_dist_idx = selectFuseTarget(pKF, pMP, th, Rcw, tcw, Ow, fx, fy, cx, cy, 0, false);
+            continue_dist_idx = selectFuseTarget(pKF, pMP, th, 
+                                                 sim3, Rcw, tcw, t21, Ow, 
+                                                 fx, fy, cx, cy, 
+                                                 0, false, true);
 
             if(std::get<0>(continue_dist_idx))
             {
@@ -1143,36 +1151,39 @@ namespace ORB_SLAM2
 
         vector<bool> vbAlreadyMatched1(N1, false);
         vector<bool> vbAlreadyMatched2(N2, false);
+        MapPoint *pMP;
+        int idx;
 
         for (int i = 0; i < N1; i++)
         {
-            MapPoint *pMP = vpMatches12[i];
+            pMP = vpMatches12[i];
 
             if (pMP)
             {
                 vbAlreadyMatched1[i] = true;
 
                 // 『關鍵幀 pKF2』的第 idx2 個特徵點觀察到『地圖點 pMP』               
-                int idx2 = pMP->GetIndexInKeyFrame(pKF2);
+                idx = pMP->GetIndexInKeyFrame(pKF2);
 
-                if (idx2 >= 0 && idx2 < N2){
-                    vbAlreadyMatched2[idx2] = true;
+                if (idx >= 0 && idx < N2){
+                    vbAlreadyMatched2[idx] = true;
                 }
             }
         }
 
+        std::tuple<bool, int, int> continue_dist_idx;
+        int bestDist, bestIdx;
+        const cv::Mat Ow;
+        
         // vnMatch1 匹配關係：『關鍵幀 pKF1』的第 i1 個地圖點＆『關鍵幀 pKF2』的第 bestIdx 個特徵點
         vector<int> vnMatch1(N1, -1);
-
-        // vnMatch2 匹配關係：『關鍵幀 pKF2』的第 i2 個地圖點＆『關鍵幀 pKF1』的第 bestIdx 個特徵點
-        vector<int> vnMatch2(N2, -1);
 
         // Transform from KF1 to KF2 and search
         // 『關鍵幀 pKF1』投影到『關鍵幀 pKF2』上尋找匹配點
         for (int i1 = 0; i1 < N1; i1++)
         {
             // 『地圖點 pMP』：『關鍵幀 pKF1』的第 i1 個地圖點
-            MapPoint *pMP = vpMapPoints1[i1];
+            pMP = vpMapPoints1[i1];
 
             if (!pMP || vbAlreadyMatched1[i1]){
                 continue;
@@ -1181,6 +1192,29 @@ namespace ORB_SLAM2
             if (pMP->isBad()){
                 continue;
             }
+
+            /* std::tuple<bool, int, int> 
+            ORBmatcher::selectFuseTarget(KeyFrame *pKF, MapPoint *pMP, float th, 
+                                         cv::Mat sim3, cv::Mat Rcw, cv::Mat t1w, cv::Mat t21, cv::Mat Ow, 
+                                         const float fx, const float fy, const float cx, const float cy, 
+                                         const float bf, bool consider_error, bool consider_included_angle)
+
+            bf 在需要考慮誤差時才會用到，因此這裡無須 bf
+            Ow 在 consider_included_angle = true 時才會用到，因此這裡無須 Ow
+            */
+            // continue_dist_idx = selectFuseTarget(pKF2, pMP, th, 
+            //                                      sR21, R1w, t1w, t21, Ow, 
+            //                                      fx, fy, cx, cy, 
+            //                                      0, false, false);
+
+            // if(std::get<0>(continue_dist_idx))
+            // {
+            //     continue;
+            // }
+
+            // bestDist = std::get<1>(continue_dist_idx);
+            // bestIdx = std::get<2>(continue_dist_idx);
+
 
             cv::Mat p3Dw = pMP->GetWorldPos();
             cv::Mat p3Dc1 = R1w * p3Dw + t1w;
@@ -1274,11 +1308,14 @@ namespace ORB_SLAM2
             }
         }
 
+        // vnMatch2 匹配關係：『關鍵幀 pKF2』的第 i2 個地圖點＆『關鍵幀 pKF1』的第 bestIdx 個特徵點
+        vector<int> vnMatch2(N2, -1);
+
         // Transform from KF2 to KF1 and search
         for (int i2 = 0; i2 < N2; i2++)
         {
             // 『地圖點 pMP』：『關鍵幀 pKF2』的第 i2 個地圖點
-            MapPoint *pMP = vpMapPoints2[i2];
+            pMP = vpMapPoints2[i2];
 
             if (!pMP || vbAlreadyMatched2[i2]){
                 continue;
@@ -1287,6 +1324,28 @@ namespace ORB_SLAM2
             if (pMP->isBad()){
                 continue;
             }
+
+            /* std::tuple<bool, int, int> 
+            ORBmatcher::selectFuseTarget(KeyFrame *pKF, MapPoint *pMP, float th, 
+                                         cv::Mat sim3, cv::Mat Rcw, cv::Mat t1w, cv::Mat t21, cv::Mat Ow, 
+                                         const float fx, const float fy, const float cx, const float cy, 
+                                         const float bf, bool consider_error, bool consider_included_angle)
+
+            bf 在需要考慮誤差時才會用到，因此這裡無須 bf
+            Ow 在 consider_included_angle = true 時才會用到，因此這裡無須 Ow
+            */
+            // continue_dist_idx = selectFuseTarget(pKF1, pMP, th, 
+            //                                      sR12, R2w, t2w, t12, Ow, 
+            //                                      fx, fy, cx, cy, 
+            //                                      0, false, false);
+
+            // if(std::get<0>(continue_dist_idx))
+            // {
+            //     continue;
+            // }
+
+            // bestDist = std::get<1>(continue_dist_idx);
+            // bestIdx = std::get<2>(continue_dist_idx);
 
             cv::Mat p3Dw = pMP->GetWorldPos();
             cv::Mat p3Dc2 = R2w * p3Dw + t2w;
@@ -1300,6 +1359,8 @@ namespace ORB_SLAM2
             }
 
             const float invz = 1.0 / p3Dc1.at<float>(2);
+
+            // 重投影之歸一化平面座標
             const float x = p3Dc1.at<float>(0) * invz;
             const float y = p3Dc1.at<float>(1) * invz;
 
@@ -1379,19 +1440,19 @@ namespace ORB_SLAM2
         }
 
         // Check agreement
-        int nFound = 0;
+        int nFound = 0, i1, idx2, idx1;
 
         // 『關鍵幀 pKF1』索引值
-        for (int i1 = 0; i1 < N1; i1++)
+        for (i1 = 0; i1 < N1; i1++)
         {
             // vnMatch1 匹配關係：『關鍵幀 pKF1』的第 i1 個地圖點＆『關鍵幀 pKF2』的第 idx2 個特徵點
-            int idx2 = vnMatch1[i1];
+            idx2 = vnMatch1[i1];
 
             // 初始值為 -1，>= 0 表示有配對成功
             if (idx2 >= 0)
             {
                 // vnMatch2 匹配關係：『關鍵幀 pKF2』的第 idx2 個地圖點＆『關鍵幀 pKF1』的第 idx1 個特徵點
-                int idx1 = vnMatch2[idx2];
+                idx1 = vnMatch2[idx2];
 
                 if (idx1 == i1)
                 {
@@ -2210,28 +2271,32 @@ namespace ORB_SLAM2
 
     // if_continue, best_dist, best_idx
     std::tuple<bool, int, int> ORBmatcher::selectFuseTarget(KeyFrame *pKF, MapPoint *pMP, float th, 
-                                                            cv::Mat Rcw, cv::Mat tcw, cv::Mat Ow,
+                                                            cv::Mat sim3, cv::Mat Rcw, 
+                                                            cv::Mat t1w, cv::Mat t21, cv::Mat Ow, 
                                                             const float fx, const float fy, 
                                                             const float cx, const float cy, 
-                                                            const float bf, bool consider_error) 
+                                                            const float bf, bool consider_error, 
+                                                            bool consider_included_angle)
     {
         // 『地圖點 pMP』的世界座標
         cv::Mat p3Dw = pMP->GetWorldPos();
 
         // 『地圖點 pMP』由世紀座標系 轉換到 相機座標系
-        cv::Mat p3Dc = Rcw * p3Dw + tcw;
+        cv::Mat p3Dc = Rcw * p3Dw + t1w;
+
+        cv::Mat sp3Dc = sim3 * p3Dc + t21;
 
         // Depth must be positive
-        if (p3Dc.at<float>(2) < 0.0f)
+        if (sp3Dc.at<float>(2) < 0.0f)
         {
             return std::tuple<bool, int, int>{true, -1, -1};
         }
 
-        const float invz = 1 / p3Dc.at<float>(2);
+        const float invz = 1 / sp3Dc.at<float>(2);
 
         // 重投影之歸一化平面座標
-        const float x = p3Dc.at<float>(0) * invz;
-        const float y = p3Dc.at<float>(1) * invz;
+        const float x = sp3Dc.at<float>(0) * invz;
+        const float y = sp3Dc.at<float>(1) * invz;
 
         // 重投影之像素座標
         const float u = fx * x + cx;
@@ -2254,28 +2319,48 @@ namespace ORB_SLAM2
         // 考慮金字塔層級的『地圖點 pMP』最小可能深度
         const float minDistance = pMP->GetMinDistanceInvariance();
 
-        // 『相機中心 Ow』指向『地圖點 pMP』之向量
-        cv::Mat PO = p3Dw - Ow;
+        float dist3D;
 
-        // 『地圖點 pMP』深度（『相機中心 Ow』到『地圖點 pMP』之距離）
-        const float dist3D = cv::norm(PO);
-
-        // Depth must be inside the scale pyramid of the image
-        // 『相機中心 Ow』到『地圖點 pMP』之距離應在可能深度的區間內
-        if (dist3D < minDistance || dist3D > maxDistance)
+        if(consider_included_angle)
         {
-            return std::tuple<bool, int, int>{true, -1, -1};
+            // 『相機中心 Ow』指向『地圖點 pMP』之向量
+            cv::Mat PO = p3Dw - Ow;
+
+            // 『地圖點 pMP』深度（『相機中心 Ow』到『地圖點 pMP』之距離）
+            dist3D = cv::norm(PO);
+
+            // Depth must be inside the scale pyramid of the image
+            // 『相機中心 Ow』到『地圖點 pMP』之距離應在可能深度的區間內
+            if (dist3D < minDistance || dist3D > maxDistance)
+            {
+                return std::tuple<bool, int, int>{true, -1, -1};
+            }
+            
+            // Viewing angle must be less than 60 deg
+            // 地圖點之法向量
+            // SerachBySim3 沒有這段
+            cv::Mat Pn = pMP->GetNormal();
+
+            // SerachBySim3 沒有這段
+            // 計算 PO 和 Pn 的夾角是否超過 60 度（餘弦值超過 0.5）
+            if (PO.dot(Pn) < 0.5 * dist3D)
+            {
+                return std::tuple<bool, int, int>{true, -1, -1};
+            }
         }
+        else
+        {
+            // 『地圖點 pMP』深度（『相機中心 Ow』到『地圖點 pMP』之距離）
+            dist3D = cv::norm(sp3Dc);
 
-        // Viewing angle must be less than 60 deg
-        // 地圖點之法向量
-        cv::Mat Pn = pMP->GetNormal();
-
-        // 計算 PO 和 Pn 的夾角是否超過 60 度（餘弦值超過 0.5）
-        if (PO.dot(Pn) < 0.5 * dist3D){
-            return std::tuple<bool, int, int>{true, -1, -1};
-        }
-
+            // Depth must be inside the scale pyramid of the image
+            // 『相機中心 Ow』到『地圖點 pMP』之距離應在可能深度的區間內
+            if (dist3D < minDistance || dist3D > maxDistance)
+            {
+                return std::tuple<bool, int, int>{true, -1, -1};
+            }
+        }        
+        
         // 『關鍵幀 pKF』根據當前『地圖點 pMP』的深度，估計場景規模
         int nPredictedLevel = pMP->PredictScale(dist3D, pKF);
 
@@ -2299,17 +2384,17 @@ namespace ORB_SLAM2
         return std::tuple<bool, int, int>{false, std::get<0>(dist_idx), std::get<1>(dist_idx)};
     }
 
-    std::tuple<int, int> ORBmatcher::selectFuseTarget(KeyFrame *pKF, const cv::Mat dMP, 
-                                                            const vector<size_t> vIndices, 
-                                                            int nPredictedLevel, bool consider_error, 
-                                                            const float u, const float v, const float ur)
+    std::tuple<int, int> ORBmatcher::selectFuseTarget(KeyFrame *pKF, const cv::Mat dMP,
+                                                      const vector<size_t> vIndices,
+                                                      int nPredictedLevel, bool consider_error,
+                                                      const float u, const float v, const float ur)
     {
         bool is_error_too_large;
         int bestDist = INT_MAX;
         int bestIdx = -1;
         int dist;
 
-        for(const size_t idx : vIndices)
+        for (const size_t idx : vIndices)
         {
             // 指定區域內的候選關鍵點
             const cv::KeyPoint &kp = pKF->mvKeysUn[idx];
@@ -2318,17 +2403,18 @@ namespace ORB_SLAM2
             const int &kpLevel = kp.octave;
 
             // kpLevel 可以是：(nPredictedLevel - 1) 或 nPredictedLevel
-            if (kpLevel < nPredictedLevel - 1 || kpLevel > nPredictedLevel){
+            if (kpLevel < nPredictedLevel - 1 || kpLevel > nPredictedLevel)
+            {
                 continue;
             }
 
             // 是否考慮誤差
-            if(consider_error)
+            if (consider_error)
             {
                 is_error_too_large = isErrorTooLarge(pKF, idx, kp, kpLevel, u, v, ur);
 
                 // 誤差過大時，則跳過
-                if(is_error_too_large)
+                if (is_error_too_large)
                 {
                     continue;
                 }

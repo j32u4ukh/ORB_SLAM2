@@ -122,11 +122,6 @@ e12->setMeasurement(obs1);
 
 
 
-[Fuse]
-
-
-
-
 
 
 [SearchBySim3]
@@ -570,8 +565,323 @@ for (size_t i = 0, iend = vpMPs.size(); i < iend; i++)
 
 
 
+[SearchByBoW]
 
+// 『關鍵幀 pKF1』和『關鍵幀 pKF2』上的關鍵點距離足夠小的關鍵點個數
+    int ORBmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &vpMatches12)
+    {
+        // 取得『關鍵幀 pKF1』的已校正關鍵點
+        const vector<cv::KeyPoint> &vKeysUn1 = pKF1->mvKeysUn;
 
+        // 取得『關鍵幀 pKF1』的特徵向量
+        const DBoW2::FeatureVector &vFeatVec1 = pKF1->mFeatVec;
 
+        // 取得『關鍵幀 pKF1』的地圖點
+        const vector<MapPoint *> vpMapPoints1 = pKF1->GetMapPointMatches();
+
+        // 取得『關鍵幀 pKF1』的描述子
+        const cv::Mat &Descriptors1 = pKF1->mDescriptors;
+
+        const vector<cv::KeyPoint> &vKeysUn2 = pKF2->mvKeysUn;
+        const DBoW2::FeatureVector &vFeatVec2 = pKF2->mFeatVec;
+        const vector<MapPoint *> vpMapPoints2 = pKF2->GetMapPointMatches();
+        const cv::Mat &Descriptors2 = pKF2->mDescriptors;
+
+        vpMatches12 = vector<MapPoint *>(vpMapPoints1.size(), static_cast<MapPoint *>(NULL));
+        vector<bool> vbMatched2(vpMapPoints2.size(), false);
+
+        vector<int> rotHist[HISTO_LENGTH];
+
+        for (int i = 0; i < HISTO_LENGTH; i++){
+            rotHist[i].reserve(500);
+        }
+
+        const float factor = 1.0f / HISTO_LENGTH;
+
+        int nmatches = 0;
+
+        // FeatureVector == std::map<NodeId, std::vector<unsigned int> >
+        // 以一張圖片的每個特徵點在詞典某一層節點下爲條件進行分組，用來加速圖形特徵匹配——
+        // 兩兩圖像特徵匹配只需要對相同 NodeId 下的特徵點進行匹配就好。
+        // std::vector<unsigned int>：觀察到該特徵的 地圖點/關鍵點 的索引值
+        DBoW2::FeatureVector::const_iterator f1it = vFeatVec1.begin();
+        DBoW2::FeatureVector::const_iterator f1end = vFeatVec1.end();
+        
+        DBoW2::FeatureVector::const_iterator f2it = vFeatVec2.begin();
+        DBoW2::FeatureVector::const_iterator f2end = vFeatVec2.end();
+
+        while (f1it != f1end && f2it != f2end)
+        {
+            if (f1it->first == f2it->first)
+            {
+                vector<unsigned int> mp_indexs1 = f1it->second;
+                vector<unsigned int> mp_indexs2 = f2it->second;
+
+                for(const size_t idx1 : mp_indexs1)
+                {
+                    MapPoint *pMP1 = vpMapPoints1[idx1];
+
+                    if (!pMP1){
+                        continue;
+                    }
+
+                    if (pMP1->isBad()){
+                        continue;
+                    }
+
+                    const cv::Mat &d1 = Descriptors1.row(idx1);
+
+                    int bestDist1 = 256;
+                    int bestIdx2 = -1;
+                    int bestDist2 = 256;
+
+                    for(const size_t idx2 : mp_indexs2)
+                    {
+                        MapPoint *pMP2 = vpMapPoints2[idx2];
+
+                        if (vbMatched2[idx2] || !pMP2){
+                            continue;
+                        }
+
+                        if (pMP2->isBad()){
+                            continue;
+                        }
+
+                        const cv::Mat &d2 = Descriptors2.row(idx2);
+
+                        // 『關鍵幀 pKF1』和『關鍵幀 pKF2』的關鍵點觀察到相似的特徵，計算兩關鍵點之間的距離
+                        // 計算描述子之間的距離（相似程度）
+                        int dist = DescriptorDistance(d1, d2);
+
+                        if (dist < bestDist1)
+                        {
+                            bestDist2 = bestDist1;
+                            bestDist1 = dist;
+                            bestIdx2 = idx2;
+                        }
+                        else if (dist < bestDist2)
+                        {
+                            bestDist2 = dist;
+                        }
+                    }
+
+                    // 若『關鍵幀 pKF1』和『關鍵幀 pKF2』上的關鍵點距離足夠小
+                    if (bestDist1 < TH_LOW)
+                    {
+                        // 最小距離比第二小的距離要小的多
+                        if (static_cast<float>(bestDist1) < mfNNratio * static_cast<float>(bestDist2))
+                        {
+                            // 『關鍵幀 pKF1』的第 idx1 個關鍵點，對應著『關鍵幀 pKF2』的第 bestIdx2 個地圖點
+                            vpMatches12[idx1] = vpMapPoints2[bestIdx2];
+                            vbMatched2[bestIdx2] = true;
+                            nmatches++;
+
+                            if (mbCheckOrientation)
+                            {
+                                updateRotHist(vKeysUn1[idx1], vKeysUn2[bestIdx2], 
+                                              factor, idx1, rotHist);
+
+                                // float rot = vKeysUn1[idx1].angle - vKeysUn2[bestIdx2].angle;
+
+                                // if (rot < 0.0){
+                                //     rot += 360.0f;
+                                // }
+
+                                // int bin = round(rot * factor);
+
+                                // if (bin == HISTO_LENGTH){
+                                //     bin = 0;
+                                // }
+                                
+                                // assert(bin >= 0 && bin < HISTO_LENGTH);
+                                // rotHist[bin].push_back(idx1);
+                            }                            
+                        }
+                    }
+                }
+
+                f1it++;
+                f2it++;
+            }
+
+            // NodeId 相同才進行比較，這裡將兩者的指標指向相同的 NodeId
+            else if (f1it->first < f2it->first)
+            {
+                f1it = vFeatVec1.lower_bound(f2it->first);
+            }
+            else
+            {
+                f2it = vFeatVec2.lower_bound(f1it->first);
+            }
+        }
+
+        if (mbCheckOrientation)
+        {
+            nmatches = convergenceMatched(nmatches, rotHist, 
+                                          vpMatches12, static_cast<MapPoint *>(NULL));
+        }
+
+        return nmatches;
+    }
+
+    // 利用詞袋模型，快速匹配兩幀同時觀察到的地圖點 vpMapPointMatches
+    int ORBmatcher::SearchByBoW(KeyFrame *pKF, Frame &F, vector<MapPoint *> &vpMapPointMatches)
+    {
+        // 從『參考關鍵幀 pKF』取出已匹配成功的地圖點
+        const vector<MapPoint *> vpMapPointsKF = pKF->GetMapPointMatches();
+
+        // 初始化匹配地圖點，長度初始化為『當前幀 F』的地圖點個數
+        vpMapPointMatches = vector<MapPoint *>(F.N, static_cast<MapPoint *>(NULL));
+
+        // 取得『參考關鍵幀 pKF』的特徵向量
+        const DBoW2::FeatureVector &vFeatVecKF = pKF->mFeatVec;
+
+        int nmatches = 0;
+
+        // rotHist[i], rotHist[j] 都是 vector<int>
+        vector<int> rotHist[HISTO_LENGTH];
+
+        for (int i = 0; i < HISTO_LENGTH; i++){
+            rotHist[i].reserve(500);
+        }
+
+        const float factor = 1.0f / HISTO_LENGTH;
+
+        // We perform the matching over ORB that belong to the same vocabulary node (at a certain level)
+        DBoW2::FeatureVector::const_iterator KFit = vFeatVecKF.begin();
+        DBoW2::FeatureVector::const_iterator KFend = vFeatVecKF.end();
+
+        DBoW2::FeatureVector::const_iterator Fit = F.mFeatVec.begin();
+        DBoW2::FeatureVector::const_iterator Fend = F.mFeatVec.end();
+
+        // FeatureVector == std::map<NodeId, std::vector<unsigned int> >
+        while (KFit != KFend && Fit != Fend)
+        {
+            // first: NodeId
+            // 相近的特徵點利用節點區分在一起，以加速運算，因此兩幀之間要比較時，只要比較節點(NodeId)相同的即可
+            if (KFit->first == Fit->first)
+            {
+                // 特徵索引值列表 second: std::vector<unsigned int>
+                // 包含了所有屬於『參考關鍵幀 pKF』詞袋模型的 KFit->first 節點的地圖點的索引值
+                const vector<unsigned int> vIndicesKF = KFit->second;
+
+                // 包含了所有屬於『當前幀 F』詞袋模型的 Fit->first 節點的地圖點的索引值
+                const vector<unsigned int> vIndicesF = Fit->second;
+
+                for(const unsigned int realIdxKF : vIndicesKF){
+
+                    // 『參考關鍵幀 pKF』的第 realIdxKF 個地圖點在詞袋模型中，屬於 KFit->first 節點
+                    MapPoint *pMP = vpMapPointsKF[realIdxKF];
+
+                    if (!pMP){
+                        continue;
+                    }
+
+                    if (pMP->isBad()){
+                        continue;
+                    }
+
+                    // 同樣利用 realIdxKF 取得相對應的特徵點的描述子
+                    const cv::Mat &dKF = pKF->mDescriptors.row(realIdxKF);
+
+                    int bestDist1 = 256;
+                    int bestIdxF = -1;
+                    int bestDist2 = 256;
+
+                    // 遍歷所有屬於『當前幀 F』詞袋模型的 Fit->first 節點的地圖點的索引值
+                    for(const unsigned int realIdxF : vIndicesF){
+
+                        if (vpMapPointMatches[realIdxF]){
+                            continue;
+                        }
+
+                        const cv::Mat &dF = F.mDescriptors.row(realIdxF);
+
+                        // 計算兩特徵點之間的距離
+                        const int dist = DescriptorDistance(dKF, dF);
+
+                        // 篩選兩特徵點之間的最短距離（bestDist1），以及其特徵點索引值（bestIdxF）
+                        if (dist < bestDist1)
+                        {
+                            bestDist2 = bestDist1;
+                            bestDist1 = dist;
+                            bestIdxF = realIdxF;
+                        }
+                        else if (dist < bestDist2)
+                        {
+                            bestDist2 = dist;
+                        }
+                    }
+
+                    // 若兩特徵點之間的距離足夠小
+                    if (bestDist1 <= TH_LOW)
+                    {
+                        // 且比第二近的距離小的多
+                        if (static_cast<float>(bestDist1) < mfNNratio * static_cast<float>(bestDist2))
+                        {
+                            // 第 bestIdxF 個匹配地圖點設為『參考關鍵幀 pKF』的第 realIdxKF 個地圖點 pMP
+                            vpMapPointMatches[bestIdxF] = pMP;
+
+                            // 取得第 realIdxKF 個地圖點相對應的（已校正）關鍵點
+                            const cv::KeyPoint &kp = pKF->mvKeysUn[realIdxKF];
+
+                            // 成功配對數
+                            nmatches++;
+
+                            if (mbCheckOrientation)
+                            {
+                                updateRotHist(kp, F.mvKeys[bestIdxF], factor, bestIdxF, rotHist);
+
+                                // // 計算兩特徵點的角度差
+                                // float rot = kp.angle - F.mvKeys[bestIdxF].angle;
+
+                                // if (rot < 0.0){
+                                //     rot += 360.0f;
+                                // }
+
+                                // // 將角度差換算成直方圖的索引值
+                                // int bin = round(rot * factor);
+
+                                // if (bin == HISTO_LENGTH){
+                                //     bin = 0;
+                                // }
+
+                                // assert(bin >= 0 && bin < HISTO_LENGTH);
+                                // rotHist[bin].push_back(bestIdxF);
+                            }                            
+                        }
+                    }
+                }
+
+                // 更新 const_iterator
+                KFit++;
+                Fit++;
+            }
+
+            // KFit 起始節點較 Fit 小
+            else if (KFit->first < Fit->first)
+            {
+                // 將 KFit 起始節點設為 Fit->first
+                KFit = vFeatVecKF.lower_bound(Fit->first);
+            }
+
+            // KFit 起始節點較 Fit 大
+            else
+            {
+                // 將 Fit 起始節點設為 KFit->first
+                Fit = F.mFeatVec.lower_bound(KFit->first);
+            }
+        }
+
+        if (mbCheckOrientation)
+        {
+            nmatches = convergenceMatched(nmatches, rotHist, 
+                                          vpMapPointMatches, static_cast<MapPoint *>(NULL));
+        }
+
+        return nmatches;
+    }
+
+    
 
 

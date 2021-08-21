@@ -90,10 +90,12 @@ namespace ORB_SLAM2
                            const float factor, const int idx, std::vector<int> *rot_hist);
 
         std::tuple<bool, int, int> selectFuseTarget(KeyFrame *pKF, MapPoint *pMP, float th,
-                                                    cv::Mat Rcw, cv::Mat tcw, cv::Mat Ow,
+                                                    cv::Mat sim3, cv::Mat Rcw,
+                                                    cv::Mat t1w, cv::Mat t21, cv::Mat Ow,
                                                     const float fx, const float fy,
                                                     const float cx, const float cy,
-                                                    const float bf, bool consider_error);
+                                                    const float bf, bool consider_error,
+                                                    bool consider_included_angle);
 
         std::tuple<int, int> selectFuseTarget(KeyFrame *pKF, const cv::Mat dMP,
                                               const vector<size_t> vIndices,
