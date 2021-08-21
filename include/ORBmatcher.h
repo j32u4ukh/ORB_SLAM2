@@ -24,6 +24,7 @@
 #include <vector>
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d/features2d.hpp>
+#include <tuple>
 
 #include "MapPoint.h"
 #include "KeyFrame.h"
@@ -85,8 +86,24 @@ namespace ORB_SLAM2
         inline int convergenceMatched(int n_match, std::vector<int> *rot_hist, 
                                       std::vector<T> &v_matched, D default_value);
 
-        void updateRotHist(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, 
+        void updateRotHist(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2,
                            const float factor, const int idx, std::vector<int> *rot_hist);
+
+        std::tuple<bool, int, int> selectFuseTarget(KeyFrame *pKF, MapPoint *pMP, float th,
+                                                    cv::Mat Rcw, cv::Mat tcw, cv::Mat Ow,
+                                                    const float fx, const float fy,
+                                                    const float cx, const float cy,
+                                                    const float bf, bool consider_error);
+
+        std::tuple<int, int> selectFuseTarget(KeyFrame *pKF, const cv::Mat dMP,
+                                              const vector<size_t> vIndices,
+                                              int nPredictedLevel, bool consider_error,
+                                              const float u, const float v, const float ur);
+
+        bool isErrorTooLarge(KeyFrame *pKF, const size_t idx,
+                             const cv::KeyPoint &kp, const int &kpLevel,
+                             const float u, const float v, const float ur);
+
     public:
         static const int TH_LOW;
         static const int TH_HIGH;

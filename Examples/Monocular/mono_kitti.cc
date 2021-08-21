@@ -166,7 +166,7 @@ int main(int argc, char **argv)
     }
 
     int minute = (int)(total / 60.0);
-    double second = total - 60.0 * total;
+    double second = total - 60.0 * minute;
 
     cout << "Total time: " << minute << ":" << second << endl;
     cout << "Median tracking time: " << vTimesTrack[nImages / 2] << endl;
