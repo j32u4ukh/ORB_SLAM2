@@ -86,41 +86,27 @@ namespace ORB_SLAM2
         inline int convergenceMatched(int n_match, std::vector<int> *rot_hist,
                                       std::vector<T> &v_matched, D default_value);
 
-        void updateRotHist(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2,
-                           const float factor, const int idx, std::vector<int> *rot_hist);
+        inline void updateRotHist(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2,
+                                  const float factor, const int idx, std::vector<int> *rot_hist);
 
-        std::tuple<bool, float, float, float> getPixelCoordinates(KeyFrame *pKF, cv::Mat sp3Dc,
-                                                                  const float fx, const float fy,
-                                                                  const float cx, const float cy);
+        inline std::tuple<bool, float, float, float> getPixelCoordinates(KeyFrame *pKF, cv::Mat sp3Dc,
+                                                                         const float fx, const float fy,
+                                                                         const float cx, const float cy);
 
-        std::tuple<bool, float, float, float> getPixelCoordinatesStereo(KeyFrame *pKF, cv::Mat sp3Dc,
-                                                                        const float bf,
-                                                                        const float fx, const float fy,
-                                                                        const float cx, const float cy);
+        inline std::tuple<bool, float, float, float> getPixelCoordinatesStereo(KeyFrame *pKF, 
+                                                                               cv::Mat sp3Dc,
+                                                                               const float bf,
+                                                                               const float fx, 
+                                                                               const float fy,
+                                                                               const float cx, 
+                                                                               const float cy);
 
-        std::tuple<bool, float> isValidDistance(MapPoint *pMP, cv::Mat p3Dw, cv::Mat Ow);
-        std::tuple<bool, float> isValidDistanceSim3(MapPoint *pMP, cv::Mat sp3Dc);
-        std::tuple<bool, cv::KeyPoint, int> checkFuseTarget(KeyFrame *pKF, const size_t idx,
-                                                            int nPredictedLevel);
-        void updateFuseTarget(KeyFrame *pKF, const size_t idx, const cv::Mat dMP,
-                              int &bestDist, int &bestIdx);
-
-        std::tuple<bool, int, int> selectFuseTarget(KeyFrame *pKF, MapPoint *pMP, float th,
-                                                    cv::Mat sim3, cv::Mat Rcw,
-                                                    cv::Mat t1w, cv::Mat t21, cv::Mat Ow,
-                                                    const float fx, const float fy,
-                                                    const float cx, const float cy,
-                                                    const float bf, bool consider_error,
-                                                    bool consider_included_angle);
-
-        std::tuple<int, int> selectFuseTarget(KeyFrame *pKF, const cv::Mat dMP,
-                                              const vector<size_t> vIndices,
-                                              int nPredictedLevel, bool consider_error,
-                                              const float u, const float v, const float ur);
-
-        bool isErrorTooLarge(KeyFrame *pKF, const size_t idx,
-                             const cv::KeyPoint &kp, const int &kpLevel,
-                             const float u, const float v, const float ur);
+        inline std::tuple<bool, float> isValidDistance(MapPoint *pMP, cv::Mat p3Dw, cv::Mat Ow);
+        inline std::tuple<bool, float> isValidDistanceSim3(MapPoint *pMP, cv::Mat sp3Dc);
+        inline std::tuple<bool, cv::KeyPoint, int> checkFuseTarget(KeyFrame *pKF, const size_t idx,
+                                                                   int nPredictedLevel);
+        inline void updateFuseTarget(KeyFrame *pKF, const size_t idx, const cv::Mat dMP,
+                                     int &bestDist, int &bestIdx);
 
     public:
         static const int TH_LOW;

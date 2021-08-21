@@ -21,7 +21,7 @@
 #include "ORBmatcher.h"
 
 #include <limits.h>
-
+#include <tuple>
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d/features2d.hpp>
 
@@ -60,10 +60,11 @@ namespace ORB_SLAM2
         const int *pb = b.ptr<int32_t>();
 
         int dist = 0;
+        unsigned int v;
 
         for (int i = 0; i < 8; i++, pa++, pb++)
         {
-            unsigned int v = *pa ^ *pb;
+            v = *pa ^ *pb;
             
             v = v - ((v >> 1) & 0x55555555);
             v = (v & 0x33333333) + ((v >> 2) & 0x33333333);
@@ -421,12 +422,10 @@ namespace ORB_SLAM2
             //                                      sim3, Rcw, tcw, t21, Ow, 
             //                                      fx, fy, cx, cy, 
             //                                      bf, true, true);
-
             // if(std::get<0>(continue_dist_idx))
             // {
             //     continue;
             // }
-
             // bestDist = std::get<1>(continue_dist_idx);
             // bestIdx = std::get<2>(continue_dist_idx);
 
@@ -450,17 +449,13 @@ namespace ORB_SLAM2
             // if (p3Dc.at<float>(2) < 0.0f){
             //     continue;
             // }
-
             // const float invz = 1 / p3Dc.at<float>(2);
-
             // // 重投影之歸一化平面座標
             // const float x = p3Dc.at<float>(0) * invz;
             // const float y = p3Dc.at<float>(1) * invz;
-
             // // 重投影之像素座標
             // const float u = fx * x + cx;
             // const float v = fy * y + cy;
-
             // // Point must be inside the image
             // // 傳入座標點是否超出關鍵幀的成像範圍
             // if (!pKF->IsInImage(u, v)){
@@ -469,6 +464,7 @@ namespace ORB_SLAM2
 
             valid_dist = isValidDistance(pMP, p3Dw, Ow);
 
+            // 若非有效深度估計
             if(!std::get<0>(valid_dist)){
                 continue;
             }
@@ -477,26 +473,20 @@ namespace ORB_SLAM2
 
             // // 考慮金字塔層級的『地圖點 pMP』最大可能深度
             // const float maxDistance = pMP->GetMaxDistanceInvariance();
-
             // // 考慮金字塔層級的『地圖點 pMP』最小可能深度
             // const float minDistance = pMP->GetMinDistanceInvariance();
-
             // // 『相機中心 Ow』指向『地圖點 pMP』之向量
             // cv::Mat PO = p3Dw - Ow;
-
             // // 『地圖點 pMP』深度（『相機中心 Ow』到『地圖點 pMP』之距離）
             // const float dist3D = cv::norm(PO);
-
             // // Depth must be inside the scale pyramid of the image
             // // 『相機中心 Ow』到『地圖點 pMP』之距離應在可能深度的區間內
             // if (dist3D < minDistance || dist3D > maxDistance){
             //     continue;
             // }
-
             // // Viewing angle must be less than 60 deg
             // // 地圖點之法向量
             // cv::Mat Pn = pMP->GetNormal();
-
             // // 計算 PO 和 Pn 的夾角是否超過 60 度（餘弦值超過 0.5）
             // if (PO.dot(Pn) < 0.5 * dist3D){
             //     continue;
@@ -519,8 +509,8 @@ namespace ORB_SLAM2
             // 取得『地圖點 pMP』描述子
             const cv::Mat dMP = pMP->GetDescriptor();
 
-            int bestDist = INT_MAX;
-            int bestIdx = -1;
+            bestDist = INT_MAX;
+            bestIdx = -1;
 
             // std::tuple<bool, cv::KeyPoint, int>{continue, kp, kpLevel};
             std::tuple<bool, cv::KeyPoint, int> continue_kp_level;
@@ -541,10 +531,8 @@ namespace ORB_SLAM2
 
                 // // 指定區域內的候選關鍵點
                 // const cv::KeyPoint &kp = pKF->mvKeysUn[idx];
-
                 // // 『關鍵點 kp』的金字塔層級
                 // const int &kpLevel = kp.octave;
-
                 // // kpLevel 可以是：(nPredictedLevel - 1) 或 nPredictedLevel
                 // if (kpLevel < nPredictedLevel - 1 || kpLevel > nPredictedLevel){
                 //     continue;
@@ -588,10 +576,8 @@ namespace ORB_SLAM2
 
                 // // 取得『關鍵幀 pKF』的第 idx 個特徵點的描述子
                 // const cv::Mat &dKF = pKF->mDescriptors.row(idx);
-
                 // // 計算『地圖點 pMP』描述子和『關鍵幀 pKF』的第 idx 個特徵點的描述子之間的距離
                 // const int dist = DescriptorDistance(dMP, dKF);
-
                 // // 篩選距離最近的『距離 bestDist』和『關鍵幀索引值 bestIdx』
                 // if (dist < bestDist)
                 // {
@@ -651,6 +637,7 @@ namespace ORB_SLAM2
         // Decompose Scw
         cv::Mat sRcw = Scw.rowRange(0, 3).colRange(0, 3);
         const float scw = sqrt(sRcw.row(0).dot(sRcw.row(0)));
+
         cv::Mat Rcw = sRcw / scw;
         cv::Mat tcw = Scw.rowRange(0, 3).col(3) / scw;
         cv::Mat Ow = -Rcw.t() * tcw;
@@ -664,10 +651,18 @@ namespace ORB_SLAM2
         // vpPoints：和『關鍵幀 mpCurrentKF』已配對的『關鍵幀及其共視關鍵幀』觀察到的地圖點
         const int nPoints = vpPoints.size();
         MapPoint *pMP, *pMPinKF;
-        std::tuple<bool, int, int> continue_dist_idx;
-        const cv::Mat sim3 = cv::Mat::eye(3, 3, CV_32F);
-        const cv::Mat t21 = cv::Mat::zeros(3, 1, CV_32F);
+        // std::tuple<bool, int, int> continue_dist_idx;
+        // const cv::Mat sim3 = cv::Mat::eye(3, 3, CV_32F);
+        // const cv::Mat t21 = cv::Mat::zeros(3, 1, CV_32F);
 
+        std::tuple<bool, float, float, float> continue_u_v_invz;
+        std::tuple<bool, cv::KeyPoint, int> continue_kp_level;
+        std::tuple<bool, float> valid_dist;
+        float dist3D, u, v;
+
+        // Get 3D Coords.
+        cv::Mat p3Dw, p3Dc;
+    
         // For each candidate MapPoint project and match
         for (int iMP = 0; iMP < nPoints; iMP++)
         {
@@ -686,25 +681,34 @@ namespace ORB_SLAM2
 
             bf 在需要考慮誤差時才會用到，因此這裡無須 bf
             */
-            continue_dist_idx = selectFuseTarget(pKF, pMP, th, 
-                                                 sim3, Rcw, tcw, t21, Ow, 
-                                                 fx, fy, cx, cy, 
-                                                 0, false, true);
+            // continue_dist_idx = selectFuseTarget(pKF, pMP, th, 
+            //                                      sim3, Rcw, tcw, t21, Ow, 
+            //                                      fx, fy, cx, cy, 
+            //                                      0, false, true);
 
-            if(std::get<0>(continue_dist_idx))
-            {
+            // if(std::get<0>(continue_dist_idx))
+            // {
+            //     continue;
+            // }
+
+            // bestDist = std::get<1>(continue_dist_idx);
+            // bestIdx = std::get<2>(continue_dist_idx);
+
+            // Get 3D Coords.
+            p3Dw = pMP->GetWorldPos();
+
+            // Transform into Camera Coords.
+            // 『地圖點 pMP』由世界座標轉換到『關鍵幀 pKF』座標系
+            p3Dc = Rcw * p3Dw + tcw;
+
+            continue_u_v_invz = getPixelCoordinates(pKF, p3Dc, fx, fy, cx, cy);
+
+            if(std::get<0>(continue_u_v_invz)){
                 continue;
             }
 
-            bestDist = std::get<1>(continue_dist_idx);
-            bestIdx = std::get<2>(continue_dist_idx);
-
-            // // Get 3D Coords.
-            // cv::Mat p3Dw = pMP->GetWorldPos();
-
-            // // Transform into Camera Coords.
-            // // 『地圖點 pMP』由世界座標轉換到『關鍵幀 pKF』座標系
-            // cv::Mat p3Dc = Rcw * p3Dw + tcw;
+            u = std::get<1>(continue_u_v_invz);
+            v = std::get<2>(continue_u_v_invz);
 
             // // Depth must be positive
             // if (p3Dc.at<float>(2) < 0.0f){
@@ -726,6 +730,15 @@ namespace ORB_SLAM2
             // if (!pKF->IsInImage(u, v)){
             //     continue;
             // }
+
+            valid_dist = isValidDistance(pMP, p3Dw, Ow);
+
+            // 若非有效的深度估計
+            if(!std::get<0>(valid_dist)){
+                continue;
+            }
+
+            dist3D = std::get<1>(valid_dist);
 
             // // Depth must be inside the scale pyramid of the image
             // // 考慮金字塔層級的『地圖點 pMP』最大可能深度
@@ -751,49 +764,58 @@ namespace ORB_SLAM2
             //     continue;
             // }
 
-            // // Compute predicted scale level
-            // const int nPredictedLevel = pMP->PredictScale(dist3D, pKF);
+            // Compute predicted scale level
+            const int nPredictedLevel = pMP->PredictScale(dist3D, pKF);
 
-            // // Search in a radius
-            // const float radius = th * pKF->mvScaleFactors[nPredictedLevel];
+            // Search in a radius
+            const float radius = th * pKF->mvScaleFactors[nPredictedLevel];
 
-            // // 取得區域內的候選關鍵點的索引值
-            // const vector<size_t> vIndices = pKF->GetFeaturesInArea(u, v, radius);
+            // 取得區域內的候選關鍵點的索引值
+            const vector<size_t> vIndices = pKF->GetFeaturesInArea(u, v, radius);
 
-            // if (vIndices.empty()){
-            //     continue;
-            // }
+            if (vIndices.empty()){
+                continue;
+            }
 
-            // // Match to the most similar keypoint in the radius
-            // // 取得地圖點描述子
-            // const cv::Mat dMP = pMP->GetDescriptor();
+            // Match to the most similar keypoint in the radius
+            // 取得地圖點描述子
+            const cv::Mat dMP = pMP->GetDescriptor();
 
-            // int bestDist = INT_MAX;
-            // int bestIdx = -1;
+            bestDist = INT_MAX;
+            bestIdx = -1;
 
-            // for(const size_t idx : vIndices){
+            for(const size_t idx : vIndices)
+            {
+                continue_kp_level = checkFuseTarget(pKF, idx, nPredictedLevel);
 
-            //     // 『關鍵點 kp』的金字塔層級
-            //     const int &kpLevel = pKF->mvKeysUn[idx].octave;
+                if(std::get<0>(continue_kp_level))
+                {
+                    continue;
+                }
 
-            //     // kpLevel 可以是：(nPredictedLevel - 1) 或 nPredictedLevel
-            //     if (kpLevel < nPredictedLevel - 1 || kpLevel > nPredictedLevel){
-            //         continue;
-            //     }
+                // // 『關鍵點 kp』的金字塔層級
+                // const int &kpLevel = pKF->mvKeysUn[idx].octave;
 
-            //     // 取得『關鍵幀 pKF』的第 idx 個特徵點的描述子
-            //     const cv::Mat &dKF = pKF->mDescriptors.row(idx);
+                // // kpLevel 可以是：(nPredictedLevel - 1) 或 nPredictedLevel
+                // if (kpLevel < nPredictedLevel - 1 || kpLevel > nPredictedLevel){
+                //     continue;
+                // }
 
-            //     // 『關鍵幀 pKF』的第 idx 個特徵點的描述子 和 『地圖點 pMP』的描述子 之間的距離
-            //     int dist = DescriptorDistance(dMP, dKF);
+                updateFuseTarget(pKF, idx, dMP, bestDist, bestIdx);
 
-            //     // 篩選距離最近的『距離 bestDist』和『關鍵幀索引值 bestIdx』
-            //     if (dist < bestDist)
-            //     {
-            //         bestDist = dist;
-            //         bestIdx = idx;
-            //     }
-            // }
+                // // 取得『關鍵幀 pKF』的第 idx 個特徵點的描述子
+                // const cv::Mat &dKF = pKF->mDescriptors.row(idx);
+
+                // // 『關鍵幀 pKF』的第 idx 個特徵點的描述子 和 『地圖點 pMP』的描述子 之間的距離
+                // int dist = DescriptorDistance(dMP, dKF);
+
+                // // 篩選距離最近的『距離 bestDist』和『關鍵幀索引值 bestIdx』
+                // if (dist < bestDist)
+                // {
+                //     bestDist = dist;
+                //     bestIdx = idx;
+                // }
+            }
 
             // If there is already a MapPoint replace otherwise add new measurement
             // 若『地圖點 pMP』描述子和『關鍵幀 pKF』的第 bestIdx 個特徵點的描述子之間的距離足夠小
@@ -2279,6 +2301,7 @@ namespace ORB_SLAM2
         return std::tuple<bool, float, float, float>{true, u, v, invz};
     }
 
+    // std::tuple<bool, float, float, float>{need_continue, u, v, ur}
     std::tuple<bool, float, float, float> ORBmatcher::getPixelCoordinatesStereo(KeyFrame *pKF, 
                                                                                 cv::Mat sp3Dc, 
                                                                                 const float bf, 
@@ -2290,19 +2313,15 @@ namespace ORB_SLAM2
         std::tuple<bool, float, float, float> continue_u_v_invz;
         continue_u_v_invz = getPixelCoordinates(pKF, sp3Dc, fx, fy, cx, cy);
 
-        if(std::get<0>(continue_u_v_invz))
-        {
-            return std::tuple<bool, float, float, float>{true, -1.0f, -1.0f, -1.0f};
-        }
-        else
+        if(!std::get<0>(continue_u_v_invz))
         {
             float u = std::get<0>(continue_u_v_invz);
-            float v = std::get<1>(continue_u_v_invz);
             float invz = std::get<3>(continue_u_v_invz);
             float ur = u - bf * invz;
-
-            return std::tuple<bool, float, float, float>{true, u, v, ur};
+            std::get<3>(continue_u_v_invz) = ur;
         }
+
+        return continue_u_v_invz;
     }
     
     std::tuple<bool, float> ORBmatcher::isValidDistance(MapPoint *pMP, cv::Mat p3Dw, cv::Mat Ow)
@@ -2372,15 +2391,15 @@ namespace ORB_SLAM2
         // 『關鍵點 kp』的金字塔層級
         const int &kpLevel = kp.octave;
 
+        bool need_continue = false;
+
         // kpLevel 可以是：(nPredictedLevel - 1) 或 nPredictedLevel
         if (kpLevel < nPredictedLevel - 1 || kpLevel > nPredictedLevel)
         {
-            std::tuple<bool, cv::KeyPoint, int>{true, kp, kpLevel};
+            need_continue = true;
         }
-        else
-        {
-            std::tuple<bool, cv::KeyPoint, int>{false, kp, kpLevel};
-        }
+        
+        return std::tuple<bool, cv::KeyPoint, int>{need_continue, kp, kpLevel};
     }
 
     void ORBmatcher::updateFuseTarget(KeyFrame *pKF, const size_t idx, const cv::Mat dMP, 
@@ -2398,221 +2417,6 @@ namespace ORB_SLAM2
             bestDist = dist;
             bestIdx = idx;
         }
-    }
-
-    // if_continue, best_dist, best_idx
-    /// TODO: 之前為了導入 SearchBySim3 而加上 sim3, t21, consider_included_angle 等參數，
-    /// 但沒有成功，導致其他地方在使用 selectFuseTarget 時需要傳入這些實際上用不到的參數
-    std::tuple<bool, int, int> ORBmatcher::selectFuseTarget(KeyFrame *pKF, MapPoint *pMP, float th, 
-                                                            cv::Mat sim3, cv::Mat Rcw, 
-                                                            cv::Mat t1w, cv::Mat t21, cv::Mat Ow, 
-                                                            const float fx, const float fy, 
-                                                            const float cx, const float cy, 
-                                                            const float bf, bool consider_error, 
-                                                            bool consider_included_angle)
-    {
-        // 『地圖點 pMP』的世界座標
-        cv::Mat p3Dw = pMP->GetWorldPos();
-
-        // 『地圖點 pMP』由世紀座標系 轉換到 相機座標系
-        cv::Mat p3Dc = Rcw * p3Dw + t1w;
-
-        cv::Mat sp3Dc = sim3 * p3Dc + t21;
-
-        /// TODO: 改版時，上面三行或許可以獨立出去，傳入計算完的 cv::Mat 即可
-
-        // Depth must be positive
-        if (sp3Dc.at<float>(2) < 0.0f)
-        {
-            return std::tuple<bool, int, int>{true, -1, -1};
-        }
-
-        const float invz = 1 / sp3Dc.at<float>(2);
-
-        // 重投影之歸一化平面座標
-        const float x = sp3Dc.at<float>(0) * invz;
-        const float y = sp3Dc.at<float>(1) * invz;
-
-        // 重投影之像素座標
-        const float u = fx * x + cx;
-        const float v = fy * y + cy;
-
-        // ＝＝＝＝＝ For stero ＝＝＝＝＝
-        const float ur = u - bf * invz;
-        // ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-
-        // Point must be inside the image
-        // 傳入座標點是否超出關鍵幀的成像範圍
-        if (!pKF->IsInImage(u, v))
-        {
-            return std::tuple<bool, int, int>{true, -1, -1};
-        }
-
-        // 考慮金字塔層級的『地圖點 pMP』最大可能深度
-        const float maxDistance = pMP->GetMaxDistanceInvariance();
-
-        // 考慮金字塔層級的『地圖點 pMP』最小可能深度
-        const float minDistance = pMP->GetMinDistanceInvariance();
-
-        float dist3D;
-
-        if(consider_included_angle)
-        {
-            // 『相機中心 Ow』指向『地圖點 pMP』之向量
-            cv::Mat PO = p3Dw - Ow;
-
-            // 『地圖點 pMP』深度（『相機中心 Ow』到『地圖點 pMP』之距離）
-            dist3D = cv::norm(PO);
-
-            // Depth must be inside the scale pyramid of the image
-            // 『相機中心 Ow』到『地圖點 pMP』之距離應在可能深度的區間內
-            if (dist3D < minDistance || dist3D > maxDistance)
-            {
-                return std::tuple<bool, int, int>{true, -1, -1};
-            }
-            
-            // Viewing angle must be less than 60 deg
-            // 地圖點之法向量
-            // SerachBySim3 沒有這段
-            cv::Mat Pn = pMP->GetNormal();
-
-            // SerachBySim3 沒有這段
-            // 計算 PO 和 Pn 的夾角是否超過 60 度（餘弦值超過 0.5）
-            if (PO.dot(Pn) < 0.5 * dist3D)
-            {
-                return std::tuple<bool, int, int>{true, -1, -1};
-            }
-        }
-        else
-        {
-            // 『地圖點 pMP』深度（『相機中心 Ow』到『地圖點 pMP』之距離）
-            dist3D = cv::norm(sp3Dc);
-
-            // Depth must be inside the scale pyramid of the image
-            // 『相機中心 Ow』到『地圖點 pMP』之距離應在可能深度的區間內
-            if (dist3D < minDistance || dist3D > maxDistance)
-            {
-                return std::tuple<bool, int, int>{true, -1, -1};
-            }
-        }        
-        
-        // 『關鍵幀 pKF』根據當前『地圖點 pMP』的深度，估計場景規模
-        int nPredictedLevel = pMP->PredictScale(dist3D, pKF);
-
-        // Search in a radius
-        const float radius = th * pKF->mvScaleFactors[nPredictedLevel];
-
-        // 指定區域內的候選關鍵點的索引值
-        const vector<size_t> vIndices = pKF->GetFeaturesInArea(u, v, radius);
-
-        if (vIndices.empty()){
-            return std::tuple<bool, int, int>{true, -1, -1};
-        }
-
-        // Match to the most similar keypoint in the radius
-        // 取得『地圖點 pMP』描述子
-        const cv::Mat dMP = pMP->GetDescriptor();
-        
-        std::tuple<int, int> dist_idx = selectFuseTarget(pKF, dMP, vIndices, nPredictedLevel, 
-                                                         consider_error, u, v, ur);
-
-        return std::tuple<bool, int, int>{false, std::get<0>(dist_idx), std::get<1>(dist_idx)};
-    }
-
-    std::tuple<int, int> ORBmatcher::selectFuseTarget(KeyFrame *pKF, const cv::Mat dMP,
-                                                      const vector<size_t> vIndices,
-                                                      int nPredictedLevel, bool consider_error,
-                                                      const float u, const float v, const float ur)
-    {
-        bool is_error_too_large;
-        int bestDist = INT_MAX;
-        int bestIdx = -1;
-        int dist;
-
-        for (const size_t idx : vIndices)
-        {
-            // 指定區域內的候選關鍵點
-            const cv::KeyPoint &kp = pKF->mvKeysUn[idx];
-
-            // 『關鍵點 kp』的金字塔層級
-            const int &kpLevel = kp.octave;
-
-            // kpLevel 可以是：(nPredictedLevel - 1) 或 nPredictedLevel
-            if (kpLevel < nPredictedLevel - 1 || kpLevel > nPredictedLevel)
-            {
-                continue;
-            }
-
-            // 是否考慮誤差
-            if (consider_error)
-            {
-                is_error_too_large = isErrorTooLarge(pKF, idx, kp, kpLevel, u, v, ur);
-
-                // 誤差過大時，則跳過
-                if (is_error_too_large)
-                {
-                    continue;
-                }
-            }
-
-            // 取得『關鍵幀 pKF』的第 idx 個特徵點的描述子
-            const cv::Mat &dKF = pKF->mDescriptors.row(idx);
-
-            // 計算『地圖點 pMP』描述子和『關鍵幀 pKF』的第 idx 個特徵點的描述子之間的距離
-            dist = DescriptorDistance(dMP, dKF);
-
-            // 篩選距離最近的『距離 bestDist』和『關鍵幀索引值 bestIdx』
-            if (dist < bestDist)
-            {
-                bestDist = dist;
-                bestIdx = idx;
-            }
-        }
-
-        return std::tuple<int, int>{bestDist, bestIdx};
-    }
-
-    bool ORBmatcher::isErrorTooLarge(KeyFrame *pKF, const size_t idx, 
-                                     const cv::KeyPoint &kp, const int &kpLevel, 
-                                     const float u, const float v, const float ur)
-    {
-        // 非單目，暫時跳過
-        if (pKF->mvuRight[idx] >= 0)
-        {
-            // Check reprojection error in stereo
-            const float &kpx = kp.pt.x;
-            const float &kpy = kp.pt.y;
-            const float &kpr = pKF->mvuRight[idx];
-            const float ex = u - kpx;
-            const float ey = v - kpy;
-            const float er = ur - kpr;
-            const float e2 = ex * ex + ey * ey + er * er;
-
-            if (e2 * pKF->mvInvLevelSigma2[kpLevel] > 7.8)
-            {
-                return true;
-            }
-        }
-
-        // 單目
-        else
-        {
-            const float &kpx = kp.pt.x;
-            const float &kpy = kp.pt.y;
-
-            // 計算重投影誤差
-            const float ex = u - kpx;
-            const float ey = v - kpy;
-            const float e2 = ex * ex + ey * ey;
-
-            // 若重投影誤差過大則跳過
-            if (e2 * pKF->mvInvLevelSigma2[kpLevel] > 5.99)
-            {
-                return true;
-            }
-        }
-
-        return false;
     }
     // ==================================================
     // 以下為非單目相關函式
