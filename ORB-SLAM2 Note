@@ -43,11 +43,11 @@ mean tracking time: 0.0943997
 #MapPoint: 76626
 
 Vocabulary loaded! Cost 9.44923 s.
-#KeyFrame: 724
-#MapPoint: 87397
-Total time: 10:23.4392
-Median tracking time: 0.0776799
-Mean tracking time: 0.0859752
+#KeyFrame: 775
+#MapPoint: 94168
+Total time: 9:33.0263
+Median tracking time: 0.0711247
+Mean tracking time: 0.0782041
 
 
 

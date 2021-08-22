@@ -1880,26 +1880,39 @@ namespace ORB_SLAM2
 
         const float factor = 1.0f / HISTO_LENGTH;
         const vector<MapPoint *> vpMPs = pKF->GetMapPointMatches();
+        
+        std::tuple<float, float, float> u_v_invz;
+        std::tuple<bool, float> valid_dist;
+        cv::Mat x3Dw, x3Dc;
+        float u, v, dist3D;
+        MapPoint *pMP;
 
         // 遍歷『關鍵幀 pKF』的已配對地圖點
         for (size_t i = 0, iend = vpMPs.size(); i < iend; i++)
         {
-            MapPoint *pMP = vpMPs[i];
+            pMP = vpMPs[i];
 
             if (pMP)
             {
                 if (!pMP->isBad() && !sAlreadyFound.count(pMP))
                 {
                     //Project
-                    cv::Mat x3Dw = pMP->GetWorldPos();
-                    cv::Mat x3Dc = Rcw * x3Dw + tcw;
+                    x3Dw = pMP->GetWorldPos();
+                    x3Dc = Rcw * x3Dw + tcw;
 
-                    const float xc = x3Dc.at<float>(0);
-                    const float yc = x3Dc.at<float>(1);
-                    const float invzc = 1.0 / x3Dc.at<float>(2);
+                    u_v_invz = getPixelCoordinates(x3Dc,
+                                                   CurrentFrame.fx, CurrentFrame.fy, 
+                                                   CurrentFrame.cx, CurrentFrame.cy);
 
-                    const float u = CurrentFrame.fx * xc * invzc + CurrentFrame.cx;
-                    const float v = CurrentFrame.fy * yc * invzc + CurrentFrame.cy;
+                    u = std::get<0>(u_v_invz);
+                    v = std::get<1>(u_v_invz);
+
+                    // const float xc = x3Dc.at<float>(0);
+                    // const float yc = x3Dc.at<float>(1);
+                    // const float invzc = 1.0 / x3Dc.at<float>(2);
+
+                    // const float u = CurrentFrame.fx * xc * invzc + CurrentFrame.cx;
+                    // const float v = CurrentFrame.fy * yc * invzc + CurrentFrame.cy;
 
                     if (u < CurrentFrame.mnMinX || u > CurrentFrame.mnMaxX){
                         continue;
@@ -1909,17 +1922,26 @@ namespace ORB_SLAM2
                         continue;
                     }
 
-                    // Compute predicted scale level
-                    cv::Mat PO = x3Dw - Ow;
-                    float dist3D = cv::norm(PO);
+                    valid_dist = isValidDistance(pMP, x3Dw, Ow);
 
-                    const float maxDistance = pMP->GetMaxDistanceInvariance();
-                    const float minDistance = pMP->GetMinDistanceInvariance();
-
-                    // Depth must be inside the scale pyramid of the image
-                    if (dist3D < minDistance || dist3D > maxDistance){
+                    // 若非有效深度估計
+                    if(!std::get<0>(valid_dist)){
                         continue;
                     }
+
+                    dist3D = std::get<1>(valid_dist);
+
+                    // // Compute predicted scale level
+                    // cv::Mat PO = x3Dw - Ow;
+                    // float dist3D = cv::norm(PO);
+
+                    // const float maxDistance = pMP->GetMaxDistanceInvariance();
+                    // const float minDistance = pMP->GetMinDistanceInvariance();
+
+                    // // Depth must be inside the scale pyramid of the image
+                    // if (dist3D < minDistance || dist3D > maxDistance){
+                    //     continue;
+                    // }
 
                     // 根據當前距離與最遠可能距離，換算出當前尺度
                     int nPredictedLevel = pMP->PredictScale(dist3D, &CurrentFrame);
@@ -1949,17 +1971,19 @@ namespace ORB_SLAM2
                             continue;
                         }
 
-                        // 取得當前幀的第 i2 個特徵點的描述子
-                        const cv::Mat &d = CurrentFrame.mDescriptors.row(i2);
+                        updateFuseTarget(&CurrentFrame, i2, dMP, bestDist, bestIdx2);
 
-                        // 計算描述子之間的距離（相似程度）
-                        const int dist = DescriptorDistance(dMP, d);
+                        // // 取得當前幀的第 i2 個特徵點的描述子
+                        // const cv::Mat &d = CurrentFrame.mDescriptors.row(i2);
 
-                        if (dist < bestDist)
-                        {
-                            bestDist = dist;
-                            bestIdx2 = i2;
-                        }
+                        // // 計算描述子之間的距離（相似程度）
+                        // const int dist = DescriptorDistance(dMP, d);
+
+                        // if (dist < bestDist)
+                        // {
+                        //     bestDist = dist;
+                        //     bestIdx2 = i2;
+                        // }
                     }
 
                     if (bestDist <= ORBdist)
@@ -1971,21 +1995,6 @@ namespace ORB_SLAM2
                         {
                             updateRotHist(pKF->mvKeysUn[i], CurrentFrame.mvKeysUn[bestIdx2], 
                                           factor, bestIdx2, rotHist);
-
-                            // float rot = pKF->mvKeysUn[i].angle - CurrentFrame.mvKeysUn[bestIdx2].angle;
-
-                            // if (rot < 0.0){
-                            //     rot += 360.0f;
-                            // }
-
-                            // int bin = round(rot * factor);
-
-                            // if (bin == HISTO_LENGTH){
-                            //     bin = 0;                            
-                            // }
-
-                            // assert(bin >= 0 && bin < HISTO_LENGTH);
-                            // rotHist[bin].push_back(bestIdx2);
                         }
                     }
                 }
@@ -2004,13 +2013,15 @@ namespace ORB_SLAM2
     // Used in Tracking::SearchLocalPoints
     int ORBmatcher::SearchByProjection(Frame &F, const vector<MapPoint *> &vpMapPoints, const float th)
     {
-        int nmatches = 0;
+        int nmatches = 0, bestDist, bestLevel, bestDist2, bestLevel2, bestIdx;
 
-        const bool bFactor = th != 1.0;
+        // const bool bFactor = th != 1.0;
+        MapPoint *pMP;
+        float r;
 
         for (size_t iMP = 0; iMP < vpMapPoints.size(); iMP++)
         {
-            MapPoint *pMP = vpMapPoints[iMP];
+            pMP = vpMapPoints[iMP];
 
             if (!pMP->mbTrackInView){
                 continue;
@@ -2023,11 +2034,11 @@ namespace ORB_SLAM2
             const int &nPredictedLevel = pMP->mnTrackScaleLevel;
 
             // The size of the window will depend on the viewing direction
-            float r = RadiusByViewingCos(pMP->mTrackViewCos);
+            r = th * RadiusByViewingCos(pMP->mTrackViewCos);
 
-            if (bFactor){
-                r *= th;
-            }
+            // if (bFactor){
+            //     r *= th;
+            // }
 
             const vector<size_t> vIndices = 
                                             F.GetFeaturesInArea(pMP->mTrackProjX,
@@ -2042,17 +2053,19 @@ namespace ORB_SLAM2
 
             const cv::Mat MPdescriptor = pMP->GetDescriptor();
 
-            int bestDist = 256;
-            int bestLevel = -1;
-            int bestDist2 = 256;
-            int bestLevel2 = -1;
-            int bestIdx = -1;
+            bestDist = 256;
+            bestLevel = -1;
+            bestDist2 = 256;
+            bestLevel2 = -1;
+            bestIdx = -1;
 
             // Get best and second matches with near keypoints
             for(const size_t idx : vIndices){
 
-                if (F.mvpMapPoints[idx]){
-                    if (F.mvpMapPoints[idx]->getObservationNumber() > 0){
+                if (F.mvpMapPoints[idx])
+                {
+                    if (F.mvpMapPoints[idx]->getObservationNumber() > 0)
+                    {
                         continue;
                     }
                 }
