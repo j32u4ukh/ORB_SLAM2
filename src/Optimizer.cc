@@ -40,6 +40,8 @@ namespace ORB_SLAM2
     const float Optimizer::thHuber3D = sqrt(7.815);
     const float Optimizer::thHuberMono = sqrt(5.991);
     const float Optimizer::thHuberStereo = sqrt(7.815);
+    const float Optimizer::deltaMono = sqrt(5.991);
+    const float Optimizer::deltaStereo = sqrt(7.815);
     const Eigen::Matrix<double, 7, 7> Optimizer::matLambda = Eigen::Matrix<double, 7, 7>::Identity();
         
     // ==================================================
@@ -96,16 +98,6 @@ namespace ORB_SLAM2
             id = pKF->mnId;
             addVertexSE3Expmap(optimizer, pKF->GetPose(), id, id == 0);
 
-            // g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
-
-            // // 取得『關鍵幀 pKF』的位姿，並轉換成 g2o 所需的類型 
-            // vSE3->setEstimate(Converter::toSE3Quat(pKF->GetPose()));
-            // vSE3->setId(pKF->mnId);
-            // vSE3->setFixed(pKF->mnId == 0);
-
-            // // 『關鍵幀 pKF』的位姿，作為『頂點』加入優化
-            // optimizer.addVertex(vSE3);
-
             if (id > maxKFid)
             {
                 maxKFid = id;
@@ -131,17 +123,6 @@ namespace ORB_SLAM2
             id = pMP->mnId + maxKFid + 1;
             vPoint = newVertexSBAPointXYZ(pMP->GetWorldPos(), id);
             vPoint->setMarginalized(true);
-
-            // g2o::VertexSBAPointXYZ *vPoint = new g2o::VertexSBAPointXYZ();
-
-            // // 『地圖點 pMP』的世界座標作為 vPoint 的初始值
-            // vPoint->setEstimate(Converter::toVector3d(pMP->GetWorldPos()));
-
-            // /// NOTE: 『地圖點 pMP』的 Id + 最大的『關鍵幀』 Id + 1， Id 由 maxKFid + 1 開始編號
-            // const int id = pMP->mnId + maxKFid + 1;
-
-            // vPoint->setId(id);
-            // vPoint->setMarginalized(true);
 
             // 『地圖點 pMP』的座標作為『頂點』加入優化
             optimizer.addVertex(vPoint);
@@ -170,72 +151,12 @@ namespace ORB_SLAM2
                 if (pKF->mvuRight[kp_idx] < 0)
                 {
                     addEdgeSE3ProjectXYZ(optimizer, kpUn, pKF, id, pKF->mnId, bRobust);
-
-                    // Eigen::Matrix<double, 2, 1> obs;
-                    // obs << kpUn.pt.x, kpUn.pt.y;
-
-                    // g2o::EdgeSE3ProjectXYZ *e = new g2o::EdgeSE3ProjectXYZ();
-
-                    // // 『邊』連接第 mnId 個關鍵幀和第 mnId 個地圖點
-                    // // （地圖點接續關鍵幀的 id 編號，因此是由 maxKFid + 1 開始編號）
-                    // e->setVertex(0, 
-                    //              dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(id)));
-                    // e->setVertex(1, 
-                    //              dynamic_cast<g2o::OptimizableGraph::Vertex *>(
-                    //                                                     optimizer.vertex(pKF->mnId)));
-                    // e->setMeasurement(obs);
-                    // const float &invSigma2 = pKF->mvInvLevelSigma2[kpUn.octave];
-                    // e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
-
-                    // if (bRobust)
-                    // {
-                    //     g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
-                    //     e->setRobustKernel(rk);
-                    //     rk->setDelta(thHuber2D);
-                    // }
-
-                    // e->fx = pKF->fx;
-                    // e->fy = pKF->fy;
-                    // e->cx = pKF->cx;
-                    // e->cy = pKF->cy;
-
-                    // // 『關鍵點 kpUn』作為『邊』加入優化
-                    // optimizer.addEdge(e);
                 }
 
                 // 非單目，暫時跳過
                 else
                 {
                     addEdgeStereoSE3ProjectXYZ(optimizer, kpUn, pKF, kp_idx, id, pKF->mnId, bRobust);
-
-                    // Eigen::Matrix<double, 3, 1> obs;
-                    // const float kp_ur = pKF->mvuRight[kp_idx];
-                    // obs << kpUn.pt.x, kpUn.pt.y, kp_ur;
-
-                    // g2o::EdgeStereoSE3ProjectXYZ *e = new g2o::EdgeStereoSE3ProjectXYZ();
-                    // e->setVertex(0, 
-                    //              dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(id)));
-                    // e->setVertex(1, 
-                    //              dynamic_cast<g2o::OptimizableGraph::Vertex *>(
-                    //                                                     optimizer.vertex(pKF->mnId)));
-                    // e->setMeasurement(obs);
-                    // const float &invSigma2 = pKF->mvInvLevelSigma2[kpUn.octave];
-                    // Eigen::Matrix3d Info = Eigen::Matrix3d::Identity() * invSigma2;
-                    // e->setInformation(Info);
-                    
-                    // if (bRobust)
-                    // {
-                    //     g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
-                    //     e->setRobustKernel(rk);
-                    //     rk->setDelta(thHuber3D);
-                    // }
-
-                    // e->fx = pKF->fx;
-                    // e->fy = pKF->fy;
-                    // e->cx = pKF->cx;
-                    // e->cy = pKF->cy;
-                    // e->bf = pKF->mbf;
-                    // optimizer.addEdge(e);
                 }
             }
             
@@ -439,16 +360,6 @@ namespace ORB_SLAM2
             id = pKFi->mnId;
             addVertexSE3Expmap(optimizer, pKFi->GetPose(), id, id == 0);
 
-            // g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
-            // vSE3->setEstimate(Converter::toSE3Quat(pKFi->GetPose()));
-            // vSE3->setId(pKFi->mnId);
-
-            // // Local 共視關鍵幀只有第 0 幀設為 Fixed，Fixed 共視關鍵幀全部都設為 Fixed
-            // vSE3->setFixed(pKFi->mnId == 0);
-
-            // // Local 共視關鍵幀作為頂點加入優化        
-            // optimizer.addVertex(vSE3);
-
             if (id > maxKFid)
             {
                 maxKFid = id;
@@ -464,15 +375,6 @@ namespace ORB_SLAM2
         {
             id = pKFi->mnId;
             addVertexSE3Expmap(optimizer, pKFi->GetPose(), id, true);
-
-            // g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
-            // vSE3->setEstimate(Converter::toSE3Quat(pKFi->GetPose()));
-            // vSE3->setId(pKFi->mnId);
-
-            // // Fixed 共視關鍵幀全部都設為 Fixed，Local 共視關鍵幀只有第 0 幀設為 Fixed
-            // vSE3->setFixed(true);
-
-            // optimizer.addVertex(vSE3);
 
             if (id > maxKFid)
             {
@@ -502,10 +404,7 @@ namespace ORB_SLAM2
 
         vector<MapPoint *> vpMapPointEdgeStereo;
         vpMapPointEdgeStereo.reserve(nExpectedSize);
-
-        // const float thHuberMono = sqrt(5.991);
-        // const float thHuberStereo = sqrt(7.815);
-
+        
         g2o::EdgeSE3ProjectXYZ *e;
         g2o::EdgeStereoSE3ProjectXYZ *e_stereo;
         g2o::VertexSBAPointXYZ *vPoint;
@@ -516,12 +415,6 @@ namespace ORB_SLAM2
             id = pMP->mnId + maxKFid + 1;
             vPoint = newVertexSBAPointXYZ(pMP->GetWorldPos(), id);
             vPoint->setMarginalized(true);
-
-            // g2o::VertexSBAPointXYZ *vPoint = new g2o::VertexSBAPointXYZ();
-            // vPoint->setEstimate(Converter::toVector3d(pMP->GetWorldPos()));
-            
-            // vPoint->setId(id);
-            // vPoint->setMarginalized(true);
 
             // 『Local 共視關鍵幀所觀察到的地圖點』作為頂點加入優化
             optimizer.addVertex(vPoint);
@@ -544,36 +437,13 @@ namespace ORB_SLAM2
                     // 單目的這個數值會是負的
                     const float kp_ur = pKFi->mvuRight[kp_idx];
 
-                    // const float &invSigma2 = pKFi->mvInvLevelSigma2[kpUn.octave];
+                    const float &invSigma2 = pKFi->mvInvLevelSigma2[kpUn.octave];
 
                     // Monocular observation
                     if (kp_ur < 0)
                     {
                         e = addEdgeSE3ProjectXYZ(optimizer, kpUn, pKFi, id, pKFi->mnId, false);
 
-                        // // 已校正的關鍵點的位置，作為『邊』加入優化
-                        // Eigen::Matrix<double, 2, 1> obs;
-                        // obs << kpUn.pt.x, kpUn.pt.y;
-
-                        // g2o::EdgeSE3ProjectXYZ *e = new g2o::EdgeSE3ProjectXYZ();
-                        // e->setVertex(0,
-                        //     dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(id)));
-                        // e->setVertex(1, 
-                        //     dynamic_cast<g2o::OptimizableGraph::Vertex *>(
-                        //                                                 optimizer.vertex(pKFi->mnId)));
-                        // e->setMeasurement(obs);
-                        
-                        // e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
-                        // g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
-                        // e->setRobustKernel(rk);
-                        // rk->setDelta(thHuberMono);
-
-                        // e->fx = pKFi->fx;
-                        // e->fy = pKFi->fy;
-                        // e->cx = pKFi->cx;
-                        // e->cy = pKFi->cy;
-
-                        // optimizer.addEdge(e);
                         vpEdgesMono.push_back(e);
                         vpEdgeKFMono.push_back(pKFi);
                         vpMapPointEdgeMono.push_back(pMP);
@@ -584,31 +454,7 @@ namespace ORB_SLAM2
                     {
                         e_stereo = addEdgeStereoSE3ProjectXYZ(optimizer, kpUn, pKF, kp_idx, 
                                                               id, pKF->mnId, false);
-
-                        // Eigen::Matrix<double, 3, 1> obs;
-                        // obs << kpUn.pt.x, kpUn.pt.y, kp_ur;
-
-                        // g2o::EdgeStereoSE3ProjectXYZ *e_stereo = new g2o::EdgeStereoSE3ProjectXYZ();
-                        // e->setVertex(0, 
-                        //     dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(id)));
-                        // e->setVertex(1, 
-                        //     dynamic_cast<g2o::OptimizableGraph::Vertex *>(
-                        //                                                 optimizer.vertex(pKFi->mnId)));
-                        // e->setMeasurement(obs);
-
-                        // Eigen::Matrix3d Info = Eigen::Matrix3d::Identity() * invSigma2;
-                        // e->setInformation(Info);
-                        // g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
-                        // e->setRobustKernel(rk);
-                        // rk->setDelta(thHuberStereo);
-
-                        // e->fx = pKFi->fx;
-                        // e->fy = pKFi->fy;
-                        // e->cx = pKFi->cx;
-                        // e->cy = pKFi->cy;
-                        // e->bf = pKFi->mbf;
-
-                        // optimizer.addEdge(e_stereo);
+                                                              
                         vpEdgesStereo.push_back(e_stereo);
                         vpEdgeKFStereo.push_back(pKFi);
                         vpMapPointEdgeStereo.push_back(pMP);
@@ -891,14 +737,6 @@ namespace ORB_SLAM2
                     vPoint1 = newVertexSBAPointXYZ(P3D1c, id1);
                     vPoint1->setFixed(true);
 
-                    // g2o::VertexSBAPointXYZ *vPoint1 = new g2o::VertexSBAPointXYZ();
-
-                    // // 將『關鍵幀 pKF1』座標系下的『地圖點 pMP1』的位置轉換成向量表示
-                    // vPoint1->setEstimate(Converter::toVector3d(P3D1c));
-
-                    // vPoint1->setId(id1);
-                    // vPoint1->setFixed(true);
-
                     // 『地圖點 pMP1』的位置作為『頂點』加入優化
                     optimizer.addVertex(vPoint1);
 
@@ -910,21 +748,7 @@ namespace ORB_SLAM2
 
                     vPoint2 = newVertexSBAPointXYZ(P3D2c, id2);
                     vPoint2->setFixed(true);
-
-                    // g2o::VertexSBAPointXYZ *vPoint2 = new g2o::VertexSBAPointXYZ();
-
-                    // // 取得『地圖點 pMP2』的世界座標
-                    // cv::Mat P3D2w = pMP2->GetWorldPos();
-
-                    // // 將『地圖點 pMP2』轉換到『關鍵幀 pKF2』座標系下
-                    // cv::Mat P3D2c = R2w * P3D2w + t2w;
-
-                    // // 將『關鍵幀 pKF2』座標系下的『地圖點 pMP2』的位置轉換成向量表示
-                    // vPoint2->setEstimate(Converter::toVector3d(P3D2c));
-
-                    // vPoint2->setId(id2);
-                    // vPoint2->setFixed(true);
-
+                    
                     // 『地圖點 pMP2』的位置作為『頂點』加入優化
                     optimizer.addVertex(vPoint2);
                 }
@@ -1192,16 +1016,6 @@ namespace ORB_SLAM2
 
                 addEdgeSim3(optimizer, Sji, nIDi, nIDj);
 
-                // // 『邊』連結兩個『關鍵幀』的『相似轉換矩陣』的頂點
-                // g2o::EdgeSim3 *e = new g2o::EdgeSim3();
-                // e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDj)));
-                // e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDi)));
-                
-                // // Sji:『關鍵幀 pKF_i』座標系轉換到『關鍵幀 pKF_j』座標系對應的『相似轉換矩陣』作為『邊』加入優化
-                // e->setMeasurement(Sji);
-                // e->information() = matLambda;
-                // optimizer.addEdge(e);
-
                 sInsertedEdges.insert(make_pair(min(nIDi, nIDj), max(nIDi, nIDj)));
             }
         }
@@ -1252,14 +1066,6 @@ namespace ORB_SLAM2
                 g2o::Sim3 Sji = Sjw * Swi;
 
                 addEdgeSim3(optimizer, Sji, nIDi, nIDj);
-
-                // g2o::EdgeSim3 *e = new g2o::EdgeSim3();
-                // e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDj)));
-                // e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDi)));
-                // e->setMeasurement(Sji);
-                // e->information() = matLambda;
-
-                // optimizer.addEdge(e);
             }
             // Loop edges
             const set<KeyFrame *> sLoopEdges = pKF->GetLoopEdges();
@@ -1282,16 +1088,6 @@ namespace ORB_SLAM2
                     g2o::Sim3 Sli = Slw * Swi;
 
                     addEdgeSim3(optimizer, Sli, nIDi, pLKF->mnId);
-
-                    // g2o::EdgeSim3 *el = new g2o::EdgeSim3();
-                    // el->setVertex(1, 
-                    //     dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(pLKF->mnId)));
-                    // el->setVertex(0, 
-                    //     dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDi)));
-                    // el->setMeasurement(Sli);
-                    // el->information() = matLambda;
-
-                    // optimizer.addEdge(el);
                 }
             }
 
@@ -1326,16 +1122,6 @@ namespace ORB_SLAM2
                         g2o::Sim3 Sni = Snw * Swi;
 
                         addEdgeSim3(optimizer, Sni, nIDi, pKFn->mnId);
-
-                        // g2o::EdgeSim3 *en = new g2o::EdgeSim3();
-                        // en->setVertex(1, 
-                        //     dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(pKFn->mnId)));
-                        // en->setVertex(0, 
-                        //     dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDi)));
-                        // en->setMeasurement(Sni);
-                        // en->information() = matLambda;
-
-                        // optimizer.addEdge(en);
                     }
                 }
             }
@@ -1432,12 +1218,6 @@ namespace ORB_SLAM2
         // 將當前幀轉換成『轉換矩陣 SE3』，並作為頂點加入 optimizer
         g2o::VertexSE3Expmap *vSE3 = addVertexSE3Expmap(optimizer, pFrame->mTcw, 0, false);
 
-        // g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
-        // vSE3->setEstimate(Converter::toSE3Quat(pFrame->mTcw));
-        // vSE3->setId(0);
-        // vSE3->setFixed(false);
-        // optimizer.addVertex(vSE3);
-
         // Set MapPoint vertices
         // 取得 pFrame 觀察到的地圖點個數
         const int N = pFrame->N;
@@ -1452,12 +1232,15 @@ namespace ORB_SLAM2
         vpEdgesStereo.reserve(N);
         vnIndexEdgeStereo.reserve(N);
 
-        const float deltaMono = sqrt(5.991);
-        const float deltaStereo = sqrt(7.815);
+        // const float deltaMono = sqrt(5.991);
+        // const float deltaStereo = sqrt(7.815);
 
         // 取出 pFrame 觀察到的地圖點的位置，作為『邊』加入 optimizer
         {
             unique_lock<mutex> lock(MapPoint::mGlobalMutex);
+            g2o::EdgeSE3ProjectXYZOnlyPose *e;
+            g2o::EdgeStereoSE3ProjectXYZOnlyPose *e_stereo;
+            cv::Mat Xw;
 
             for (int i = 0; i < N; i++)
             {
@@ -1480,32 +1263,35 @@ namespace ORB_SLAM2
                     // Monocular observation
                     if (kp_ur < 0)
                     {
-                        // 特徵點的位置
-                        Eigen::Matrix<double, 2, 1> obs;
-                        obs << kpUn.pt.x, kpUn.pt.y;
-
-                        // 一元邊：重投影誤差（僅用於優化相機位姿時）
-                        g2o::EdgeSE3ProjectXYZOnlyPose *e = new g2o::EdgeSE3ProjectXYZOnlyPose();
-
-                        e->setVertex(0, 
-                                    dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(0)));
-                        e->setMeasurement(obs);
+                        e = newEdgeSE3ProjectXYZOnlyPose(optimizer, pFrame, kpUn);
                         
-                        const float invSigma2 = pFrame->mvInvLevelSigma2[kpUn.octave];
-                        e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
+                        // // 特徵點的位置
+                        // Eigen::Matrix<double, 2, 1> obs;
+                        // obs << kpUn.pt.x, kpUn.pt.y;
 
-                        g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
-                        rk->setDelta(deltaMono);
-                        e->setRobustKernel(rk);
+                        // // 一元邊：重投影誤差（僅用於優化相機位姿時）
+                        // g2o::EdgeSE3ProjectXYZOnlyPose *e = new g2o::EdgeSE3ProjectXYZOnlyPose();
 
-                        // 相機內參
-                        e->fx = pFrame->fx;
-                        e->fy = pFrame->fy;
-                        e->cx = pFrame->cx;
-                        e->cy = pFrame->cy;
+                        // e->setVertex(0, 
+                        //             dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(0)));
+                        // e->setMeasurement(obs);
+                        
+                        // const float invSigma2 = pFrame->mvInvLevelSigma2[kpUn.octave];
+                        // e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
+
+                        // g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+                        // rk->setDelta(deltaMono);
+                        // e->setRobustKernel(rk);
+
+                        // // 相機內參
+                        // e->fx = pFrame->fx;
+                        // e->fy = pFrame->fy;
+                        // e->cx = pFrame->cx;
+                        // e->cy = pFrame->cy;
 
                         // 圖點的世界座標
-                        cv::Mat Xw = pMP->GetWorldPos();
+                        Xw = pMP->GetWorldPos();
+                        
                         e->Xw[0] = Xw.at<float>(0);
                         e->Xw[1] = Xw.at<float>(1);
                         e->Xw[2] = Xw.at<float>(2);
@@ -1523,33 +1309,32 @@ namespace ORB_SLAM2
                         
                         obs << kpUn.pt.x, kpUn.pt.y, kp_ur;
 
-                        g2o::EdgeStereoSE3ProjectXYZOnlyPose *e = 
-                                                            new g2o::EdgeStereoSE3ProjectXYZOnlyPose();
+                        e_stereo = new g2o::EdgeStereoSE3ProjectXYZOnlyPose();
 
-                        e->setVertex(0, 
+                        e_stereo->setVertex(0, 
                                     dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(0)));
-                        e->setMeasurement(obs);
+                        e_stereo->setMeasurement(obs);
                         const float invSigma2 = pFrame->mvInvLevelSigma2[kpUn.octave];
                         Eigen::Matrix3d Info = Eigen::Matrix3d::Identity() * invSigma2;
-                        e->setInformation(Info);
+                        e_stereo->setInformation(Info);
 
                         g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
-                        e->setRobustKernel(rk);
+                        e_stereo->setRobustKernel(rk);
                         rk->setDelta(deltaStereo);
 
-                        e->fx = pFrame->fx;
-                        e->fy = pFrame->fy;
-                        e->cx = pFrame->cx;
-                        e->cy = pFrame->cy;
-                        e->bf = pFrame->mbf;
+                        e_stereo->fx = pFrame->fx;
+                        e_stereo->fy = pFrame->fy;
+                        e_stereo->cx = pFrame->cx;
+                        e_stereo->cy = pFrame->cy;
+                        e_stereo->bf = pFrame->mbf;
 
-                        cv::Mat Xw = pMP->GetWorldPos();
-                        e->Xw[0] = Xw.at<float>(0);
-                        e->Xw[1] = Xw.at<float>(1);
-                        e->Xw[2] = Xw.at<float>(2);
+                        Xw = pMP->GetWorldPos();
+                        e_stereo->Xw[0] = Xw.at<float>(0);
+                        e_stereo->Xw[1] = Xw.at<float>(1);
+                        e_stereo->Xw[2] = Xw.at<float>(2);
 
-                        optimizer.addEdge(e);
-                        vpEdgesStereo.push_back(e);
+                        optimizer.addEdge(e_stereo);
+                        vpEdgesStereo.push_back(e_stereo);
                         vnIndexEdgeStereo.push_back(i);
                     }
                 }
@@ -1758,6 +1543,35 @@ namespace ORB_SLAM2
         e->setMeasurement(sim3);
         e->information() = matLambda;
         op.addEdge(e);
+
+        return e;
+    }
+
+    g2o::EdgeSE3ProjectXYZOnlyPose* Optimizer::newEdgeSE3ProjectXYZOnlyPose(g2o::SparseOptimizer &op,
+                                                                            Frame *frame, 
+                                                                            const cv::KeyPoint kpUn){
+        // 特徵點的位置
+        Eigen::Matrix<double, 2, 1> obs;
+        obs << kpUn.pt.x, kpUn.pt.y;
+
+        const float invSigma2 = frame->mvInvLevelSigma2[kpUn.octave];
+        
+        // 一元邊：重投影誤差（僅用於優化相機位姿時）
+        g2o::EdgeSE3ProjectXYZOnlyPose *e = new g2o::EdgeSE3ProjectXYZOnlyPose();
+
+        e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(op.vertex(0)));
+        e->setMeasurement(obs);        
+        e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
+
+        g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+        rk->setDelta(deltaMono);
+        e->setRobustKernel(rk);
+
+        // 相機內參
+        e->fx = frame->fx;
+        e->fy = frame->fy;
+        e->cx = frame->cx;
+        e->cy = frame->cy;
 
         return e;
     }
