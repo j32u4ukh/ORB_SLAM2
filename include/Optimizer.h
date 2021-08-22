@@ -68,8 +68,7 @@ public:
                                                                const KeyFrame *pKF,
                                                                int v0, int v1, bool bRobust);
 
-    static inline g2o::VertexSBAPointXYZ *addVertexSBAPointXYZ(g2o::SparseOptimizer &op, cv::Mat pos,
-                                                               const int id);
+    static inline g2o::VertexSBAPointXYZ *addVertexSBAPointXYZ(cv::Mat pos, const int id);
 
     static inline g2o::VertexSE3Expmap * addVertexSE3Expmap(g2o::SparseOptimizer &op, cv::Mat pose, 
                                                             const int id, const bool fixed);                                                           
