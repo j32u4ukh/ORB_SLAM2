@@ -40,6 +40,7 @@ namespace ORB_SLAM2
     const float Optimizer::thHuber3D = sqrt(7.815);
     const float Optimizer::thHuberMono = sqrt(5.991);
     const float Optimizer::thHuberStereo = sqrt(7.815);
+    const Eigen::Matrix<double, 7, 7> Optimizer::matLambda = Eigen::Matrix<double, 7, 7>::Identity();
         
     // ==================================================
 
@@ -128,7 +129,7 @@ namespace ORB_SLAM2
             }
 
             id = pMP->mnId + maxKFid + 1;
-            vPoint = addVertexSBAPointXYZ(pMP->GetWorldPos(), id);
+            vPoint = newVertexSBAPointXYZ(pMP->GetWorldPos(), id);
             vPoint->setMarginalized(true);
 
             // g2o::VertexSBAPointXYZ *vPoint = new g2o::VertexSBAPointXYZ();
@@ -513,7 +514,7 @@ namespace ORB_SLAM2
         for(MapPoint *pMP : lLocalMapPoints)
         {
             id = pMP->mnId + maxKFid + 1;
-            vPoint = addVertexSBAPointXYZ(pMP->GetWorldPos(), id);
+            vPoint = newVertexSBAPointXYZ(pMP->GetWorldPos(), id);
             vPoint->setMarginalized(true);
 
             // g2o::VertexSBAPointXYZ *vPoint = new g2o::VertexSBAPointXYZ();
@@ -543,7 +544,7 @@ namespace ORB_SLAM2
                     // 單目的這個數值會是負的
                     const float kp_ur = pKFi->mvuRight[kp_idx];
 
-                    const float &invSigma2 = pKFi->mvInvLevelSigma2[kpUn.octave];
+                    // const float &invSigma2 = pKFi->mvInvLevelSigma2[kpUn.octave];
 
                     // Monocular observation
                     if (kp_ur < 0)
@@ -887,7 +888,7 @@ namespace ORB_SLAM2
                     // 將『地圖點 pMP1』轉換到『關鍵幀 pKF1』座標系下
                     P3D1c = R1w * P3D1w + t1w;
 
-                    vPoint1 = addVertexSBAPointXYZ(P3D1c, id1);
+                    vPoint1 = newVertexSBAPointXYZ(P3D1c, id1);
                     vPoint1->setFixed(true);
 
                     // g2o::VertexSBAPointXYZ *vPoint1 = new g2o::VertexSBAPointXYZ();
@@ -907,7 +908,7 @@ namespace ORB_SLAM2
                     // 將『地圖點 pMP2』轉換到『關鍵幀 pKF2』座標系下
                     P3D2c = R2w * P3D2w + t2w;
 
-                    vPoint2 = addVertexSBAPointXYZ(P3D2c, id2);
+                    vPoint2 = newVertexSBAPointXYZ(P3D2c, id2);
                     vPoint2->setFixed(true);
 
                     // g2o::VertexSBAPointXYZ *vPoint2 = new g2o::VertexSBAPointXYZ();
@@ -1019,7 +1020,8 @@ namespace ORB_SLAM2
 
         int nMoreIterations;
 
-        if (nBad > 0){
+        if (nBad > 0)
+        {
             nMoreIterations = 10;
         }
         else{
@@ -1151,7 +1153,7 @@ namespace ORB_SLAM2
         
         set<pair<long unsigned int, long unsigned int>> sInsertedEdges;
 
-        const Eigen::Matrix<double, 7, 7> matLambda = Eigen::Matrix<double, 7, 7>::Identity();
+        // const Eigen::Matrix<double, 7, 7> matLambda = Eigen::Matrix<double, 7, 7>::Identity();
 
         // Set Loop edges
         // LoopConnections[pKFi]：『關鍵幀 pKFi』的『已連結關鍵幀』，移除『關鍵幀 pKFi』的『共視關鍵幀』和
@@ -1188,15 +1190,17 @@ namespace ORB_SLAM2
                 // Sji:『關鍵幀 pKF_i』座標系轉換到『關鍵幀 pKF_j』座標系對應的『相似轉換矩陣』
                 const g2o::Sim3 Sji = Sjw * Swi;
 
-                // 『邊』連結兩個『關鍵幀』的『相似轉換矩陣』的頂點
-                g2o::EdgeSim3 *e = new g2o::EdgeSim3();
-                e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDj)));
-                e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDi)));
+                addEdgeSim3(optimizer, Sji, nIDi, nIDj);
+
+                // // 『邊』連結兩個『關鍵幀』的『相似轉換矩陣』的頂點
+                // g2o::EdgeSim3 *e = new g2o::EdgeSim3();
+                // e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDj)));
+                // e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDi)));
                 
-                // Sji:『關鍵幀 pKF_i』座標系轉換到『關鍵幀 pKF_j』座標系對應的『相似轉換矩陣』作為『邊』加入優化
-                e->setMeasurement(Sji);
-                e->information() = matLambda;
-                optimizer.addEdge(e);
+                // // Sji:『關鍵幀 pKF_i』座標系轉換到『關鍵幀 pKF_j』座標系對應的『相似轉換矩陣』作為『邊』加入優化
+                // e->setMeasurement(Sji);
+                // e->information() = matLambda;
+                // optimizer.addEdge(e);
 
                 sInsertedEdges.insert(make_pair(min(nIDi, nIDj), max(nIDi, nIDj)));
             }
@@ -1247,13 +1251,15 @@ namespace ORB_SLAM2
                 // Sji:『關鍵幀 pKF_i』座標系轉換到『關鍵幀 pKF_j』座標系對應的『相似轉換矩陣』
                 g2o::Sim3 Sji = Sjw * Swi;
 
-                g2o::EdgeSim3 *e = new g2o::EdgeSim3();
-                e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDj)));
-                e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDi)));
-                e->setMeasurement(Sji);
-                e->information() = matLambda;
+                addEdgeSim3(optimizer, Sji, nIDi, nIDj);
 
-                optimizer.addEdge(e);
+                // g2o::EdgeSim3 *e = new g2o::EdgeSim3();
+                // e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDj)));
+                // e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDi)));
+                // e->setMeasurement(Sji);
+                // e->information() = matLambda;
+
+                // optimizer.addEdge(e);
             }
             // Loop edges
             const set<KeyFrame *> sLoopEdges = pKF->GetLoopEdges();
@@ -1275,15 +1281,17 @@ namespace ORB_SLAM2
 
                     g2o::Sim3 Sli = Slw * Swi;
 
-                    g2o::EdgeSim3 *el = new g2o::EdgeSim3();
-                    el->setVertex(1, 
-                        dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(pLKF->mnId)));
-                    el->setVertex(0, 
-                        dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDi)));
-                    el->setMeasurement(Sli);
-                    el->information() = matLambda;
+                    addEdgeSim3(optimizer, Sli, nIDi, pLKF->mnId);
 
-                    optimizer.addEdge(el);
+                    // g2o::EdgeSim3 *el = new g2o::EdgeSim3();
+                    // el->setVertex(1, 
+                    //     dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(pLKF->mnId)));
+                    // el->setVertex(0, 
+                    //     dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDi)));
+                    // el->setMeasurement(Sli);
+                    // el->information() = matLambda;
+
+                    // optimizer.addEdge(el);
                 }
             }
 
@@ -1317,15 +1325,17 @@ namespace ORB_SLAM2
 
                         g2o::Sim3 Sni = Snw * Swi;
 
-                        g2o::EdgeSim3 *en = new g2o::EdgeSim3();
-                        en->setVertex(1, 
-                            dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(pKFn->mnId)));
-                        en->setVertex(0, 
-                            dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDi)));
-                        en->setMeasurement(Sni);
-                        en->information() = matLambda;
+                        addEdgeSim3(optimizer, Sni, nIDi, pKFn->mnId);
 
-                        optimizer.addEdge(en);
+                        // g2o::EdgeSim3 *en = new g2o::EdgeSim3();
+                        // en->setVertex(1, 
+                        //     dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(pKFn->mnId)));
+                        // en->setVertex(0, 
+                        //     dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(nIDi)));
+                        // en->setMeasurement(Sni);
+                        // en->information() = matLambda;
+
+                        // optimizer.addEdge(en);
                     }
                 }
             }
@@ -1710,7 +1720,7 @@ namespace ORB_SLAM2
         return e;
     }
     
-    g2o::VertexSBAPointXYZ* Optimizer::addVertexSBAPointXYZ(cv::Mat pos, const int id)
+    g2o::VertexSBAPointXYZ* Optimizer::newVertexSBAPointXYZ(cv::Mat pos, const int id)
     {
         g2o::VertexSBAPointXYZ *vPoint = new g2o::VertexSBAPointXYZ();
 
@@ -1736,6 +1746,22 @@ namespace ORB_SLAM2
         return vSE3;
     }
     
+    g2o::EdgeSim3* Optimizer::addEdgeSim3(g2o::SparseOptimizer &op, g2o::Sim3 sim3, 
+                                          const int v0, const int v1)
+    {
+        // 『邊』連結兩個『關鍵幀』的『相似轉換矩陣』的頂點
+        g2o::EdgeSim3 *e = new g2o::EdgeSim3();
+        e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(op.vertex(v0)));        
+        e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(op.vertex(v1)));
+
+        // Sji:『關鍵幀 pKF_i』座標系轉換到『關鍵幀 pKF_j』座標系對應的『相似轉換矩陣』作為『邊』加入優化
+        e->setMeasurement(sim3);
+        e->information() = matLambda;
+        op.addEdge(e);
+
+        return e;
+    }
+
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================

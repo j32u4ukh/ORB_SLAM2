@@ -43,6 +43,7 @@ public:
     static const float thHuber3D;
     static const float thHuberMono;
     static const float thHuberStereo;
+    static const Eigen::Matrix<double, 7, 7> matLambda;
 
     void static BundleAdjustment(const std::vector<KeyFrame*> &vpKF, const std::vector<MapPoint*> &vpMP,
                                  int nIterations = 5, bool *pbStopFlag=NULL, const unsigned long nLoopKF=0,
@@ -68,10 +69,13 @@ public:
                                                                const KeyFrame *pKF,
                                                                int v0, int v1, bool bRobust);
 
-    static inline g2o::VertexSBAPointXYZ *addVertexSBAPointXYZ(cv::Mat pos, const int id);
+    static inline g2o::VertexSBAPointXYZ *newVertexSBAPointXYZ(cv::Mat pos, const int id);
 
     static inline g2o::VertexSE3Expmap * addVertexSE3Expmap(g2o::SparseOptimizer &op, cv::Mat pose, 
-                                                            const int id, const bool fixed);                                                           
+                                                            const int id, const bool fixed);    
+
+    static inline g2o::EdgeSim3* addEdgeSim3(g2o::SparseOptimizer &op, g2o::Sim3 sim3, 
+                                             const int v0, const int v1);                                                       
 
     // ==================================================
     // 以下為非單目相關函式
