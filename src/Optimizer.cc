@@ -228,7 +228,7 @@ namespace ORB_SLAM2
         for(MapPoint *pMP : lLocalMapPoints)
         {
             id = pMP->mnId + maxKFid + 1;
-            addVertexSBAPointXYZ(optimizer, pMP, id);
+            addVertexSBAPointXYZ(optimizer, pMP->GetWorldPos(), id);
 
             // g2o::VertexSBAPointXYZ *vPoint = new g2o::VertexSBAPointXYZ();
             // vPoint->setEstimate(Converter::toVector3d(pMP->GetWorldPos()));
@@ -1183,7 +1183,7 @@ namespace ORB_SLAM2
             }
 
             id = pMP->mnId + maxKFid + 1;
-            vPoint = addVertexSBAPointXYZ(optimizer, pMP, id);
+            vPoint = addVertexSBAPointXYZ(optimizer, pMP->GetWorldPos(), id);
 
             // g2o::VertexSBAPointXYZ *vPoint = new g2o::VertexSBAPointXYZ();
 
@@ -1310,6 +1310,12 @@ namespace ORB_SLAM2
         optimizer.optimize(nIterations);
 
         // Recover optimized data
+
+        // ================================================================================
+        // ================================================================================
+        // 以上為『優化』、以下為『更新優化結果』
+        // ================================================================================
+        // ================================================================================
 
         // Keyframes
         // 更新為優化後的位姿
@@ -1659,15 +1665,15 @@ namespace ORB_SLAM2
         // 『邊』連接第 mnId 個關鍵幀和第 mnId 個地圖點
         // （地圖點接續關鍵幀的 id 編號，因此是由 maxKFid + 1 開始編號）
         e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(op.vertex(v0)));
-        e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>( op.vertex(v1)));
+        e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(op.vertex(v1)));
         e->setMeasurement(obs);
         e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
 
         if (bRobust)
         {
             g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
-            rk->setDelta(thHuber2D);
             e->setRobustKernel(rk);
+            rk->setDelta(thHuber2D);            
         }
 
         e->fx = pKF->fx;
@@ -1681,13 +1687,13 @@ namespace ORB_SLAM2
         return e;
     }
     
-    g2o::VertexSBAPointXYZ* Optimizer::addVertexSBAPointXYZ(g2o::SparseOptimizer &op, MapPoint *pMP,
+    g2o::VertexSBAPointXYZ* Optimizer::addVertexSBAPointXYZ(g2o::SparseOptimizer &op, cv::Mat pos,
                                                             const int id)
     {
         g2o::VertexSBAPointXYZ *vPoint = new g2o::VertexSBAPointXYZ();
 
         // 『地圖點 pMP』的世界座標作為 vPoint 的初始值
-        vPoint->setEstimate(Converter::toVector3d(pMP->GetWorldPos()));
+        vPoint->setEstimate(Converter::toVector3d(pos));
         vPoint->setId(id);
         vPoint->setMarginalized(true);
 
