@@ -66,6 +66,41 @@ public:
     static int OptimizeSim3(KeyFrame* pKF1, KeyFrame* pKF2, std::vector<MapPoint *> &vpMatches1,
                             g2o::Sim3 &g2oS12, const float th2, const bool bFixScale);
 
+    static inline void addKeyFramePoses(vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op,
+                                        long unsigned int &maxKFid);
+
+    static inline void addLocalKeyFrames(list<KeyFrame *> &lLocalKeyFrames, g2o::SparseOptimizer &op,
+                                         long unsigned int &maxKFid);
+
+    static inline void addFixedCameras(list<KeyFrame *> &lFixedCameras, g2o::SparseOptimizer &op,
+                                       long unsigned int &maxKFid);
+
+    static inline void addLocalMapPoints(list<MapPoint *> &lLocalMapPoints, g2o::SparseOptimizer &op,
+                                         long unsigned int &maxKFid, KeyFrame *pKF,
+                                         vector<g2o::EdgeSE3ProjectXYZ *> &vpEdgesMono,
+                                         vector<KeyFrame *> &vpEdgeKFMono,
+                                         vector<MapPoint *> &vpMapPointEdgeMono,
+                                         vector<g2o::EdgeStereoSE3ProjectXYZ *> &vpEdgesStereo,
+                                         vector<KeyFrame *> &vpEdgeKFStereo,
+                                         vector<MapPoint *> &vpMapPointEdgeStereo);
+
+    static inline void markEarseMono(vector<pair<KeyFrame *, MapPoint *>> &vToErase,
+                                     vector<MapPoint *> &vpMapPointEdgeMono,
+                                     vector<g2o::EdgeSE3ProjectXYZ *> &vpEdgesMono,
+                                     vector<KeyFrame *> &vpEdgeKFMono);
+
+    static inline void markEarseStereo(vector<pair<KeyFrame *, MapPoint *>> &vToErase,
+                                       vector<MapPoint *> &vpMapPointEdgeStereo,
+                                       vector<g2o::EdgeStereoSE3ProjectXYZ *> &vpEdgesStereo,
+                                       vector<KeyFrame *> &vpEdgeKFStereo);
+
+    static inline void executeEarsing(vector<pair<KeyFrame *, MapPoint *>> &vToErase);
+
+    static inline void updateLocalKeyFrames(g2o::SparseOptimizer &op, list<KeyFrame *> &lLocalKeyFrames);
+
+    static inline void updateLocalMapPoints(g2o::SparseOptimizer &op, list<MapPoint *> lLocalMapPoints,
+                                            const unsigned long maxKFid);
+
     static inline g2o::EdgeSE3ProjectXYZ *addEdgeSE3ProjectXYZ(g2o::SparseOptimizer &op,
                                                                const cv::KeyPoint kpUn,
                                                                const KeyFrame *pKF,
@@ -94,6 +129,11 @@ public:
                                                                            const int v0,
                                                                            const int v1,
                                                                            bool bRobust);
+
+    static inline g2o::EdgeStereoSE3ProjectXYZOnlyPose* 
+    newEdgeStereoSE3ProjectXYZOnlyPose(g2o::SparseOptimizer &op, Frame *frame, 
+                                       const cv::KeyPoint kpUn, const float kp_ur);  
+                                                                         
 };
 
 } //namespace ORB_SLAM
