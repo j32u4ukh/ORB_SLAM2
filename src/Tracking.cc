@@ -731,6 +731,9 @@ namespace ORB_SLAM2
         mpMap->AddKeyFrame(pKFini);
         mpMap->AddKeyFrame(pKFcur);
 
+        MapPoint *pMP;
+        cv::Mat worldPos;
+
         // Create MapPoints and asscoiate to keyframes
         // 根據成功三角化的特征點創建地圖點(MapPoint)，並建立起地圖點與關鍵幀之間的可視關系。
         for (size_t i = 0; i < mvIniMatches.size(); i++)
@@ -743,7 +746,7 @@ namespace ORB_SLAM2
             //Create MapPoint.
             cv::Mat worldPos(mvIniP3D[i]);
 
-            MapPoint *pMP = new MapPoint(worldPos, pKFcur, mpMap);
+            pMP = new MapPoint(worldPos, pKFcur, mpMap);
 
             // 關鍵幀紀錄觀察到的地圖點
             pKFini->AddMapPoint(pMP, i);

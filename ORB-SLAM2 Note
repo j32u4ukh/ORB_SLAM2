@@ -250,221 +250,66 @@ updateFuseTarget(pKF, idx, dMP, bestDist, bestIdx);
 
 
 ==========================================================================================================================================================
+[Bundle Adjustment]
+
+/////// Optimizer::LocalBundleAdjustment ///////
+
+g2o::EdgeSE3ProjectXYZ *e = new g2o::EdgeSE3ProjectXYZ();
+e->setVertex(0,
+    dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(id)));
+e->setVertex(1, 
+    dynamic_cast<g2o::OptimizableGraph::Vertex *>(
+                                                optimizer.vertex(pKFi->mnId)));
+e->setMeasurement(obs);
+
+e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
+g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+e->setRobustKernel(rk);
+rk->setDelta(thHuberMono);
+
+e->fx = pKFi->fx;
+e->fy = pKFi->fy;
+e->cx = pKFi->cx;
+e->cy = pKFi->cy;
+
+optimizer.addEdge(e);
+vpEdgesMono.push_back(e);
+vpEdgeKFMono.push_back(pKFi);
+vpMapPointEdgeMono.push_back(pMP);
 
 
 
-[SearchBySim3]
 
-// Transform from KF1 to KF2 and search
-// 『關鍵幀 pKF1』投影到『關鍵幀 pKF2』上尋找匹配點
-for (int i1 = 0; i1 < N1; i1++)
+
+/////// Optimizer::BundleAdjustment ///////
+g2o::EdgeSE3ProjectXYZ *e = new g2o::EdgeSE3ProjectXYZ();
+
+// 『邊』連接第 mnId 個關鍵幀和第 mnId 個地圖點
+// （地圖點接續關鍵幀的 id 編號，因此是由 maxKFid + 1 開始編號）
+e->setVertex(0, 
+         dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(id)));
+e->setVertex(1, 
+         dynamic_cast<g2o::OptimizableGraph::Vertex *>(
+                                                optimizer.vertex(pKF->mnId)));
+e->setMeasurement(obs);
+const float &invSigma2 = pKF->mvInvLevelSigma2[kpUn.octave];
+e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
+
+if (bRobust)
 {
-    // 『地圖點 pMP』：『關鍵幀 pKF1』的第 i1 個地圖點
-    MapPoint *pMP = vpMapPoints1[i1];
-
-    if (!pMP || vbAlreadyMatched1[i1]){
-        continue;
-    }
-
-    if (pMP->isBad()){
-        continue;
-    }
-
-    cv::Mat p3Dw = pMP->GetWorldPos();
-    cv::Mat p3Dc1 = R1w * p3Dw + t1w;
-
-    // 利用『相似轉換矩陣』將『關鍵幀 pKF1』上的特徵點轉換到『關鍵幀 pKF2』的座標系下
-    cv::Mat p3Dc2 = sR21 * p3Dc1 + t21;
-
-    // Depth must be positive
-    if (p3Dc2.at<float>(2) < 0.0){
-        continue;
-    }
-
-    const float invz = 1.0 / p3Dc2.at<float>(2);
-    const float x = p3Dc2.at<float>(0) * invz;
-    const float y = p3Dc2.at<float>(1) * invz;
-
-    // 像素座標
-    const float u = fx * x + cx;
-    const float v = fy * y + cy;
-
-    // Point must be inside the image
-    // 傳入座標點是否在關鍵幀的成像範圍內
-    if (!pKF2->IsInImage(u, v)){
-        continue;
-    }
-
-    // 考慮金字塔層級的『地圖點 pMP』最大可能深度
-    const float maxDistance = pMP->GetMaxDistanceInvariance();
-
-    // 考慮金字塔層級的『地圖點 pMP』最小可能深度
-    const float minDistance = pMP->GetMinDistanceInvariance();
-
-    // 『關鍵幀 pKF2』相機中心到空間點的距離，即『關鍵幀 pKF2』座標系下的深度
-    const float dist3D = cv::norm(p3Dc2);
-
-    // Depth must be inside the scale invariance region
-    if (dist3D < minDistance || dist3D > maxDistance){
-        continue;
-    }
-
-    // Compute predicted octave
-    const int nPredictedLevel = pMP->PredictScale(dist3D, pKF2);
-
-    // Search in a radius
-    const float radius = th * pKF2->mvScaleFactors[nPredictedLevel];
-
-    // 返回以 (u, v) 為圓心，在搜索半徑內，在指定金字塔層級找到的關鍵點的索引值
-    const vector<size_t> vIndices = pKF2->GetFeaturesInArea(u, v, radius);
-
-    if (vIndices.empty()){
-        continue;
-    }
-
-    // Match to the most similar keypoint in the radius
-    // 『地圖點 pMP』（『關鍵幀 pKF1』的第 i1 個地圖點）的描述子
-    const cv::Mat dMP = pMP->GetDescriptor();
-
-    int bestDist = INT_MAX;
-    int bestIdx = -1;
-
-    // 遍歷『關鍵幀 pKF2』當中可能和『地圖點 pMP』（『關鍵幀 pKF1』的第 i1 個地圖點）匹配的特徵點
-    for(const size_t idx : vIndices){
-
-        const cv::KeyPoint &kp = pKF2->mvKeysUn[idx];
-
-        if (kp.octave < nPredictedLevel - 1 || kp.octave > nPredictedLevel){
-            continue;
-        }
-
-        // 『關鍵幀 pKF2』的第 idx 個特徵點的描述子
-        const cv::Mat &dKF = pKF2->mDescriptors.row(idx);
-
-        // 『關鍵幀 pKF2』的第 idx 個特徵點的描述子 和 『地圖點 pMP』的描述子 之間的距離
-        const int dist = DescriptorDistance(dMP, dKF);
-
-        // 篩選描述子距離最短的情況
-        if (dist < bestDist)
-        {
-            bestDist = dist;
-
-            // 『關鍵幀 pKF2』的第 bestIdx 個特徵點和『地圖點 pMP』最相似
-            bestIdx = idx;
-        }
-    }
-
-    // 若描述子距離足夠近
-    if (bestDist <= TH_HIGH)
-    {
-        // vnMatch1 匹配關係：『關鍵幀 pKF1』的第 i1 個地圖點＆『關鍵幀 pKF2』的第 bestIdx 個特徵點
-        vnMatch1[i1] = bestIdx;
-    }
+g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+e->setRobustKernel(rk);
+rk->setDelta(thHuber2D);
 }
 
-// Transform from KF2 to KF1 and search
-for (int i2 = 0; i2 < N2; i2++)
-{
-    // 『地圖點 pMP』：『關鍵幀 pKF2』的第 i2 個地圖點
-    MapPoint *pMP = vpMapPoints2[i2];
+e->fx = pKF->fx;
+e->fy = pKF->fy;
+e->cx = pKF->cx;
+e->cy = pKF->cy;
 
-    if (!pMP || vbAlreadyMatched2[i2]){
-        continue;
-    }
+// 『關鍵點 kpUn』作為『邊』加入優化
+optimizer.addEdge(e);
 
-    if (pMP->isBad()){
-        continue;
-    }
-
-    cv::Mat p3Dw = pMP->GetWorldPos();
-    cv::Mat p3Dc2 = R2w * p3Dw + t2w;
-
-    // 利用『相似轉換矩陣』將『關鍵幀 pKF2』上的特徵點轉換到『關鍵幀 pKF1』的座標系下
-    cv::Mat p3Dc1 = sR12 * p3Dc2 + t12;
-
-    // Depth must be positive
-    if (p3Dc1.at<float>(2) < 0.0){
-        continue;
-    }
-
-    const float invz = 1.0 / p3Dc1.at<float>(2);
-    const float x = p3Dc1.at<float>(0) * invz;
-    const float y = p3Dc1.at<float>(1) * invz;
-
-    const float u = fx * x + cx;
-    const float v = fy * y + cy;
-
-    // Point must be inside the image
-    if (!pKF1->IsInImage(u, v)){
-        continue;
-    }
-
-    // 考慮金字塔層級的『地圖點 pMP』最大可能深度
-    const float maxDistance = pMP->GetMaxDistanceInvariance();
-
-    // 考慮金字塔層級的『地圖點 pMP』最小可能深度
-    const float minDistance = pMP->GetMinDistanceInvariance();
-
-    // 『關鍵幀 pKF1』相機中心到空間點的距離，即『關鍵幀 pKF1』座標系下的深度
-    const float dist3D = cv::norm(p3Dc1);
-
-    // Depth must be inside the scale pyramid of the image
-    if (dist3D < minDistance || dist3D > maxDistance){
-        continue;
-    }
-
-    // Compute predicted octave
-    const int nPredictedLevel = pMP->PredictScale(dist3D, pKF1);
-
-    // Search in a radius of 2.5*sigma(ScaleLevel)
-    const float radius = th * pKF1->mvScaleFactors[nPredictedLevel];
-
-    // 返回以 (u, v) 為圓心，在搜索半徑內，在指定金字塔層級找到的關鍵點的索引值
-    const vector<size_t> vIndices = pKF1->GetFeaturesInArea(u, v, radius);
-
-    if (vIndices.empty()){
-        continue;
-    }
-
-    // Match to the most similar keypoint in the radius
-    // 『地圖點 pMP』（『關鍵幀 pKF2』的第 i2 個地圖點）的描述子
-    const cv::Mat dMP = pMP->GetDescriptor();
-
-    int bestDist = INT_MAX;
-    int bestIdx = -1;
-
-    // 遍歷『關鍵幀 pKF1』當中可能和『地圖點 pMP』（『關鍵幀 pKF2』的第 i2 個地圖點）匹配的特徵點
-    for(const size_t idx : vIndices){
-
-        const cv::KeyPoint &kp = pKF1->mvKeysUn[idx];
-
-        if (kp.octave < nPredictedLevel - 1 || kp.octave > nPredictedLevel){
-            continue;
-        }
-
-        // 『關鍵幀 pKF1』的第 idx 個特徵點的描述子
-        const cv::Mat &dKF = pKF1->mDescriptors.row(idx);
-
-        // 『關鍵幀 pKF1』的第 idx 個特徵點的描述子 和 『地圖點 pMP』的描述子 之間的距離
-        const int dist = DescriptorDistance(dMP, dKF);
-
-        // 篩選描述子距離最短的情況
-        if (dist < bestDist)
-        {
-            bestDist = dist;
-
-            // 『關鍵幀 pKF1』的第 bestIdx 個特徵點和『地圖點 pMP』最相似
-            bestIdx = idx;
-        }
-    }
-
-    // 若描述子距離足夠近
-    if (bestDist <= TH_HIGH)
-    {
-        // vnMatch2 匹配關係：『關鍵幀 pKF2』的第 i2 個地圖點＆『關鍵幀 pKF1』的第 bestIdx 個特徵點
-        vnMatch2[i2] = bestIdx;
-    }
-}
 
 
 

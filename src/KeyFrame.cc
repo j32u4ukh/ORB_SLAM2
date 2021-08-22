@@ -170,6 +170,11 @@ namespace ORB_SLAM2
             vpMP = mvpMapPoints;
         }
 
+        // 地圖點被關鍵幀的第 idx 個關鍵點觀察到
+        map<KeyFrame *, size_t> observations;
+
+        KeyFrame * kf;
+
         //For all map points in keyframe check in which other keyframes are they seen
         //Increase counter for those keyframes
         for(MapPoint *pMP : vpMP)
@@ -185,11 +190,11 @@ namespace ORB_SLAM2
             }
 
             // 地圖點被關鍵幀的第 idx 個關鍵點觀察到
-            map<KeyFrame *, size_t> observations = pMP->GetObservations();
+            observations = pMP->GetObservations();
 
             for(pair<KeyFrame *, size_t> obs : observations){
 
-                KeyFrame * kf = obs.first;
+                kf = obs.first;
 
                 // 若 mnId 與當前關鍵幀相同則跳過
                 if (kf->mnId == mnId)
@@ -212,15 +217,15 @@ namespace ORB_SLAM2
         //In case no keyframe counter is over threshold add the one with maximum counter
         int nmax = 0;
         KeyFrame *pKFmax = NULL;
-        int th = 15;
+        int th = 15, count;
 
         vector<pair<int, KeyFrame *>> vPairs;
         vPairs.reserve(KFcounter.size());
 
         for(pair<KeyFrame *, int> kf_count : KFcounter){
 
-            KeyFrame * kf = kf_count.first;
-            int count = kf_count.second;
+            kf = kf_count.first;
+            count = kf_count.second;
 
             if (count > nmax)
             {

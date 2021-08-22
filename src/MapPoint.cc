@@ -119,14 +119,16 @@ namespace ORB_SLAM2
         cv::Mat normal = cv::Mat::zeros(3, 1, CV_32F);
 
         int n = 0;
+        KeyFrame *pKF;
+        cv::Mat Owi, normali;
 
         for(pair<KeyFrame *, size_t> obs : observations)
         {
-            KeyFrame *pKF = obs.first;
-            cv::Mat Owi = pKF->GetCameraCenter();
+            pKF = obs.first;
+            Owi = pKF->GetCameraCenter();
 
             // 相機中心 指向 地圖點 的向量
-            cv::Mat normali = mWorldPos - Owi;
+            normali = mWorldPos - Owi;
 
             // normal 為正歸化後的 normali 的累加
             normal = normal + normali / cv::norm(normali);
@@ -179,10 +181,11 @@ namespace ORB_SLAM2
         }
 
         vDescriptors.reserve(observations.size());
+        KeyFrame *pKF;
 
         for(pair<KeyFrame *, size_t> obs : observations){
 
-            KeyFrame *pKF = obs.first;
+            pKF = obs.first;
 
             if (!pKF->isBad()){
 
@@ -199,15 +202,17 @@ namespace ORB_SLAM2
         // Compute distances between them
         const size_t N = vDescriptors.size();
         float Distances[N][N];
+        size_t i, j;
+        int distij;
 
-        for (size_t i = 0; i < N; i++)
+        for (i = 0; i < N; i++)
         {
             Distances[i][i] = 0;
 
-            for (size_t j = i + 1; j < N; j++)
+            for (j = i + 1; j < N; j++)
             {
                 // 計算『觀察到同一地圖點的各關鍵幀的關鍵點的描述子』彼此之間的距離
-                int distij = ORBmatcher::DescriptorDistance(vDescriptors[i], vDescriptors[j]);
+                distij = ORBmatcher::DescriptorDistance(vDescriptors[i], vDescriptors[j]);
                 Distances[i][j] = distij;
                 Distances[j][i] = distij;
             }
@@ -216,17 +221,17 @@ namespace ORB_SLAM2
         // Take the descriptor with least median distance to the rest
         // 找出最小的距離
         int BestMedian = INT_MAX;
-        int BestIdx = 0;
+        int BestIdx = 0, median;
 
         // 遍歷 N 個描述子
-        for (size_t i = 0; i < N; i++)
+        for (i = 0; i < N; i++)
         {
             // 取出第 i 個描述子和其他描述子之間的距離（包含和自己的，距離為 0）
             vector<int> vDists(Distances[i], Distances[i] + N);
             sort(vDists.begin(), vDists.end());
 
             // 取得中位數
-            int median = vDists[0.5 * (N - 1)];
+            median = vDists[0.5 * (N - 1)];
 
             // 篩選最小的中位數
             if (median < BestMedian)

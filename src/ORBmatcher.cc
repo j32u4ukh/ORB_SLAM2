@@ -2153,14 +2153,19 @@ namespace ORB_SLAM2
         vector<int> vMatchedDistance(F2.mvKeysUn.size(), INT_MAX);
         vector<int> vnMatches21(F2.mvKeysUn.size(), -1);
 
+        cv::KeyPoint kp1;
+        int level1, bestDist, bestDist2, bestIdx2, dist;
+        vector<size_t> vIndices2;
+        cv::Mat d1, d2;
+                
         // 遍歷 F1 的（已校正關鍵點）索引值
         for (size_t i1 = 0, iend1 = F1.mvKeysUn.size(); i1 < iend1; i1++)
         {
             // 取得 F1 中的關鍵點
-            cv::KeyPoint kp1 = F1.mvKeysUn[i1];
+            kp1 = F1.mvKeysUn[i1];
 
             // 取得當前關鍵點是在影像金字塔的哪個層級找到的
-            int level1 = kp1.octave;
+            level1 = kp1.octave;
 
             // 只處理原圖？ level1 0 為原圖
             if (level1 > 0){
@@ -2168,7 +2173,7 @@ namespace ORB_SLAM2
             }
 
             // 從 F2 取出指定區域內，由『指定金字塔層級(level1: 0)』找到的關鍵點的索引值
-            vector<size_t> vIndices2 = F2.GetFeaturesInArea(vbPrevMatched[i1].x, 
+            vIndices2 = F2.GetFeaturesInArea(vbPrevMatched[i1].x, 
                                                             vbPrevMatched[i1].y, 
                                                             windowSize, level1, level1);
 
@@ -2177,27 +2182,27 @@ namespace ORB_SLAM2
             }
 
             // 取出影像 F1 當中的第 i1 個關鍵點的描述子
-            cv::Mat d1 = F1.mDescriptors.row(i1);
+            d1 = F1.mDescriptors.row(i1);
 
             // 最小距離
-            int bestDist = INT_MAX;
+            bestDist = INT_MAX;
 
             // 第二小距離
-            int bestDist2 = INT_MAX;
+            bestDist2 = INT_MAX;
 
             // 影像 F2 當中和 d1 距離最近的關鍵點的索引值
-            int bestIdx2 = -1;
+            bestIdx2 = -1;
 
             // 遍歷 F2 的（已校正關鍵點）索引值
             for(size_t i2 : vIndices2){
 
                 // 取出影像 F2 當中的第 i2 個關鍵點的描述子
-                cv::Mat d2 = F2.mDescriptors.row(i2);
+                d2 = F2.mDescriptors.row(i2);
 
                 // d1：影像 F1 當中的第 i1 個關鍵點的描述子
                 // d2：影像 F2 當中的第 i2 個關鍵點的描述子
                 // 計算兩個關鍵點的距離
-                int dist = DescriptorDistance(d1, d2);
+                dist = DescriptorDistance(d1, d2);
 
                 // 若關鍵點之間的距離，比已匹配距離更遠，則直接計算下一點
                 if (vMatchedDistance[i2] <= dist){
@@ -2252,26 +2257,6 @@ namespace ORB_SLAM2
                     if (mbCheckOrientation)
                     {
                         updateRotHist(F1.mvKeysUn[i1], F2.mvKeysUn[bestIdx2], factor, i1, rotHist);
-
-                        // // 計算兩關鍵點之間的角度
-                        // float rot = F1.mvKeysUn[i1].angle - F2.mvKeysUn[bestIdx2].angle;
-
-                        // if (rot < 0.0){
-                        //     rot += 360.0f;
-                        // }
-
-                        // // 角度換算到直方圖中的序號
-                        // int bin = round(rot * factor);
-
-                        // if (bin == HISTO_LENGTH){
-                        //     bin = 0;
-                        // }
-
-                        // assert(bin >= 0 && bin < HISTO_LENGTH);
-
-                        // // 直方圖，長度為 HISTO_LENGTH，用於紀錄關鍵點分別落在哪些角度區間
-                        // // i1 和其匹配到的關鍵點之夾角，落在第 bin 個區間
-                        // rotHist[bin].push_back(i1);
                     }
                 }
             }

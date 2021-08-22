@@ -329,33 +329,17 @@ namespace ORB_SLAM2
         
         const int nMinCellX = max(0, (int)floor((x - mnMinX - r) * mfGridElementWidthInv));
 
-        // if (nMinCellX >= FRAME_GRID_COLS){
-        //     return vIndices;
-        // }
-
         // X 網格距離(x - mnMinX + r) * 格數 / X 總距離 ＝ 網格 X 方向網格索引值最大值
         const int nMaxCellX = min((int)FRAME_GRID_COLS - 1, 
                                   (int)ceil((x - mnMinX + r) * mfGridElementWidthInv));
-
-        // if (nMaxCellX < 0){
-        //     return vIndices;
-        // }
 
         // mfGridElementHeightInv = FRAME_GRID_ROWS / (mnMaxY - mnMinY)
         // Y 方向網格最小個數
         const int nMinCellY = max(0, (int)floor((y - mnMinY - r) * mfGridElementHeightInv));
 
-        // if (nMinCellY >= FRAME_GRID_ROWS){
-        //     return vIndices;
-        // }
-
         // Y 方向網格最大個數
         const int nMaxCellY = min((int)FRAME_GRID_ROWS - 1, 
                                   (int)ceil((y - mnMinY + r) * mfGridElementHeightInv));
-
-        // if (nMaxCellY < 0){
-        //     return vIndices;
-        // }
 
         const bool bCheckLevels = (minLevel > 0) || (maxLevel >= 0);
         int ix, iy;

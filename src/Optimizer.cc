@@ -1136,12 +1136,15 @@ namespace ORB_SLAM2
 
         const float thHuber2D = sqrt(5.99);
         const float thHuber3D = sqrt(7.815);
+        MapPoint *pMP;
+        KeyFrame *pKF;
+        size_t kp_idx;
 
         // Set MapPoint vertices
         // 『地圖點』的座標作為『頂點』加入優化
         for (size_t i = 0; i < vpMP.size(); i++)
         {
-            MapPoint *pMP = vpMP[i];
+            pMP = vpMP[i];
 
             if (pMP->isBad()){
                 continue;
@@ -1169,8 +1172,8 @@ namespace ORB_SLAM2
             // SET EDGES
             for(pair<KeyFrame *, size_t> obs : observations)
             {
-                KeyFrame *pKF = obs.first;
-                size_t kp_idx = obs.second;
+                pKF = obs.first;
+                kp_idx = obs.second;
 
                 if (pKF->isBad() || pKF->mnId > maxKFid){
                     continue;
@@ -1271,53 +1274,55 @@ namespace ORB_SLAM2
 
         // Keyframes
         // 更新為優化後的位姿
+        g2o::VertexSE3Expmap *vSE3;
+        g2o::SE3Quat SE3quat;
 
-        for(KeyFrame *pKF : vpKFs)
+        for(KeyFrame *kf : vpKFs)
         {
-            if (pKF->isBad()){
+            if (kf->isBad()){
                 continue;
             }
 
-            g2o::VertexSE3Expmap *vSE3 = 
-                                    static_cast<g2o::VertexSE3Expmap *>(optimizer.vertex(pKF->mnId));
+            vSE3 = static_cast<g2o::VertexSE3Expmap *>(optimizer.vertex(kf->mnId));
             
             // 估計優化後的位姿
-            g2o::SE3Quat SE3quat = vSE3->estimate();
+            SE3quat = vSE3->estimate();
 
             // nLoopKF：關鍵幀 Id，也就是只有第一次才會直接存在『關鍵幀 pKF』的位姿中
             if (nLoopKF == 0)
             {
-                pKF->SetPose(Converter::toCvMat(SE3quat));
+                kf->SetPose(Converter::toCvMat(SE3quat));
             }
 
             // 第二次開始會先存在 mTcwGBA 當中，之後才會在 LoopClosing::RunGlobalBundleAdjustment 用來更新位姿
             else
             {
-                pKF->mTcwGBA.create(4, 4, CV_32F);
+                kf->mTcwGBA.create(4, 4, CV_32F);
 
                 // 優化後的位姿估計存在 pKF->mTcwGBA，而非直接存在『關鍵幀 pKF』的位姿中
-                Converter::toCvMat(SE3quat).copyTo(pKF->mTcwGBA);
+                Converter::toCvMat(SE3quat).copyTo(kf->mTcwGBA);
 
-                pKF->mnBAGlobalForKF = nLoopKF;
+                kf->mnBAGlobalForKF = nLoopKF;
             }
         }
         
         // Points
         // 更新為優化後的估計點位置
+        g2o::VertexSBAPointXYZ *vPoint;
+
         for (size_t i = 0; i < vpMP.size(); i++)
         {
             if (vbNotIncludedMP[i]){
                 continue;
             }
 
-            MapPoint *pMP = vpMP[i];
+            pMP = vpMP[i];
 
             if (pMP->isBad()){
                 continue;
             }
 
-            g2o::VertexSBAPointXYZ *vPoint = 
-                    static_cast<g2o::VertexSBAPointXYZ *>(optimizer.vertex(pMP->mnId + maxKFid + 1));
+            vPoint = static_cast<g2o::VertexSBAPointXYZ *>(optimizer.vertex(pMP->mnId + maxKFid + 1));
 
             if (nLoopKF == 0)
             {

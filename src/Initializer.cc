@@ -100,6 +100,8 @@ namespace ORB_SLAM2
         mvSets = vector<vector<size_t>>(mMaxIterations, vector<size_t>(8, 0));
 
         DUtils::Random::SeedRandOnce(0);
+        int randi, idx;
+        size_t j;
 
         for (int it = 0; it < mMaxIterations; it++)
         {
@@ -107,11 +109,11 @@ namespace ORB_SLAM2
 
             // Select a minimum set
             // 取出 8 個特徵點索引值
-            for (size_t j = 0; j < 8; j++)
+            for (j = 0; j < 8; j++)
             {
                 // 隨機取得索引值
-                int randi = DUtils::Random::RandomInt(0, vAvailableIndices.size() - 1);
-                int idx = vAvailableIndices[randi];
+                randi = DUtils::Random::RandomInt(0, vAvailableIndices.size() - 1);
+                idx = vAvailableIndices[randi];
 
                 mvSets[it][j] = idx;
 
@@ -202,17 +204,19 @@ namespace ORB_SLAM2
         // Iteration variables
         vector<cv::Point2f> vPn1i(8);
         vector<cv::Point2f> vPn2i(8);
-        cv::Mat H21i, H12i;
+        cv::Mat H21i, H12i, Hn;
         vector<bool> vbCurrentInliers(N, false);
         float currentScore;
+        int it, idx;
+        size_t j;
 
         // Perform all RANSAC iterations and save the solution with highest score
-        for (int it = 0; it < mMaxIterations; it++)
+        for (it = 0; it < mMaxIterations; it++)
         {
             // Select a minimum set
-            for (size_t j = 0; j < 8; j++)
+            for (j = 0; j < 8; j++)
             {
-                int idx = mvSets[it][j];
+                idx = mvSets[it][j];
 
                 // mvMatches12[idx]： 一組匹配成功的點對，關鍵點的各自的索引值
                 // .first：前一幀的關鍵點的索引值; .second：當前幀的關鍵點的索引值
@@ -221,7 +225,7 @@ namespace ORB_SLAM2
             }
 
             // 利用八組隨機挑選的點對，計算單應性矩陣的中間矩陣
-            cv::Mat Hn = ComputeH21(vPn1i, vPn2i);
+            Hn = ComputeH21(vPn1i, vPn2i);
 
             // 單應性矩陣
             H21i = T2inv * Hn * T1;
@@ -469,23 +473,24 @@ namespace ORB_SLAM2
         // Iteration variables
         vector<cv::Point2f> vPn1i(8);
         vector<cv::Point2f> vPn2i(8);
-        cv::Mat F21i;
+        cv::Mat F21i, Fn;
         vector<bool> vbCurrentInliers(N, false);
         float currentScore;
+        int it, idx, j;
 
         // Perform all RANSAC iterations and save the solution with highest score
-        for (int it = 0; it < mMaxIterations; it++)
+        for (it = 0; it < mMaxIterations; it++)
         {
             // Select a minimum set
-            for (int j = 0; j < 8; j++)
+            for (j = 0; j < 8; j++)
             {
-                int idx = mvSets[it][j];
+                idx = mvSets[it][j];
 
                 vPn1i[j] = vPn1[mvMatches12[idx].first];
                 vPn2i[j] = vPn2[mvMatches12[idx].second];
             }
 
-            cv::Mat Fn = ComputeF21(vPn1i, vPn2i);
+            Fn = ComputeF21(vPn1i, vPn2i);
 
             F21i = T2t * Fn * T1;
 
@@ -862,7 +867,9 @@ namespace ORB_SLAM2
         P2 = K * P2;
 
         // Camera 2 相機原點
-        cv::Mat O2 = -R.t() * t;
+        cv::Mat O2 = -R.t() * t, p3dC1, p3dC2, normal1, normal2;
+        float dist1, dist2, cosParallax, im1x, im1y, invZ1, squareError1, 
+              im2x, im2y, invZ2, squareError2;
 
         int nGood = 0;
 
@@ -876,8 +883,7 @@ namespace ORB_SLAM2
 
             const cv::KeyPoint &kp1 = vKeys1[vMatches12[i].first];
             const cv::KeyPoint &kp2 = vKeys2[vMatches12[i].second];
-            cv::Mat p3dC1;
-
+            
             // 進行三角測量，獲得空間點 p3dC1 (x, y, z)
             Triangulate(kp1, kp2, P1, P2, p3dC1);
 
@@ -890,14 +896,14 @@ namespace ORB_SLAM2
             }
 
             // Check parallax
-            cv::Mat normal1 = p3dC1 - O1;
-            float dist1 = cv::norm(normal1);
+            normal1 = p3dC1 - O1;
+            dist1 = cv::norm(normal1);
 
-            cv::Mat normal2 = p3dC1 - O2;
-            float dist2 = cv::norm(normal2);
+            normal2 = p3dC1 - O2;
+            dist2 = cv::norm(normal2);
 
             // 利用餘弦定理，計算夾角
-            float cosParallax = normal1.dot(normal2) / (dist1 * dist2);
+            cosParallax = normal1.dot(normal2) / (dist1 * dist2);
 
             // Check depth in front of first camera (only if enough parallax,
             // as "infinite" points can easily go to negative depth)
@@ -910,7 +916,7 @@ namespace ORB_SLAM2
             // Check depth in front of second camera (only if enough parallax,
             // as "infinite" points can easily go to negative depth)
             // Camera 1 下的 p3dC1 轉換到 Camera 2 下的 p3dC2
-            cv::Mat p3dC2 = R * p3dC1 + t;
+            p3dC2 = R * p3dC1 + t;
 
             if (p3dC2.at<float>(2) <= 0 && cosParallax < 0.99998)
             {
@@ -918,14 +924,13 @@ namespace ORB_SLAM2
             }
 
             // Check reprojection error in first image
-            float im1x, im1y;
-            float invZ1 = 1.0 / p3dC1.at<float>(2);
+            invZ1 = 1.0 / p3dC1.at<float>(2);
             im1x = fx * p3dC1.at<float>(0) * invZ1 + cx;
             im1y = fy * p3dC1.at<float>(1) * invZ1 + cy;
 
             // 參考幀上的重投影誤差
-            float squareError1 = (im1x - kp1.pt.x) * (im1x - kp1.pt.x) +
-                                 (im1y - kp1.pt.y) * (im1y - kp1.pt.y);
+            squareError1 = (im1x - kp1.pt.x) * (im1x - kp1.pt.x) +
+                           (im1y - kp1.pt.y) * (im1y - kp1.pt.y);
 
             if (squareError1 > th2)
             {
@@ -933,14 +938,14 @@ namespace ORB_SLAM2
             }
 
             // Check reprojection error in second image
-            float im2x, im2y;
-            float invZ2 = 1.0 / p3dC2.at<float>(2);
+            im2x, im2y;
+            invZ2 = 1.0 / p3dC2.at<float>(2);
             im2x = fx * p3dC2.at<float>(0) * invZ2 + cx;
             im2y = fy * p3dC2.at<float>(1) * invZ2 + cy;
 
             // 當前幀上的重投影誤差
-            float squareError2 = (im2x - kp2.pt.x) * (im2x - kp2.pt.x) +
-                                 (im2y - kp2.pt.y) * (im2y - kp2.pt.y);
+            squareError2 = (im2x - kp2.pt.x) * (im2x - kp2.pt.x) +
+                           (im2y - kp2.pt.y) * (im2y - kp2.pt.y);
 
             if (squareError2 > th2)
             {
