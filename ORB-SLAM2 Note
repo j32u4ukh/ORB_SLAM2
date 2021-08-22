@@ -43,11 +43,12 @@ mean tracking time: 0.0943997
 #MapPoint: 76626
 
 Vocabulary loaded! Cost 9.44923 s.
-#KeyFrame: 708
-#MapPoint: 89895
-Total time: 8:44.0725
-Median tracking time: 0.0670165
-Mean tracking time: 0.0724173
+#KeyFrame: 646
+#MapPoint: 65400
+Total time: 9:26.7168
+Median tracking time: 0.0643499
+Mean tracking time: 0.0676809
+
 
 
 
@@ -273,6 +274,7 @@ e->cx = pKFi->cx;
 e->cy = pKFi->cy;
 
 optimizer.addEdge(e);
+
 vpEdgesMono.push_back(e);
 vpEdgeKFMono.push_back(pKFi);
 vpMapPointEdgeMono.push_back(pMP);

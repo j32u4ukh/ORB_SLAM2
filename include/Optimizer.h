@@ -28,6 +28,8 @@
 #include "Frame.h"
 
 #include "Thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
+#include "Thirdparty/g2o/g2o/types/types_six_dof_expmap.h"
+#include "Thirdparty/g2o/g2o/core/sparse_optimizer.h"
 
 namespace ORB_SLAM2
 {
@@ -37,6 +39,11 @@ class LoopClosing;
 class Optimizer
 {
 public:
+    static const float thHuber2D;
+    static const float thHuber3D;
+    static const float thHuberMono;
+    static const float thHuberStereo;
+
     void static BundleAdjustment(const std::vector<KeyFrame*> &vpKF, const std::vector<MapPoint*> &vpMP,
                                  int nIterations = 5, bool *pbStopFlag=NULL, const unsigned long nLoopKF=0,
                                  const bool bRobust = true);
@@ -55,6 +62,11 @@ public:
     // if bFixScale is true, optimize SE3 (stereo,rgbd), Sim3 otherwise (mono)
     static int OptimizeSim3(KeyFrame* pKF1, KeyFrame* pKF2, std::vector<MapPoint *> &vpMatches1,
                             g2o::Sim3 &g2oS12, const float th2, const bool bFixScale);
+
+    static inline g2o::EdgeSE3ProjectXYZ *addEdgeSE3ProjectXYZ(g2o::SparseOptimizer &op,
+                                                               const cv::KeyPoint kpUn, 
+                                                               const KeyFrame *pKF,
+                                                               int v0, int v1, bool bRobust);
 };
 
 } //namespace ORB_SLAM
