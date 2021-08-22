@@ -147,22 +147,26 @@ namespace ORB_SLAM2
         unsigned long maxKFid = 0;
 
         // Set Local KeyFrame vertices
+        unsigned long id;
 
         for(KeyFrame *pKFi : lLocalKeyFrames)
         {
-            g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
-            vSE3->setEstimate(Converter::toSE3Quat(pKFi->GetPose()));
-            vSE3->setId(pKFi->mnId);
+            id = pKFi->mnId;
+            addVertexSE3Expmap(optimizer, pKFi->GetPose(), id, id == 0);
 
-            // Local 共視關鍵幀只有第 0 幀設為 Fixed，Fixed 共視關鍵幀全部都設為 Fixed
-            vSE3->setFixed(pKFi->mnId == 0);
+            // g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
+            // vSE3->setEstimate(Converter::toSE3Quat(pKFi->GetPose()));
+            // vSE3->setId(pKFi->mnId);
 
-            // Local 共視關鍵幀作為頂點加入優化        
-            optimizer.addVertex(vSE3);
+            // // Local 共視關鍵幀只有第 0 幀設為 Fixed，Fixed 共視關鍵幀全部都設為 Fixed
+            // vSE3->setFixed(pKFi->mnId == 0);
 
-            if (pKFi->mnId > maxKFid)
+            // // Local 共視關鍵幀作為頂點加入優化        
+            // optimizer.addVertex(vSE3);
+
+            if (id > maxKFid)
             {
-                maxKFid = pKFi->mnId;
+                maxKFid = id;
             }
         }
         
@@ -173,18 +177,21 @@ namespace ORB_SLAM2
 
         for(KeyFrame *pKFi : lFixedCameras)
         {
-            g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
-            vSE3->setEstimate(Converter::toSE3Quat(pKFi->GetPose()));
-            vSE3->setId(pKFi->mnId);
+            id = pKFi->mnId;
+            addVertexSE3Expmap(optimizer, pKFi->GetPose(), id, true);
 
-            // Fixed 共視關鍵幀全部都設為 Fixed，Local 共視關鍵幀只有第 0 幀設為 Fixed
-            vSE3->setFixed(true);
+            // g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
+            // vSE3->setEstimate(Converter::toSE3Quat(pKFi->GetPose()));
+            // vSE3->setId(pKFi->mnId);
 
-            optimizer.addVertex(vSE3);
+            // // Fixed 共視關鍵幀全部都設為 Fixed，Local 共視關鍵幀只有第 0 幀設為 Fixed
+            // vSE3->setFixed(true);
 
-            if (pKFi->mnId > maxKFid)
+            // optimizer.addVertex(vSE3);
+
+            if (id > maxKFid)
             {
-                maxKFid = pKFi->mnId;
+                maxKFid = id;
             }
         }
 
@@ -216,7 +223,6 @@ namespace ORB_SLAM2
 
         g2o::EdgeSE3ProjectXYZ *e;
         g2o::EdgeStereoSE3ProjectXYZ *e_stereo;
-        int id;
 
         // 『共視地圖點』作為『頂點』，而『觀察到共視地圖點的特徵點的位置』作為『邊』
         for(MapPoint *pMP : lLocalMapPoints)
@@ -1129,6 +1135,7 @@ namespace ORB_SLAM2
         }
 
         long unsigned int maxKFid = 0;
+        unsigned long id;
 
         // Set KeyFrame vertices
         // 將『關鍵幀』的位姿，作為『頂點』加入優化，Id 由 0 到 maxKFid 編號
@@ -1138,19 +1145,22 @@ namespace ORB_SLAM2
                 continue;
             }
 
-            g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
+            id = pKF->mnId;
+            addVertexSE3Expmap(optimizer, pKF->GetPose(), id, id == 0);
 
-            // 取得『關鍵幀 pKF』的位姿，並轉換成 g2o 所需的類型 
-            vSE3->setEstimate(Converter::toSE3Quat(pKF->GetPose()));
-            vSE3->setId(pKF->mnId);
-            vSE3->setFixed(pKF->mnId == 0);
+            // g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
 
-            // 『關鍵幀 pKF』的位姿，作為『頂點』加入優化
-            optimizer.addVertex(vSE3);
+            // // 取得『關鍵幀 pKF』的位姿，並轉換成 g2o 所需的類型 
+            // vSE3->setEstimate(Converter::toSE3Quat(pKF->GetPose()));
+            // vSE3->setId(pKF->mnId);
+            // vSE3->setFixed(pKF->mnId == 0);
 
-            if (pKF->mnId > maxKFid)
+            // // 『關鍵幀 pKF』的位姿，作為『頂點』加入優化
+            // optimizer.addVertex(vSE3);
+
+            if (id > maxKFid)
             {
-                maxKFid = pKF->mnId;
+                maxKFid = id;
             }
         }
 
@@ -1161,7 +1171,6 @@ namespace ORB_SLAM2
         size_t kp_idx;
 
         g2o::VertexSBAPointXYZ *vPoint;
-        int id;
 
         // Set MapPoint vertices
         // 『地圖點』的座標作為『頂點』加入優化
@@ -1385,11 +1394,13 @@ namespace ORB_SLAM2
 
         // Set Frame vertex
         // 將當前幀轉換成『轉換矩陣 SE3』，並作為頂點加入 optimizer
-        g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
-        vSE3->setEstimate(Converter::toSE3Quat(pFrame->mTcw));
-        vSE3->setId(0);
-        vSE3->setFixed(false);
-        optimizer.addVertex(vSE3);
+        g2o::VertexSE3Expmap *vSE3 = addVertexSE3Expmap(optimizer, pFrame->mTcw, 0, false);
+
+        // g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
+        // vSE3->setEstimate(Converter::toSE3Quat(pFrame->mTcw));
+        // vSE3->setId(0);
+        // vSE3->setFixed(false);
+        // optimizer.addVertex(vSE3);
 
         // Set MapPoint vertices
         // 取得 pFrame 觀察到的地圖點個數
@@ -1684,6 +1695,20 @@ namespace ORB_SLAM2
         op.addVertex(vPoint);
 
         return vPoint;
+    }
+    
+    g2o::VertexSE3Expmap * Optimizer::addVertexSE3Expmap(g2o::SparseOptimizer &op, cv::Mat pose, 
+                                                         const int id, const bool fixed)
+    {
+        // Set Frame vertex
+        // 將當前幀轉換成『轉換矩陣 SE3』，並作為頂點加入 optimizer
+        g2o::VertexSE3Expmap *vSE3 = new g2o::VertexSE3Expmap();
+        vSE3->setEstimate(Converter::toSE3Quat(pose));
+        vSE3->setId(id);
+        vSE3->setFixed(fixed);
+        op.addVertex(vSE3);
+
+        return vSE3;
     }
     
     // ==================================================

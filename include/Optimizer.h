@@ -71,6 +71,9 @@ public:
     static inline g2o::VertexSBAPointXYZ *addVertexSBAPointXYZ(g2o::SparseOptimizer &op, MapPoint *pMP,
                                                                const int id);
 
+    static inline g2o::VertexSE3Expmap * addVertexSE3Expmap(g2o::SparseOptimizer &op, cv::Mat pose, 
+                                                            const int id, const bool fixed);                                                           
+
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================
