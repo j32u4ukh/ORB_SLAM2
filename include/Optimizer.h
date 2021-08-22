@@ -64,9 +64,24 @@ public:
                             g2o::Sim3 &g2oS12, const float th2, const bool bFixScale);
 
     static inline g2o::EdgeSE3ProjectXYZ *addEdgeSE3ProjectXYZ(g2o::SparseOptimizer &op,
-                                                               const cv::KeyPoint kpUn, 
+                                                               const cv::KeyPoint kpUn,
                                                                const KeyFrame *pKF,
                                                                int v0, int v1, bool bRobust);
+
+    static inline g2o::VertexSBAPointXYZ *addVertexSBAPointXYZ(g2o::SparseOptimizer &op, MapPoint *pMP,
+                                                               const int id);
+
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
+
+    static inline g2o::EdgeStereoSE3ProjectXYZ *addEdgeStereoSE3ProjectXYZ(g2o::SparseOptimizer &op,
+                                                                           const cv::KeyPoint kpUn,
+                                                                           const KeyFrame *pKF,
+                                                                           const size_t kp_idx,
+                                                                           const int v0,
+                                                                           const int v1,
+                                                                           bool bRobust);
 };
 
 } //namespace ORB_SLAM

@@ -938,7 +938,6 @@ namespace ORB_SLAM2
             }
 
             // Check reprojection error in second image
-            im2x, im2y;
             invZ2 = 1.0 / p3dC2.at<float>(2);
             im2x = fx * p3dC2.at<float>(0) * invZ2 + cx;
             im2y = fy * p3dC2.at<float>(1) * invZ2 + cy;
