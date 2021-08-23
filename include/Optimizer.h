@@ -70,6 +70,7 @@ public:
     // 自己封裝的函式
     // ==================================================
 
+    // **********
     static inline void addKeyFramePoses(vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op,
                                         long unsigned int &maxKFid);
 
@@ -131,6 +132,24 @@ public:
 
     static inline void updateLocalMapPoints(g2o::SparseOptimizer &op, list<MapPoint *> lLocalMapPoints,
                                             const unsigned long maxKFid);
+
+    // ***** Optimizer::OptimizeSim3 *****
+    static inline void addSim3MapPointsAndKeyPoints(KeyFrame *pKF1, KeyFrame *pKF2, const bool bFixScale,
+                                                    g2o::Sim3 &g2oS12, g2o::SparseOptimizer &op,
+                                                    const int N, const float th2, int &nCorrespondences,
+                                                    vector<g2o::EdgeSim3ProjectXYZ *> &vpEdges12,
+                                                    vector<g2o::EdgeInverseSim3ProjectXYZ *> &vpEdges21,
+                                                    vector<size_t> &vnIndexEdge,
+                                                    vector<MapPoint *> &vpMatches1);
+
+    static inline void addSim3KeyPoints(const int i, const int i2, const int id1, const int id2,
+                                        const float deltaHuber, KeyFrame *pKF1, KeyFrame *pKF2,
+                                        g2o::SparseOptimizer &op,
+                                        vector<g2o::EdgeSim3ProjectXYZ *> &vpEdges12,
+                                        vector<g2o::EdgeInverseSim3ProjectXYZ *> &vpEdges21,
+                                        vector<size_t> &vnIndexEdge);
+
+    // **********                                 
 
     static inline g2o::EdgeSE3ProjectXYZ *addEdgeSE3ProjectXYZ(g2o::SparseOptimizer &op,
                                                                const cv::KeyPoint kpUn,

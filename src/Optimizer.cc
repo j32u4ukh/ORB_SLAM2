@@ -763,6 +763,27 @@ namespace ORB_SLAM2
         solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
         optimizer.setAlgorithm(solver);
 
+        // Set MapPoint vertices
+        const int N = vpMatches1.size();
+        
+        vector<g2o::EdgeSim3ProjectXYZ *> vpEdges12;
+        vector<g2o::EdgeInverseSim3ProjectXYZ *> vpEdges21;
+        vector<size_t> vnIndexEdge;
+
+        vnIndexEdge.reserve(2 * N);
+        vpEdges12.reserve(2 * N);
+        vpEdges21.reserve(2 * N);
+
+        int nCorrespondences = 0;
+
+        
+
+
+        // ================================================================================
+        // ================================================================================
+        // addSim3MapPointsAndKeyPoints(pKF1, pKF2, bFixScale, g2oS12, optimizer, N, th2, nCorrespondences, 
+        //                  vpEdges12, vpEdges21, vnIndexEdge, vpMatches1);
+
         // Calibration 相機內參
         const cv::Mat &K1 = pKF1->K;
         const cv::Mat &K2 = pKF2->K;
@@ -800,40 +821,28 @@ namespace ORB_SLAM2
         // 『相似轉換矩陣 g2oS12』封裝到 vSim3 當中，作為頂點加入優化
         optimizer.addVertex(vSim3);
 
-        // Set MapPoint vertices
-        const int N = vpMatches1.size();
-
         // 『關鍵幀 pKF1』觀察到的地圖點
         const vector<MapPoint *> vpMapPoints1 = pKF1->GetMapPointMatches();
 
-        vector<g2o::EdgeSim3ProjectXYZ *> vpEdges12;
-        vector<g2o::EdgeInverseSim3ProjectXYZ *> vpEdges21;
-        vector<size_t> vnIndexEdge;
-
-        vnIndexEdge.reserve(2 * N);
-        vpEdges12.reserve(2 * N);
-        vpEdges21.reserve(2 * N);
-
         const float deltaHuber = sqrt(th2);
 
-        int nCorrespondences = 0;
-
+        // addSim3VertexAndEdge
         for (int i = 0; i < N; i++)
         {
             if (!vpMatches1[i]){
                 continue;
             }
 
+            // i = 0, id1 = 1, id2 = 2; i = 1, id1 = 3, id2 = 4
+            // id1: 1, 3, 5, ...; id2: 2, 4, 6, ...
+            const int id1 = 2 * i + 1;
+            const int id2 = 2 * (i + 1);
+
             // 『地圖點 pMP1』：『關鍵幀 pKF1』觀察到的第 i 個地圖點
             MapPoint *pMP1 = vpMapPoints1[i];
 
             // 『地圖點 pMP2』：『關鍵幀 pKF1』的第 i 個地圖點在『關鍵幀 pKF2』上對應的地圖點
             MapPoint *pMP2 = vpMatches1[i];
-
-            // i = 0, id1 = 1, id2 = 2; i = 1, id1 = 3, id2 = 4
-            // id1: 1, 3, 5, ...; id2: 2, 4, 6, ...
-            const int id1 = 2 * i + 1;
-            const int id2 = 2 * (i + 1);
 
             // 『關鍵幀 pKF2』的第 i2 個特徵點觀察到『地圖點 pMP2』
             const int i2 = pMP2->GetIndexInKeyFrame(pKF2);
@@ -880,6 +889,12 @@ namespace ORB_SLAM2
 
             nCorrespondences++;
 
+
+            // ================================================================================
+            // ================================================================================
+            // addSim3KeyPoints(i, id1, id2, deltaHuber, pKF1, pKF2, optimizer, 
+            //                  vpEdges12, vpEdges21, vnIndexEdge);
+
             // Set edge x1 = S12*X2
             // 『關鍵幀 pKF1』的第 i 個特徵點位置作為『邊』加入優化 
             Eigen::Matrix<double, 2, 1> obs1;
@@ -925,6 +940,7 @@ namespace ORB_SLAM2
             vpEdges21.push_back(e21);
 
             vnIndexEdge.push_back(i);
+            // ================================================================================
         }
 
         // Optimize!
@@ -1590,6 +1606,7 @@ namespace ORB_SLAM2
     // 自己封裝的函式
     // ==================================================
 
+    // ***** Optimizer::BundleAdjustment *****
     // 提取出 KeyFrame 的 Pose，加入優化 SparseOptimizer
     void Optimizer::addKeyFramePoses(vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op, 
                                      long unsigned int &maxKFid)
@@ -1772,7 +1789,7 @@ namespace ORB_SLAM2
     }
 
 
-
+    // ***** Optimizer::LocalBundleAdjustment *****
     void Optimizer::extractLocalKeyFrames(list<KeyFrame *> &lLocalKeyFrames, KeyFrame *pKF)
     {
         lLocalKeyFrames.push_back(pKF);
@@ -2017,8 +2034,6 @@ namespace ORB_SLAM2
         }
     }
 
-
-
     void Optimizer::markEarseMono(vector<pair<KeyFrame *, MapPoint *>> &vToErase,
                                   vector<MapPoint *> &vpMapPointEdgeMono,
                                   vector<g2o::EdgeSE3ProjectXYZ *> &vpEdgesMono,
@@ -2135,6 +2150,186 @@ namespace ORB_SLAM2
         }
     }
 
+    // ***** Optimizer::OptimizeSim3 *****
+
+    void Optimizer::addSim3MapPointsAndKeyPoints(KeyFrame *pKF1, KeyFrame *pKF2, const bool bFixScale,
+                                                 g2o::Sim3 &g2oS12, g2o::SparseOptimizer &op,
+                                                 const int N, const float th2, int &nCorrespondences,
+                                                 vector<g2o::EdgeSim3ProjectXYZ *> &vpEdges12,
+                                                 vector<g2o::EdgeInverseSim3ProjectXYZ *> &vpEdges21,
+                                                 vector<size_t> &vnIndexEdge,
+                                                 vector<MapPoint *> &vpMatches1)
+    {
+        // Calibration 相機內參
+        const cv::Mat &K1 = pKF1->K;
+        const cv::Mat &K2 = pKF2->K;
+
+        // Camera poses
+        const cv::Mat R1w = pKF1->GetRotation();
+        const cv::Mat t1w = pKF1->GetTranslation();
+
+        const cv::Mat R2w = pKF2->GetRotation();
+        const cv::Mat t2w = pKF2->GetTranslation();
+
+        // Set Sim3 vertex
+        g2o::VertexSim3Expmap *vSim3 = new g2o::VertexSim3Expmap();
+        vSim3->_fix_scale = bFixScale;
+
+        // g2oS12 相似轉換矩陣
+        vSim3->setEstimate(g2oS12);
+
+        vSim3->setId(0);
+        vSim3->setFixed(false);
+
+        // 相機內參
+        vSim3->_principle_point1[0] = K1.at<float>(0, 2);
+        vSim3->_principle_point1[1] = K1.at<float>(1, 2);
+
+        vSim3->_focal_length1[0] = K1.at<float>(0, 0);
+        vSim3->_focal_length1[1] = K1.at<float>(1, 1);
+
+        vSim3->_principle_point2[0] = K2.at<float>(0, 2);
+        vSim3->_principle_point2[1] = K2.at<float>(1, 2);
+
+        vSim3->_focal_length2[0] = K2.at<float>(0, 0);
+        vSim3->_focal_length2[1] = K2.at<float>(1, 1);
+
+        // 『相似轉換矩陣 g2oS12』封裝到 vSim3 當中，作為頂點加入優化
+        op.addVertex(vSim3);
+
+        // 『關鍵幀 pKF1』觀察到的地圖點
+        const vector<MapPoint *> vpMapPoints1 = pKF1->GetMapPointMatches();
+
+        const float deltaHuber = sqrt(th2);
+
+        MapPoint *pMP1, *pMP2;
+        g2o::VertexSBAPointXYZ *vPoint1, *vPoint2;
+        cv::Mat P3D1w, P3D1c, P3D2w, P3D2c;
+
+        // addSim3VertexAndEdge
+        for (int i = 0; i < N; i++)
+        {
+            if (!vpMatches1[i])
+            {
+                continue;
+            }
+
+            // i = 0, id1 = 1, id2 = 2; i = 1, id1 = 3, id2 = 4
+            // id1: 1, 3, 5, ...; id2: 2, 4, 6, ...
+            const int id1 = 2 * i + 1;
+            const int id2 = 2 * (i + 1);
+
+            // 『地圖點 pMP1』：『關鍵幀 pKF1』觀察到的第 i 個地圖點
+            pMP1 = vpMapPoints1[i];
+
+            // 『地圖點 pMP2』：『關鍵幀 pKF1』的第 i 個地圖點在『關鍵幀 pKF2』上對應的地圖點
+            pMP2 = vpMatches1[i];
+
+            // 『關鍵幀 pKF2』的第 i2 個特徵點觀察到『地圖點 pMP2』
+            const int i2 = pMP2->GetIndexInKeyFrame(pKF2);
+
+            // 將『地圖點 pMP1、pMP2』的位置轉換到相機座標系下，作為『頂點』（id1, id2）加入優化
+            if (pMP1 && pMP2)
+            {
+                if (!pMP1->isBad() && !pMP2->isBad() && i2 >= 0)
+                {
+                    // 取得『地圖點 pMP1』的世界座標
+                    P3D1w = pMP1->GetWorldPos();
+
+                    // 將『地圖點 pMP1』轉換到『關鍵幀 pKF1』座標系下
+                    P3D1c = R1w * P3D1w + t1w;
+
+                    vPoint1 = newVertexSBAPointXYZ(P3D1c, id1);
+                    vPoint1->setFixed(true);
+
+                    // 『地圖點 pMP1』的位置作為『頂點』加入優化
+                    op.addVertex(vPoint1);
+
+                    // 取得『地圖點 pMP2』的世界座標
+                    P3D2w = pMP2->GetWorldPos();
+
+                    // 將『地圖點 pMP2』轉換到『關鍵幀 pKF2』座標系下
+                    P3D2c = R2w * P3D2w + t2w;
+
+                    vPoint2 = newVertexSBAPointXYZ(P3D2c, id2);
+                    vPoint2->setFixed(true);
+
+                    // 『地圖點 pMP2』的位置作為『頂點』加入優化
+                    op.addVertex(vPoint2);
+                }
+                else
+                {
+                    continue;
+                }
+            }
+            else
+            {
+                continue;
+            }
+
+            nCorrespondences++;
+
+            addSim3KeyPoints(i, i2, id1, id2, deltaHuber, pKF1, pKF2, op,
+                             vpEdges12, vpEdges21, vnIndexEdge);
+        }
+    }
+
+    void Optimizer::addSim3KeyPoints(const int i, const int i2, const int id1, const int id2,
+                                     const float deltaHuber, KeyFrame *pKF1, KeyFrame *pKF2,
+                                     g2o::SparseOptimizer &op,
+                                     vector<g2o::EdgeSim3ProjectXYZ *> &vpEdges12,
+                                     vector<g2o::EdgeInverseSim3ProjectXYZ *> &vpEdges21,
+                                     vector<size_t> &vnIndexEdge)
+    {
+        // Set edge x1 = S12*X2
+        // 『關鍵幀 pKF1』的第 i 個特徵點位置作為『邊』加入優化 
+        Eigen::Matrix<double, 2, 1> obs1;
+        const cv::KeyPoint &kpUn1 = pKF1->mvKeysUn[i];
+        obs1 << kpUn1.pt.x, kpUn1.pt.y;
+        const float &invSigmaSquare1 = pKF1->mvInvLevelSigma2[kpUn1.octave];
+        
+        g2o::EdgeSim3ProjectXYZ *e12 = new g2o::EdgeSim3ProjectXYZ();
+        e12->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(op.vertex(id2)));
+        e12->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(op.vertex(0)));
+        e12->setMeasurement(obs1);
+
+        e12->setInformation(Eigen::Matrix2d::Identity() * invSigmaSquare1);
+
+        g2o::RobustKernelHuber *rk1 = new g2o::RobustKernelHuber;
+        e12->setRobustKernel(rk1);
+        rk1->setDelta(deltaHuber);
+        op.addEdge(e12);
+
+        // Set edge x2 = S21*X1
+        // 『關鍵幀 pKF2』的第 i2 個特徵點位置作為『邊』加入優化 
+        Eigen::Matrix<double, 2, 1> obs2;
+        const cv::KeyPoint &kpUn2 = pKF2->mvKeysUn[i2];
+        obs2 << kpUn2.pt.x, kpUn2.pt.y;
+        float invSigmaSquare2 = pKF2->mvInvLevelSigma2[kpUn2.octave];        
+
+        g2o::EdgeInverseSim3ProjectXYZ *e21 = new g2o::EdgeInverseSim3ProjectXYZ();
+        e21->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(op.vertex(id1)));
+        e21->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(op.vertex(0)));
+        e21->setMeasurement(obs2);
+        e21->setInformation(Eigen::Matrix2d::Identity() * invSigmaSquare2);
+
+        g2o::RobustKernelHuber *rk2 = new g2o::RobustKernelHuber;
+        e21->setRobustKernel(rk2);
+        rk2->setDelta(deltaHuber);
+        op.addEdge(e21);
+
+        // 『關鍵幀 pKF1』的第 i 個特徵點位置
+        vpEdges12.push_back(e12);
+
+        // 『關鍵幀 pKF2』的第 i2 個特徵點位置
+        vpEdges21.push_back(e21);
+
+        vnIndexEdge.push_back(i);
+    }
+
+
+    // ********************************************************************************
+    // ********************************************************************************
     g2o::EdgeSE3ProjectXYZ *Optimizer::addEdgeSE3ProjectXYZ(g2o::SparseOptimizer &op,
                                                             const cv::KeyPoint kpUn,
                                                             const KeyFrame *pKF,
