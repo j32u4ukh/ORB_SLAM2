@@ -70,6 +70,20 @@ public:
     // 自己封裝的函式
     // ==================================================
 
+    static inline void addKeyFramePoses(vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op,
+                                        long unsigned int &maxKFid);
+
+    static inline void addMapPoints(const vector<MapPoint *> &vpMP, g2o::SparseOptimizer &op,
+                                    const long unsigned int maxKFid,
+                                    const bool bRobust, vector<bool> &vbNotIncludedMP);
+
+    static inline void updateKeyFramePoses(const vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op,
+                                           const unsigned long nLoopKF);
+
+    static inline void updateMapPoints(const vector<MapPoint *> &vpMP, vector<bool> &vbNotIncludedMP,
+                                       g2o::SparseOptimizer &op, long unsigned int &maxKFid,
+                                       const unsigned long nLoopKF);
+
     static inline void extractLocalKeyFrames(list<KeyFrame *> &lLocalKeyFrames, KeyFrame *pKF);
 
     static inline void extractLocalKeyFrames(list<MapPoint *> &lLocalMapPoints,
@@ -79,9 +93,6 @@ public:
     static inline void extractFixedCameras(list<KeyFrame *> &lFixedCameras,
                                            const list<MapPoint *> &lLocalMapPoints, 
                                            const KeyFrame *pKF);
-
-    static inline void addKeyFramePoses(vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op,
-                                        long unsigned int &maxKFid);
 
     static inline void addLocalKeyFrames(list<KeyFrame *> &lLocalKeyFrames, g2o::SparseOptimizer &op,
                                          long unsigned int &maxKFid);
