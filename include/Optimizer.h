@@ -66,6 +66,20 @@ public:
     static int OptimizeSim3(KeyFrame* pKF1, KeyFrame* pKF2, std::vector<MapPoint *> &vpMatches1,
                             g2o::Sim3 &g2oS12, const float th2, const bool bFixScale);
 
+    // ==================================================
+    // 自己封裝的函式
+    // ==================================================
+
+    static inline void extractLocalKeyFrames(list<KeyFrame *> &lLocalKeyFrames, KeyFrame *pKF);
+
+    static inline void extractLocalKeyFrames(list<MapPoint *> &lLocalMapPoints,
+                                             const list<KeyFrame *> &lLocalKeyFrames, 
+                                             const KeyFrame *pKF);
+
+    static inline void extractFixedCameras(list<KeyFrame *> &lFixedCameras,
+                                           const list<MapPoint *> &lLocalMapPoints, 
+                                           const KeyFrame *pKF);
+
     static inline void addKeyFramePoses(vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op,
                                         long unsigned int &maxKFid);
 
@@ -83,6 +97,12 @@ public:
                                          vector<g2o::EdgeStereoSE3ProjectXYZ *> &vpEdgesStereo,
                                          vector<KeyFrame *> &vpEdgeKFStereo,
                                          vector<MapPoint *> &vpMapPointEdgeStereo);
+
+    static inline void filterMonoLocalMapPoints(vector<g2o::EdgeSE3ProjectXYZ *> &vpEdgesMono,
+                                                vector<MapPoint *> &vpMapPointEdgeMono);
+
+    static inline void filterStereoLocalMapPoints(vector<g2o::EdgeStereoSE3ProjectXYZ *> &vpEdgesStereo,
+                                                  vector<MapPoint *> &vpMapPointEdgeStereo);
 
     static inline void markEarseMono(vector<pair<KeyFrame *, MapPoint *>> &vToErase,
                                      vector<MapPoint *> &vpMapPointEdgeMono,

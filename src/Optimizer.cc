@@ -266,6 +266,11 @@ namespace ORB_SLAM2
         // Local KeyFrames: First Breath Search from Current Keyframe
         list<KeyFrame *> lLocalKeyFrames;
 
+        // ================================================================================
+        // ================================================================================
+        // extractLocalKeyFrames(lLocalKeyFrames, pKF);
+
+        // Extract
         lLocalKeyFrames.push_back(pKF);
 
         // 標注 pKF 已參與 pKF 的 LocalBundleAdjustment
@@ -285,10 +290,19 @@ namespace ORB_SLAM2
                 lLocalKeyFrames.push_back(pKFi);
             }
         }
+        // ================================================================================
 
+
+
+
+
+        // ================================================================================
+        // ================================================================================
         // Local MapPoints seen in Local KeyFrames
         // 共視地圖點：『共視關鍵幀 list<KeyFrame *> lLocalKeyFrames』所觀察到的地圖點
         list<MapPoint *> lLocalMapPoints;
+
+        // extractLocalKeyFrames(lLocalMapPoints, lLocalKeyFrames, pKF);
 
         for(KeyFrame * local_kf : lLocalKeyFrames)
         {
@@ -312,10 +326,19 @@ namespace ORB_SLAM2
                 }
             }
         }
+        // ================================================================================
 
+
+
+
+
+        // ================================================================================
+        // ================================================================================
         // Fixed Keyframes. Keyframes that see Local MapPoints but that are not Local Keyframes
         // 哪些關鍵幀同時也觀察到 lLocalMapPoints 當中的地圖點
         list<KeyFrame *> lFixedCameras;
+
+        // extractFixedCameras(lFixedCameras, lLocalMapPoints, pKF);
 
         for(MapPoint* local_mp : lLocalMapPoints)
         {
@@ -338,6 +361,7 @@ namespace ORB_SLAM2
                 }
             }
         }
+        // ================================================================================
 
         // g2o 的優化會分別使用到 lLocalKeyFrames, lLocalMapPoints, lFixedCameras
 
@@ -383,7 +407,6 @@ namespace ORB_SLAM2
         // Set Fixed KeyFrame vertices
         // Fixed 共視關鍵幀作為頂點加入優化
         // addFixedCameras(lFixedCameras, optimizer, maxKFid);
-
         for(KeyFrame *pKFi : lFixedCameras)
         {
             id = pKFi->mnId;
@@ -423,8 +446,7 @@ namespace ORB_SLAM2
         // ================================================================================
         // addLocalMapPoints(lLocalMapPoints, optimizer, maxKFid, pKF, 
         //                   vpEdgesMono, vpEdgeKFMono, vpMapPointEdgeMono,
-        //                   vpEdgesStereo, vpEdgeKFStereo, vpMapPointEdgeStereo);
-        
+        //                   vpEdgesStereo, vpEdgeKFStereo, vpMapPointEdgeStereo);        
         g2o::EdgeSE3ProjectXYZ *e;
         g2o::EdgeStereoSE3ProjectXYZ *e_stereo;
         g2o::VertexSBAPointXYZ *vPoint;
@@ -511,6 +533,10 @@ namespace ORB_SLAM2
 
         if (bDoMore)
         {
+            // ================================================================================
+            // ================================================================================
+            // filterMonoLocalMapPoints(vpEdgesMono, vpMapPointEdgeMono);
+
             // Check inlier observations
             for (size_t i = 0, iend = vpEdgesMono.size(); i < iend; i++)
             {
@@ -532,6 +558,15 @@ namespace ORB_SLAM2
                 // 不使用 RobustKernel
                 e->setRobustKernel(0);
             }
+            // ================================================================================
+            
+            
+
+
+
+            // ================================================================================
+            // ================================================================================
+            // filterStereoLocalMapPoints(vpEdgesStereo, vpMapPointEdgeStereo);
 
             // 和單目無關，暫時跳過
             for (size_t i = 0, iend = vpEdgesStereo.size(); i < iend; i++)
@@ -551,6 +586,7 @@ namespace ORB_SLAM2
 
                 e_stereo->setRobustKernel(0);
             }
+            // ================================================================================
 
             // Optimize again without the outliers
 
@@ -562,6 +598,11 @@ namespace ORB_SLAM2
 
         vector<pair<KeyFrame *, MapPoint *>> vToErase;
         vToErase.reserve(vpEdgesMono.size() + vpEdgesStereo.size());
+
+
+
+
+
 
         // ================================================================================
         // ================================================================================
@@ -587,6 +628,8 @@ namespace ORB_SLAM2
             }
         }
         // ================================================================================
+
+
 
 
 
@@ -621,7 +664,6 @@ namespace ORB_SLAM2
             // ================================================================================
             // ================================================================================
             // executeEarsing(vToErase);
-
             for(pair<KeyFrame *, MapPoint *> to_earse : vToErase)
             {                
                 KeyFrame *pKFi = to_earse.first;
@@ -1524,6 +1566,89 @@ namespace ORB_SLAM2
     // 自己封裝的函式
     // ==================================================
 
+    void Optimizer::extractLocalKeyFrames(list<KeyFrame *> &lLocalKeyFrames, KeyFrame *pKF)
+    {
+        lLocalKeyFrames.push_back(pKF);
+
+        // 標注 pKF 已參與 pKF 的 LocalBundleAdjustment
+        pKF->mnBALocalForKF = pKF->mnId;
+
+        // 『關鍵幀 pKF』的共視關鍵幀（根據觀察到的地圖點數量排序）
+        const vector<KeyFrame *> vNeighKFs = pKF->GetVectorCovisibleKeyFrames();
+
+        // 篩選好的『關鍵幀 pKF』的共視關鍵幀
+
+        for(KeyFrame *pKFi : vNeighKFs)
+        {
+            // 標注『關鍵幀 pKFi』已參與『關鍵幀 pKF』的 LocalBundleAdjustment，避免重複添加到 lLocalKeyFrames
+            pKFi->mnBALocalForKF = pKF->mnId;
+
+            if (!pKFi->isBad()){
+                lLocalKeyFrames.push_back(pKFi);
+            }
+        }
+    }
+
+    void Optimizer::extractLocalKeyFrames(list<MapPoint *> &lLocalMapPoints,
+                                          const list<KeyFrame *> &lLocalKeyFrames, const KeyFrame *pKF)
+    {
+        vector<MapPoint *> vpMPs;
+
+        for(KeyFrame * local_kf : lLocalKeyFrames)
+        {
+            // 『關鍵幀 (*lit)』的關鍵點觀察到的地圖點
+            vpMPs = local_kf->GetMapPointMatches();
+
+            for(MapPoint *pMP : vpMPs)
+            {
+                if (pMP)
+                {
+                    if (!pMP->isBad())
+                    {
+                        if (pMP->mnBALocalForKF != pKF->mnId)
+                        {
+                            lLocalMapPoints.push_back(pMP);
+
+                            // 標注『地圖點 pMP』已參與『關鍵幀 pKF』的 LocalBundleAdjustment
+                            // 避免重複添加到 lLocalMapPoints
+                            pMP->mnBALocalForKF = pKF->mnId;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    void Optimizer::extractFixedCameras(list<KeyFrame *> &lFixedCameras, 
+                                        const list<MapPoint *> &lLocalMapPoints, const KeyFrame *pKF)
+    {
+        map<KeyFrame *, size_t> observations;
+        KeyFrame *pKFi;
+
+        for(MapPoint* local_mp : lLocalMapPoints)
+        {
+            // 觀察到『共視地圖點 (*lit)』的關鍵幀，及其對應的特徵點的索引值
+            observations = local_mp->GetObservations();
+
+            for(pair<KeyFrame *, size_t> obs : observations)
+            {
+                pKFi = obs.first;
+
+                // Local && Fixed
+                // 檢查『關鍵幀 pKFi』是否已參與『關鍵幀 pKF』的 LocalBundleAdjustment
+                if (pKFi->mnBALocalForKF != pKF->mnId && pKFi->mnBAFixedForKF != pKF->mnId)
+                {
+                    pKFi->mnBAFixedForKF = pKF->mnId;
+
+                    if (!pKFi->isBad())
+                    {
+                        lFixedCameras.push_back(pKFi);
+                    }
+                }
+            }
+        }
+    }
+
     // 提取出 KeyFrame 的 Pose，加入優化 SparseOptimizer
     void Optimizer::addKeyFramePoses(vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op, 
                                      long unsigned int &maxKFid)
@@ -1655,6 +1780,63 @@ namespace ORB_SLAM2
             }
         }
     }
+
+    void Optimizer::filterMonoLocalMapPoints(vector<g2o::EdgeSE3ProjectXYZ *> &vpEdgesMono,
+                                      vector<MapPoint *> &vpMapPointEdgeMono)
+    {
+        g2o::EdgeSE3ProjectXYZ *e;
+        MapPoint *pMP;
+
+        // Check inlier observations
+        for (size_t i = 0, iend = vpEdgesMono.size(); i < iend; i++)
+        {
+            pMP = vpMapPointEdgeMono[i];
+
+            if (pMP->isBad()){
+                continue;
+            }
+
+            e = vpEdgesMono[i];                
+
+            // 『誤差較大』或『深度不為正』的邊
+            if (e->chi2() > 5.991 || !e->isDepthPositive())
+            {
+                // 再次納入優化
+                e->setLevel(1);
+            }
+
+            // 不使用 RobustKernel
+            e->setRobustKernel(0);
+        }
+    }
+
+    void Optimizer::filterStereoLocalMapPoints(vector<g2o::EdgeStereoSE3ProjectXYZ *> &vpEdgesStereo,
+                                      vector<MapPoint *> &vpMapPointEdgeStereo)
+    {
+        g2o::EdgeStereoSE3ProjectXYZ *e_stereo;
+        MapPoint *pMP;
+
+        // 和單目無關，暫時跳過
+        for (size_t i = 0, iend = vpEdgesStereo.size(); i < iend; i++)
+        {
+            pMP = vpMapPointEdgeStereo[i];
+
+            if (pMP->isBad()){
+                continue;
+            }
+
+            e_stereo = vpEdgesStereo[i];
+            
+            if (e_stereo->chi2() > 7.815 || !e_stereo->isDepthPositive())
+            {
+                e_stereo->setLevel(1);
+            }
+
+            e_stereo->setRobustKernel(0);
+        }
+    }
+
+
 
     void Optimizer::markEarseMono(vector<pair<KeyFrame *, MapPoint *>> &vToErase,
                                   vector<MapPoint *> &vpMapPointEdgeMono,
