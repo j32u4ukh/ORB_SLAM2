@@ -943,11 +943,16 @@ namespace ORB_SLAM2
             // ================================================================================
         }
 
+        // ================================================================================
+
         // Optimize!
         optimizer.initializeOptimization();
         optimizer.optimize(5);
 
+        // ================================================================================
+        // ================================================================================
         // Check inliers
+        // int nBad = filterSim3Outlier(optimizer, th2, vpMatches1, vpEdges12, vpEdges21, vnIndexEdge);
         int nBad = 0;
 
         for (size_t i = 0; i < vpEdges12.size(); i++)
@@ -966,8 +971,10 @@ namespace ORB_SLAM2
 
                 // 移除誤差過大的『邊』和『地圖點』
                 vpMatches1[idx] = static_cast<MapPoint *>(NULL);
+
                 optimizer.removeEdge(e12);
                 optimizer.removeEdge(e21);
+
                 vpEdges12[i] = static_cast<g2o::EdgeSim3ProjectXYZ *>(NULL);
                 vpEdges21[i] = static_cast<g2o::EdgeInverseSim3ProjectXYZ *>(NULL);
 
@@ -975,6 +982,7 @@ namespace ORB_SLAM2
                 nBad++;
             }
         }
+        // ================================================================================
 
         int nMoreIterations;
 
@@ -995,6 +1003,9 @@ namespace ORB_SLAM2
         optimizer.initializeOptimization();
         optimizer.optimize(nMoreIterations);
 
+        // ================================================================================
+        // ================================================================================
+        // int nIn = filterSim3Inlier(optimizer, th2, vpMatches1, vpEdges12, vpEdges21, vnIndexEdge);
         int nIn = 0;
 
         for (size_t i = 0; i < vpEdges12.size(); i++)
@@ -1018,6 +1029,7 @@ namespace ORB_SLAM2
                 nIn++;
             }
         }
+        // ================================================================================
 
         // Recover optimized Sim3
         g2o::VertexSim3Expmap *vSim3_recov = static_cast<g2o::VertexSim3Expmap *>(optimizer.vertex(0));
@@ -1049,6 +1061,9 @@ namespace ORB_SLAM2
         solver->setUserLambdaInit(1e-16);
         optimizer.setAlgorithm(solver);
 
+
+
+
         const vector<KeyFrame *> vpKFs = pMap->GetAllKeyFrames();
         const vector<MapPoint *> vpMPs = pMap->GetAllMapPoints();
 
@@ -1057,13 +1072,17 @@ namespace ORB_SLAM2
 
         vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> vScw(nMaxKFid + 1);
         vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> vCorrectedSwc(nMaxKFid + 1);
-        vector<g2o::VertexSim3Expmap *> vpVertices(nMaxKFid + 1);
+        
 
         const int minFeat = 100;
 
+        // ==================================================
+        // ==================================================
+        // addEssentialSim3(optimizer, vpKFs, CorrectedSim3, vScw, nMaxKFid, bFixScale);
+        vector<g2o::VertexSim3Expmap *> vpVertices(nMaxKFid + 1);
+
         // Set KeyFrame vertices
         // 遍歷所有關鍵幀
-
         for(KeyFrame *pKF : vpKFs)
         {
             if (pKF->isBad()){
@@ -1108,11 +1127,18 @@ namespace ORB_SLAM2
 
             vpVertices[nIDi] = VSim3;
         }
+        // ==================================================
+
+
         
         set<pair<long unsigned int, long unsigned int>> sInsertedEdges;
 
-        // const Eigen::Matrix<double, 7, 7> matLambda = Eigen::Matrix<double, 7, 7>::Identity();
 
+        // ==================================================
+        // ==================================================
+        // addEssentialLoopConnections(optimizer, sInsertedEdges, LoopConnections, vScw, minFeat, 
+        //                             pLoopKF, pCurKF);
+    
         // Set Loop edges
         // LoopConnections[pKFi]：『關鍵幀 pKFi』的『已連結關鍵幀』，移除『關鍵幀 pKFi』的『共視關鍵幀』和
         // 『關鍵幀 mpCurrentKF』和其『共視關鍵幀』
@@ -1153,6 +1179,7 @@ namespace ORB_SLAM2
                 sInsertedEdges.insert(make_pair(min(nIDi, nIDj), max(nIDi, nIDj)));
             }
         }
+         // ==================================================
 
         // Set normal edges
         for(KeyFrame *pKF : vpKFs)
@@ -1201,6 +1228,7 @@ namespace ORB_SLAM2
 
                 addEdgeSim3(optimizer, Sji, nIDi, nIDj);
             }
+            
             // Loop edges
             const set<KeyFrame *> sLoopEdges = pKF->GetLoopEdges();
 
@@ -2327,6 +2355,200 @@ namespace ORB_SLAM2
         vnIndexEdge.push_back(i);
     }
 
+    int Optimizer::filterSim3Outlier(g2o::SparseOptimizer &op, const float th2,
+                                     vector<MapPoint *> &vpMatches1,
+                                     vector<g2o::EdgeSim3ProjectXYZ *> &vpEdges12,
+                                     vector<g2o::EdgeInverseSim3ProjectXYZ *> &vpEdges21,
+                                     vector<size_t> &vnIndexEdge)
+    {
+        g2o::EdgeSim3ProjectXYZ *e12;
+        g2o::EdgeInverseSim3ProjectXYZ *e21;
+        size_t idx;
+        int nBad = 0;
+
+        for (size_t i = 0; i < vpEdges12.size(); i++)
+        {
+            e12 = vpEdges12[i];
+            e21 = vpEdges21[i];
+
+            if (!e12 || !e21)
+            {
+                continue;
+            }
+
+            // 優化後，誤差仍十分大
+            if (e12->chi2() > th2 || e21->chi2() > th2)
+            {
+                idx = vnIndexEdge[i];
+
+                // 移除誤差過大的『邊』和『地圖點』
+                vpMatches1[idx] = static_cast<MapPoint *>(NULL);
+
+                op.removeEdge(e12);
+                op.removeEdge(e21);
+
+                vpEdges12[i] = static_cast<g2o::EdgeSim3ProjectXYZ *>(NULL);
+                vpEdges21[i] = static_cast<g2o::EdgeInverseSim3ProjectXYZ *>(NULL);
+
+                // 外點計數加一
+                nBad++;
+            }
+        }
+
+        return nBad;
+    }
+
+    int Optimizer::filterSim3Inlier(g2o::SparseOptimizer &op, const float th2,
+                                    vector<MapPoint *> &vpMatches1,
+                                    vector<g2o::EdgeSim3ProjectXYZ *> &vpEdges12,
+                                    vector<g2o::EdgeInverseSim3ProjectXYZ *> &vpEdges21,
+                                    vector<size_t> &vnIndexEdge)
+    {
+        g2o::EdgeSim3ProjectXYZ *e12;
+        g2o::EdgeInverseSim3ProjectXYZ *e21;
+        size_t idx;
+        int nIn = 0;
+
+        for (size_t i = 0; i < vpEdges12.size(); i++)
+        {
+            e12 = vpEdges12[i];
+            e21 = vpEdges21[i];
+
+            if (!e12 || !e21)
+            {
+                continue;
+            }
+
+            // 再優化後，誤差仍十分大
+            if (e12->chi2() > th2 || e21->chi2() > th2)
+            {
+                idx = vnIndexEdge[i];
+
+                // 移除誤差過大的『地圖點』
+                vpMatches1[idx] = static_cast<MapPoint *>(NULL);
+            }
+            else
+            {
+                nIn++;
+            }
+        }
+
+        return nIn;
+    }
+
+    // ******
+
+    void Optimizer::addEssentialSim3(g2o::SparseOptimizer &op, KeyFrame *pLoopKF, 
+                                     const vector<KeyFrame *> &vpKFs,
+                                     const LoopClosing::KeyFrameAndPose &CorrectedSim3,
+                                     vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> &vScw,
+                                     const unsigned int nMaxKFid, const bool &bFixScale)
+    {
+        LoopClosing::KeyFrameAndPose::const_iterator it;
+        Eigen::Matrix<double, 3, 3> Rcw;
+        Eigen::Matrix<double, 3, 1> tcw;
+        g2o::VertexSim3Expmap *VSim3;
+
+        vector<g2o::VertexSim3Expmap *> vpVertices(nMaxKFid + 1);
+        
+        for(KeyFrame *pKF : vpKFs)
+        {
+            if (pKF->isBad()){
+                continue;
+            }
+
+            VSim3 = new g2o::VertexSim3Expmap();
+            const int nIDi = pKF->mnId;
+
+            // 『關鍵幀 mpCurrentKF』座標系轉換到『關鍵幀 pKFi』座標系對應的『相似轉換矩陣』
+            it = CorrectedSim3.find(pKF);
+
+            if (it != CorrectedSim3.end())
+            {
+                // 根據關鍵幀的 Id 對應『關鍵幀 mpCurrentKF』座標系轉換到『關鍵幀 pKFi』座標系對應的『相似轉換矩陣』
+                vScw[nIDi] = it->second;
+
+                // 估計初始值
+                VSim3->setEstimate(it->second);
+            }
+            else
+            {
+                Rcw = Converter::toMatrix3d(pKF->GetRotation());
+                tcw = Converter::toVector3d(pKF->GetTranslation());
+
+                g2o::Sim3 Siw(Rcw, tcw, 1.0);
+
+                vScw[nIDi] = Siw;
+                VSim3->setEstimate(Siw);
+            }
+
+            if (pKF == pLoopKF)
+            {
+                VSim3->setFixed(true);
+            }
+
+            VSim3->setId(nIDi);
+            VSim3->setMarginalized(false);
+
+            // 單目的規模尺度不固定
+            VSim3->_fix_scale = bFixScale;
+
+            // 關鍵幀的『相似轉換矩陣』作為『頂點』加入優化
+            op.addVertex(VSim3);
+
+            vpVertices[nIDi] = VSim3;
+        }
+    }
+
+    void Optimizer::addEssentialLoopConnections(g2o::SparseOptimizer &op, 
+                                                set<pair<long unsigned int, long unsigned int>> &sInsertedEdges,
+                                                const map<KeyFrame *, set<KeyFrame *>> &LoopConnections,
+                                                vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> &vScw,
+                                                const int minFeat, KeyFrame *pLoopKF, KeyFrame *pCurKF)
+    {
+        KeyFrame *pKF;
+
+        // Set Loop edges
+        // LoopConnections[pKFi]：『關鍵幀 pKFi』的『已連結關鍵幀』，移除『關鍵幀 pKFi』的『共視關鍵幀』和
+        // 『關鍵幀 mpCurrentKF』和其『共視關鍵幀』
+        for(pair<KeyFrame *, set<KeyFrame *>> loop_onnection : LoopConnections)
+        {
+            pKF = loop_onnection.first;
+
+            // 『關鍵幀 pKFi』的『已連結關鍵幀』，移除『關鍵幀 pKFi』的『共視關鍵幀』和
+            // 『關鍵幀 mpCurrentKF』和其『共視關鍵幀』
+            const set<KeyFrame *> &spConnections = loop_onnection.second;
+
+            const long unsigned int nIDi = pKF->mnId;
+
+            // 根據關鍵幀的 Id 對應『關鍵幀 mpCurrentKF』座標系轉換到『關鍵幀 pKFi』座標系對應的『相似轉換矩陣』
+            const g2o::Sim3 Siw = vScw[nIDi];
+
+            // 『關鍵幀 pKFi』座標系轉換到『關鍵幀 mpCurrentKF』座標系對應的『相似轉換矩陣』
+            const g2o::Sim3 Swi = Siw.inverse();
+
+            for(KeyFrame * sit : spConnections)
+            {
+                const long unsigned int nIDj = sit->mnId;  
+                             
+                if ((nIDi != pCurKF->mnId || nIDj != pLoopKF->mnId) && pKF->GetWeight(sit) < minFeat)
+                {
+                    continue;
+                }
+                
+                // Sjw：『關鍵幀 mpCurrentKF』座標系轉換到『關鍵幀 pKF_j』座標系對應的『相似轉換矩陣』
+                const g2o::Sim3 Sjw = vScw[nIDj];
+
+                // Swi：『關鍵幀 pKFi』座標系轉換到『關鍵幀 mpCurrentKF』座標系對應的『相似轉換矩陣』
+                // Sji:『關鍵幀 pKF_i』座標系轉換到『關鍵幀 pKF_j』座標系對應的『相似轉換矩陣』
+                const g2o::Sim3 Sji = Sjw * Swi;
+
+                addEdgeSim3(op, Sji, nIDi, nIDj);
+
+                sInsertedEdges.insert(make_pair(min(nIDi, nIDj), max(nIDi, nIDj)));
+            }
+        }
+    }
 
     // ********************************************************************************
     // ********************************************************************************

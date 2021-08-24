@@ -149,8 +149,33 @@ public:
                                         vector<g2o::EdgeInverseSim3ProjectXYZ *> &vpEdges21,
                                         vector<size_t> &vnIndexEdge);
 
-    // **********                                 
+    static inline int filterSim3Outlier(g2o::SparseOptimizer &op, const float th2,
+                                        vector<MapPoint *> &vpMatches1,
+                                        vector<g2o::EdgeSim3ProjectXYZ *> &vpEdges12,
+                                        vector<g2o::EdgeInverseSim3ProjectXYZ *> &vpEdges21,
+                                        vector<size_t> &vnIndexEdge);
 
+    static inline int filterSim3Inlier(g2o::SparseOptimizer &op, const float th2,
+                                       vector<MapPoint *> &vpMatches1,
+                                       vector<g2o::EdgeSim3ProjectXYZ *> &vpEdges12,
+                                       vector<g2o::EdgeInverseSim3ProjectXYZ *> &vpEdges21,
+                                       vector<size_t> &vnIndexEdge);
+
+    // ***** Optimizer::OptimizeEssentialGraph *****
+
+    static inline void addEssentialSim3(g2o::SparseOptimizer &op, KeyFrame *pLoopKF,
+                                        const vector<KeyFrame *> &vpKFs,
+                                        const LoopClosing::KeyFrameAndPose &CorrectedSim3,
+                                        vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> &vScw,
+                                        const unsigned int nMaxKFid, const bool &bFixScale);
+
+    static inline void addEssentialLoopConnections(g2o::SparseOptimizer &op,
+                                                   set<pair<long unsigned int, long unsigned int>> &sInsertedEdges,
+                                                   const map<KeyFrame *, set<KeyFrame *>> &LoopConnections,
+                                                   vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> &vScw,
+                                                   const int minFeat, KeyFrame *pLoopKF, KeyFrame *pCurKF);
+
+    // ********************************************************************************
     static inline g2o::EdgeSE3ProjectXYZ *addEdgeSE3ProjectXYZ(g2o::SparseOptimizer &op,
                                                                const cv::KeyPoint kpUn,
                                                                const KeyFrame *pKF,
