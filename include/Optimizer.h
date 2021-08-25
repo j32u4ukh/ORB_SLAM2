@@ -191,6 +191,14 @@ public:
                                             const g2o::Sim3 Swi, g2o::SparseOptimizer &op, const int nIDi,
                                             vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> vScw);
 
+    // ***** Optimizer::PoseOptimization *****
+
+    static inline void addPoseOptimizationEdges(Frame *pFrame, int &nInitialCorrespondences,
+                                                g2o::SparseOptimizer &op, vector<size_t> &vnIndexEdgeMono,
+                                                vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono,
+                                                vector<g2o::EdgeStereoSE3ProjectXYZOnlyPose *> vpEdgesStereo,
+                                                vector<size_t> vnIndexEdgeStereo);
+
     // ********************************************************************************
     static inline g2o::EdgeSE3ProjectXYZ *addEdgeSE3ProjectXYZ(g2o::SparseOptimizer &op,
                                                                const cv::KeyPoint kpUn,

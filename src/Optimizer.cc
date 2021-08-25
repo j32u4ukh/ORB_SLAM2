@@ -2466,7 +2466,7 @@ namespace ORB_SLAM2
         return nIn;
     }
 
-    // ******
+    // ***** Optimizer::OptimizeEssentialGraph *****
 
     void Optimizer::addEssentialSim3(g2o::SparseOptimizer &op, KeyFrame *pLoopKF, 
                                      const vector<KeyFrame *> &vpKFs,
@@ -2735,6 +2735,75 @@ namespace ORB_SLAM2
         }
 
         return false;
+    }
+
+    // ***** Optimizer::PoseOptimization *****
+
+    void Optimizer::addPoseOptimizationEdges(Frame *pFrame, int &nInitialCorrespondences, 
+                                             g2o::SparseOptimizer &op, vector<size_t> &vnIndexEdgeMono, 
+                                             vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono,
+                                             vector<g2o::EdgeStereoSE3ProjectXYZOnlyPose *> vpEdgesStereo, 
+                                             vector<size_t> vnIndexEdgeStereo)
+    {
+        g2o::EdgeSE3ProjectXYZOnlyPose *e;
+        g2o::EdgeStereoSE3ProjectXYZOnlyPose *e_stereo;
+        cv::Mat Xw;
+        MapPoint *pMP;
+
+        const int N = pFrame->N;
+
+        for (int i = 0; i < N; i++)
+        {
+            // 依序取得 pFrame 觀察到的地圖點
+            pMP = pFrame->mvpMapPoints[i];
+
+            if (pMP)
+            {
+                // 單目的這個值，會是負的
+                const float &kp_ur = pFrame->mvuRight[i];
+                    
+                // 地圖點可被觀察到，因此不是 Outlier
+                pFrame->mvbOutlier[i] = false;
+
+                nInitialCorrespondences++;
+
+                // 取得與地圖點相對應的 pFrame 的特徵點
+                const cv::KeyPoint &kpUn = pFrame->mvKeysUn[i];
+
+                // Monocular observation
+                if (kp_ur < 0)
+                {
+                    e = newEdgeSE3ProjectXYZOnlyPose(op, pFrame, kpUn);
+
+                    // 圖點的世界座標
+                    Xw = pMP->GetWorldPos();                    
+                    e->Xw[0] = Xw.at<float>(0);
+                    e->Xw[1] = Xw.at<float>(1);
+                    e->Xw[2] = Xw.at<float>(2);
+
+                    op.addEdge(e);
+                    vpEdgesMono.push_back(e);
+                    vnIndexEdgeMono.push_back(i);
+                }
+
+                // Stereo observation（暫時跳過）
+                else 
+                {
+                    //SET EDGE
+                    e_stereo = newEdgeStereoSE3ProjectXYZOnlyPose(op, pFrame, kpUn, kp_ur);
+
+                    Xw = pMP->GetWorldPos();
+
+                    e_stereo->Xw[0] = Xw.at<float>(0);
+                    e_stereo->Xw[1] = Xw.at<float>(1);
+                    e_stereo->Xw[2] = Xw.at<float>(2);
+
+                    op.addEdge(e_stereo);
+                    vpEdgesStereo.push_back(e_stereo);
+                    vnIndexEdgeStereo.push_back(i);
+                }
+            }
+        }
     }
 
     // ********************************************************************************
