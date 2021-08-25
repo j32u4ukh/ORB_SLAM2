@@ -175,6 +175,22 @@ public:
                                                    vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> &vScw,
                                                    const int minFeat, KeyFrame *pLoopKF, KeyFrame *pCurKF);
 
+    static inline void addEssentialEdges(const vector<KeyFrame *> vpKFs, g2o::SparseOptimizer &op,
+                                         const LoopClosing::KeyFrameAndPose &NonCorrectedSim3,
+                                         vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> vScw,
+                                         const int minFeat,
+                                         set<pair<long unsigned int, long unsigned int>> sInsertedEdges);
+
+    static inline void addLoopEdges(KeyFrame *pKF, g2o::SparseOptimizer &op, const g2o::Sim3 Swi,
+                                    const LoopClosing::KeyFrameAndPose &NonCorrectedSim3, const int nIDi,
+                                    vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> vScw);
+
+    static inline bool addCovisibilityEdges(KeyFrame *pKF, KeyFrame *pParentKF, const int minFeat,
+                                            set<pair<long unsigned int, long unsigned int>> sInsertedEdges,
+                                            const LoopClosing::KeyFrameAndPose &NonCorrectedSim3,
+                                            const g2o::Sim3 Swi, g2o::SparseOptimizer &op, const int nIDi,
+                                            vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> vScw);
+
     // ********************************************************************************
     static inline g2o::EdgeSE3ProjectXYZ *addEdgeSE3ProjectXYZ(g2o::SparseOptimizer &op,
                                                                const cv::KeyPoint kpUn,

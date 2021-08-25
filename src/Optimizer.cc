@@ -1179,7 +1179,14 @@ namespace ORB_SLAM2
                 sInsertedEdges.insert(make_pair(min(nIDi, nIDj), max(nIDi, nIDj)));
             }
         }
-         // ==================================================
+        // ==================================================
+
+
+
+
+        // ==================================================
+        // ==================================================
+        // addEssentialEdges(vpKFs, optimizer, NonCorrectedSim3, vScw, minFeat, sInsertedEdges);
 
         // Set normal edges
         for(KeyFrame *pKF : vpKFs)
@@ -1228,6 +1235,13 @@ namespace ORB_SLAM2
 
                 addEdgeSim3(optimizer, Sji, nIDi, nIDj);
             }
+
+
+
+
+            // ==================================================
+            // ==================================================
+            // addLoopEdges(pKF, optimizer, Swi, NonCorrectedSim3, nIDi, vScw);
             
             // Loop edges
             const set<KeyFrame *> sLoopEdges = pKF->GetLoopEdges();
@@ -1252,6 +1266,19 @@ namespace ORB_SLAM2
                     addEdgeSim3(optimizer, Sli, nIDi, pLKF->mnId);
                 }
             }
+            // ==================================================
+
+
+
+
+            // ==================================================
+            // ==================================================
+            // bool need_continue = addCovisibilityEdges(pKF, pParentKF, minFeat, sInsertedEdges, 
+            //                                           NonCorrectedSim3, Swi, optimizer, nIDi, vScw);
+
+            // if(need_continue){
+            //     continue;
+            // }
 
             // Covisibility graph edges
             // 取得至多 minFeat 個『共視關鍵幀』
@@ -1287,7 +1314,10 @@ namespace ORB_SLAM2
                     }
                 }
             }
+            // ==================================================
+        
         }
+        // ==================================================
         
         // Optimize!
         optimizer.initializeOptimization();
@@ -2548,6 +2578,163 @@ namespace ORB_SLAM2
                 sInsertedEdges.insert(make_pair(min(nIDi, nIDj), max(nIDi, nIDj)));
             }
         }
+    }
+
+    void Optimizer::addEssentialEdges(const vector<KeyFrame *> vpKFs, g2o::SparseOptimizer &op, 
+                                      const LoopClosing::KeyFrameAndPose &NonCorrectedSim3, 
+                                      vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> vScw, 
+                                      const int minFeat, 
+                                      set<pair<long unsigned int, long unsigned int>> sInsertedEdges)
+    {
+        LoopClosing::KeyFrameAndPose::const_iterator iti, itj;
+        g2o::Sim3 Swi, Sjw, Sji;
+        KeyFrame *pParentKF;
+        int nIDj;
+        bool need_continue;
+            
+        // Set normal edges
+        for(KeyFrame *pKF : vpKFs)
+        {            
+            const int nIDi = pKF->mnId;
+
+            // NonCorrectedSim3[pKF]：『關鍵幀 pKFi』對應的『相似轉換矩陣』
+            iti = NonCorrectedSim3.find(pKF);
+
+            if (iti != NonCorrectedSim3.end())
+            {
+                Swi = (iti->second).inverse();
+            }
+
+            // 應該只有最後一幀會進來這裡
+            else
+            {
+                // vScw[nIDi]：『關鍵幀 mpCurrentKF』座標系轉換到『關鍵幀 pKF_i』座標系對應的『相似轉換矩陣』
+                Swi = vScw[nIDi].inverse();
+            }
+
+            pParentKF = pKF->GetParent();
+
+            // Spanning tree edge
+            if (pParentKF)
+            {
+                nIDj = pParentKF->mnId;
+                itj = NonCorrectedSim3.find(pParentKF);
+                
+                if (itj != NonCorrectedSim3.end())
+                {
+                    // 『關鍵幀 pParentKF』的『相似轉換矩陣』
+                    Sjw = itj->second;
+                }
+                else
+                {
+                    // vScw[nIDj]：『關鍵幀 mpCurrentKF』座標系轉換到『關鍵幀 pKF_j』座標系對應的『相似轉換矩陣』
+                    Sjw = vScw[nIDj];
+                }
+
+                // Swi：『關鍵幀 pKFi』座標系轉換到『關鍵幀 mpCurrentKF』座標系對應的『相似轉換矩陣』
+                // Sji:『關鍵幀 pKF_i』座標系轉換到『關鍵幀 pKF_j』座標系對應的『相似轉換矩陣』
+                Sji = Sjw * Swi;
+
+                addEdgeSim3(op, Sji, nIDi, nIDj);
+            }
+
+
+            // Loop edges
+            addLoopEdges(pKF, op, Swi, NonCorrectedSim3, nIDi, vScw);
+
+            /// TODO: 若這些內部函式沒有前後關係，可以將有 need_continue 的往前移，減少無效的運算
+            // Covisibility graph edges
+            // 取得至多 minFeat 個『共視關鍵幀』
+            // 取得『關鍵幀 pKF』的『已連結關鍵幀（根據觀察到的地圖點數量由大到小排序，
+            // 且觀察到的地圖點數量「大於」 minFeat）』
+            need_continue = addCovisibilityEdges(pKF, pParentKF, minFeat, sInsertedEdges, 
+                                                 NonCorrectedSim3, Swi, op, nIDi, vScw);
+
+            if(need_continue){
+                continue;
+            }
+        }
+    }
+
+    void Optimizer::addLoopEdges(KeyFrame *pKF, g2o::SparseOptimizer &op, const g2o::Sim3 Swi,
+                                 const LoopClosing::KeyFrameAndPose &NonCorrectedSim3, const int nIDi, 
+                                 vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> vScw)
+    {
+        LoopClosing::KeyFrameAndPose::const_iterator itl;
+        g2o::Sim3 Slw, Sli;
+                
+        // Loop edges
+        const set<KeyFrame *> sLoopEdges = pKF->GetLoopEdges();
+
+        for(KeyFrame * pLKF : sLoopEdges)
+        {
+            if (pLKF->mnId < pKF->mnId)
+            {
+                itl = NonCorrectedSim3.find(pLKF);
+
+                if (itl != NonCorrectedSim3.end())
+                {
+                    Slw = itl->second;
+                }
+                else{
+                    Slw = vScw[pLKF->mnId];
+                }
+
+                Sli = Slw * Swi;
+
+                addEdgeSim3(op, Sli, nIDi, pLKF->mnId);
+            }
+        }
+    }
+    
+    bool Optimizer::addCovisibilityEdges(KeyFrame *pKF, KeyFrame *pParentKF, const int minFeat, 
+                                         set<pair<long unsigned int, long unsigned int>> sInsertedEdges,
+                                         const LoopClosing::KeyFrameAndPose &NonCorrectedSim3, 
+                                         const g2o::Sim3 Swi, g2o::SparseOptimizer &op, const int nIDi, 
+                                         vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> vScw)
+    {
+        // Covisibility graph edges
+        // 取得至多 minFeat 個『共視關鍵幀』
+        // 取得『關鍵幀 pKF』的『已連結關鍵幀（根據觀察到的地圖點數量由大到小排序，
+        // 且觀察到的地圖點數量「大於」 minFeat）』
+        const vector<KeyFrame *> vpConnectedKFs = pKF->GetCovisiblesByWeight(minFeat);
+
+        // Loop edges
+        const set<KeyFrame *> sLoopEdges = pKF->GetLoopEdges();
+
+        LoopClosing::KeyFrameAndPose::const_iterator itn;
+        g2o::Sim3 Snw, Sni;
+
+        for(KeyFrame *pKFn : vpConnectedKFs)
+        {
+            if (pKFn && pKFn != pParentKF && !pKF->hasChild(pKFn) && !sLoopEdges.count(pKFn))
+            {
+                if (!pKFn->isBad() && pKFn->mnId < pKF->mnId)
+                {
+                    if (sInsertedEdges.count(make_pair(min(pKF->mnId, pKFn->mnId), 
+                                                       max(pKF->mnId, pKFn->mnId))))
+                    {
+                        return true;
+                    }
+                    
+                    itn = NonCorrectedSim3.find(pKFn);
+                    
+                    if (itn != NonCorrectedSim3.end()){
+                        Snw = itn->second;
+                    }
+                    else
+                    {
+                        Snw = vScw[pKFn->mnId];
+                    }
+
+                    Sni = Snw * Swi;
+
+                    addEdgeSim3(op, Sni, nIDi, pKFn->mnId);
+                }
+            }
+        }
+
+        return false;
     }
 
     // ********************************************************************************
