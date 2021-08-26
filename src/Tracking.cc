@@ -231,7 +231,7 @@ namespace ORB_SLAM2
                                   mpORBextractorLeft, mpORBVocabulary, K, mDistCoef, mbf, mThDepth);
         }
 
-        // 進行初始化
+        /// TODO: 根據 mState 進行 初始化、估計相機位姿 或 重定位; 區分定位模式或建圖模式
         Track();
 
         return mCurrentFrame.mTcw.clone();
@@ -452,6 +452,18 @@ namespace ORB_SLAM2
                 }
             }
 
+
+
+
+            // ================================================================================
+            // ================================================================================
+            // bool if_return = update(bOK);
+
+            // if(if_return)
+            // {
+            //     return;
+            // }
+
             if (bOK)
             {
                 mState = OK;
@@ -461,6 +473,8 @@ namespace ORB_SLAM2
                 mState = LOST;
             }
 
+            /// TODO: 上下兩個 if (bOK) 應該可以合併，因為 mpFrameDrawer->Update 當中並未使用到 mState
+            /// 但會使用到 mLastProcessedState
             // Update drawer
             // 初始化後，根據是否被關鍵幀觀察到，將當前幀的所有關鍵點區分為『地圖點 MapPoint』或『視覺里程計 VO』
             mpFrameDrawer->Update(this);
@@ -544,6 +558,7 @@ namespace ORB_SLAM2
                 }
             }
 
+            /// TODO: 可和上方 if (bOK) 拼接為它的 else
             // Reset if the camera get lost soon after initialization
             // 如果跟丟了，而且當前系統還沒有足夠多的關鍵幀，將重置系統，重新初始化
             if (mState == LOST)
@@ -556,6 +571,7 @@ namespace ORB_SLAM2
                     return;
                 }
             }
+            // ================================================================================
 
             // 更新當前幀的狀態和對象，方便下次叠代
             if (!mCurrentFrame.mpReferenceKF)
@@ -567,6 +583,12 @@ namespace ORB_SLAM2
             mLastFrame = Frame(mCurrentFrame);
         }
 
+
+
+
+        // ================================================================================
+        // ================================================================================
+        // recordTrackingResult();
         // Store frame pose information to retrieve the complete camera trajectory afterwards.
         // 根據當前幀的位姿估計是否存在，更新 Tracking 對象的一些狀態
         if (!mCurrentFrame.mTcw.empty())
@@ -586,6 +608,7 @@ namespace ORB_SLAM2
             mlFrameTimes.push_back(mlFrameTimes.back());
             mlbLost.push_back(mState == LOST);
         }
+        // ================================================================================
     }
 
     void Tracking::MonocularInitialization()
@@ -862,12 +885,14 @@ namespace ORB_SLAM2
     // 更新前一幀的地圖點，更換為被較多關鍵幀觀察到的地圖點
     void Tracking::CheckReplacedInLastFrame()
     {
+        MapPoint *pRep;
+
         for(MapPoint *pMP : mLastFrame.mvpMapPoints){
 
             if (pMP)
             {
                 // 更換為被較多關鍵幀觀察到的地圖點
-                MapPoint *pRep = pMP->GetReplaced();
+                pRep = pMP->GetReplaced();
 
                 if (pRep)
                 {
@@ -1977,6 +2002,145 @@ namespace ORB_SLAM2
         }
     }
     
+    // ==================================================
+    // 以下為非單目相關函式
+    // ==================================================
+
+    // 紀錄 Tracking 結果
+    void Tracking::recordTrackingResult()
+    {
+        // Store frame pose information to retrieve the complete camera trajectory afterwards.
+        // 根據當前幀的位姿估計是否存在，更新 Tracking 對象的一些狀態
+        if (mCurrentFrame.mTcw.empty())
+        {
+            // This can happen if tracking is lost
+            mlRelativeFramePoses.push_back(mlRelativeFramePoses.back());
+            mlpReferences.push_back(mlpReferences.back());
+            mlFrameTimes.push_back(mlFrameTimes.back());
+            mlbLost.push_back(mState == LOST);
+        }
+        else
+        {
+            cv::Mat Tcr = mCurrentFrame.mTcw * mCurrentFrame.mpReferenceKF->GetPoseInverse();
+            
+            mlRelativeFramePoses.push_back(Tcr);
+            mlpReferences.push_back(mpReferenceKF);
+            mlFrameTimes.push_back(mCurrentFrame.mTimeStamp);
+            mlbLost.push_back(mState == LOST);
+        }
+    }
+
+    // bool: if_return 是否直接返回？
+    bool Tracking::update(bool bOK)
+    {
+        /// TODO: 上下兩個 if (bOK) 應該可以合併，因為 mpFrameDrawer->Update 當中並未使用到 mState
+        /// 但會使用到 mLastProcessedState
+        // Update drawer
+        // 初始化後，根據是否被關鍵幀觀察到，將當前幀的所有關鍵點區分為『地圖點 MapPoint』或『視覺里程計 VO』
+        mpFrameDrawer->Update(this);
+
+        // If tracking were good, check if we insert a keyframe
+        // 如果此時局部變量 bOK 仍然為真，說明視覺里程計是跟上了相機的運動。
+        if (bOK)
+        {
+            mState = OK;
+
+            // Update motion model
+            if (!mLastFrame.mTcw.empty())
+            {
+                // 前一幀的轉換矩陣
+                cv::Mat LastTwc = cv::Mat::eye(4, 4, CV_32F);
+
+                // 旋轉矩陣（相機座標 → 世界座標）
+                mLastFrame.GetRotationInverse().copyTo(LastTwc.rowRange(0, 3).colRange(0, 3));
+
+                // 取得相機中心世界座標
+                mLastFrame.GetCameraCenter().copyTo(LastTwc.rowRange(0, 3).col(3));
+
+                // 與當前幀的位姿齊次矩陣相乘，求得當前幀相對於上一幀的位姿變換，並將結果保留在 mVelocity 中。
+                // mCurrentFrame.mTcw = world to current; LastTwc = last to world
+                // 因此 mCurrentFrame.mTcw * LastTwc = last to current
+                mVelocity = mCurrentFrame.mTcw * LastTwc;
+            }
+            else
+            {
+                mVelocity = cv::Mat();
+            }
+
+            // 設置當前幀的位姿
+            mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.mTcw);
+
+            // Clean VO matches
+            MapPoint *pMP;
+
+            for (int i = 0; i < mCurrentFrame.N; i++)
+            {
+                pMP = mCurrentFrame.mvpMapPoints[i];
+
+                if (pMP)
+                {
+                    // 若該地圖點未被任一關鍵幀觀察到，則從當前幀的地圖點中移除
+                    /// NOTE: 這些點在 mpFrameDrawer 中被標注為『視覺里程計 VO』
+                    if (pMP->getObservationNumber() < 1)
+                    {
+                        mCurrentFrame.mvbOutlier[i] = false;
+                        mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint *>(NULL);
+                    }
+                }
+            }
+
+            // Delete temporal MapPoints
+            // mlpTemporalPoints 和『單目模式』與『建圖模式』無關，暫時跳過
+            list<MapPoint *>::iterator lit, lend = mlpTemporalPoints.end();
+
+            for (lit = mlpTemporalPoints.begin(); lit != lend; lit++)
+            {
+                /// TODO: 或許可改寫成 delete *lit;
+                MapPoint *pMP = *lit;
+                delete pMP;
+            }
+
+            mlpTemporalPoints.clear();
+
+            // Check if we need to insert a new keyframe
+            // 判定是否生成關鍵幀
+            if (NeedNewKeyFrame())
+            {
+                // 生成關鍵幀
+                CreateNewKeyFrame();
+            }
+
+            // We allow points with high innovation (considererd outliers by the Huber Function)
+            // pass to the new keyframe, so that bundle adjustment will finally decide
+            // if they are outliers or not. We don't want next frame to estimate its position
+            // with those points so we discard them in the frame.
+            for (int i = 0; i < mCurrentFrame.N; i++)
+            {
+                if (mCurrentFrame.mvpMapPoints[i] && mCurrentFrame.mvbOutlier[i])
+                {
+                    mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint *>(NULL);
+                }
+            }
+        }
+
+        // Reset if the camera get lost soon after initialization
+        // 如果跟丟了，而且當前系統還沒有足夠多的關鍵幀，將重置系統，重新初始化
+        else
+        {
+            mState = LOST;
+
+            // 地圖中的關鍵幀數量不足 6 個
+            if (mpMap->getInMapKeyFrameNumber() <= 5)
+            {
+                cout << "Track lost soon after initialisation, reseting..." << endl;
+                mpSystem->Reset();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================

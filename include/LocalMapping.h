@@ -133,6 +133,8 @@ protected:
     bool mbAcceptKeyFrames;
     
     std::mutex mMutexAccept;
+
+    inline void monoTriangulation();
 };
 
 } //namespace ORB_SLAM

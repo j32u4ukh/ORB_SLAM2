@@ -284,12 +284,13 @@ namespace ORB_SLAM2
         // Associate MapPoints to the new keyframe and update normal and descriptor
         // 用 vpMapPointMatches 儲存『關鍵幀 mpCurrentKeyFrame』觀察到的地圖點
         const vector<MapPoint *> vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
+        MapPoint *pMP;
 
         for (size_t i = 0; i < vpMapPointMatches.size(); i++)
         {
             // 由於 vpMapPointMatches中 的每個元素都與關鍵幀中的每個特征點相對應，並不是所有的特征點都
             // 成功匹配到了一個地圖點，那些沒有匹配的特征點所對應的地圖點就是 NULL
-            MapPoint *pMP = vpMapPointMatches[i];
+            pMP = vpMapPointMatches[i];
 
             if (pMP)
             {
@@ -355,7 +356,8 @@ namespace ORB_SLAM2
         int nThObs;
 
         // 根據單目相機還是深度相機設定一個閾值，用於篩選條件 2 的判定
-        if (mbMonocular){
+        if (mbMonocular)
+        {
             nThObs = 2;
         }
         else{
@@ -383,6 +385,8 @@ namespace ORB_SLAM2
                 pMP->SetBadFlag();
                 lit = mlpRecentAddedMapPoints.erase(lit);
             }
+
+            /// TODO: else { interval_frame =  (int)(nCurrentKFid - pMP->mnFirstKFid) ...}
 
             // 第二篩選條件
             // 『當前幀』和『首個觀察到地圖點 pMP 的關鍵幀』之間應至少間隔 3 幀
@@ -423,7 +427,8 @@ namespace ORB_SLAM2
         // nn 是關聯幀數量，估計仍然是處於運行效率的考慮，通過它來設定了一個上限
         int nn = 10;
 
-        if (mbMonocular){
+        if (mbMonocular)
+        {
             nn = 20;
         }
 
@@ -1140,6 +1145,16 @@ namespace ORB_SLAM2
     {
         unique_lock<mutex> lock(mMutexAccept);
         return mbAcceptKeyFrames;
+    }
+
+    // ==================================================
+    // 自行封裝函式 
+    // ==================================================
+
+    void LocalMapping::monoTriangulation()
+    {
+        /// NOTE: Mono 模式下， mpCurrentKeyFrame->mvuRight[idx1] 都會是負的，不需要一個一個檢查
+
     }
 
     // ==================================================

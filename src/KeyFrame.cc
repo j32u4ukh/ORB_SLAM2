@@ -162,14 +162,15 @@ namespace ORB_SLAM2
     void KeyFrame::UpdateConnections()
     {
         // 
-        map<KeyFrame *, int> KFcounter;
         vector<MapPoint *> vpMP;
 
         {
             unique_lock<mutex> lockMPs(mMutexFeatures);
             vpMP = mvpMapPoints;
         }
-
+        
+        map<KeyFrame *, int> KFcounter;
+        
         // 地圖點被關鍵幀的第 idx 個關鍵點觀察到
         map<KeyFrame *, size_t> observations;
 
@@ -411,21 +412,21 @@ namespace ORB_SLAM2
         vDepths.reserve(N);
 
         // 計算當前幀的旋轉
-        cv::Mat Rcw2 = Tcw_.row(2).colRange(0, 3);
+        cv::Mat Rcw2 = Tcw_.row(2).colRange(0, 3), x3Dw;
         Rcw2 = Rcw2.t();
 
         // 計算當前幀的平移
-        float zcw = Tcw_.at<float>(2, 3);
+        float zcw = Tcw_.at<float>(2, 3), z;
 
         for(MapPoint *pMP : mvpMapPoints)
         {
             if (pMP)
             {
                 // 取出地圖點的位置
-                cv::Mat x3Dw = pMP->GetWorldPos();
+                x3Dw = pMP->GetWorldPos();
 
                 // 將地圖點轉換到當前幀的座標系之下
-                float z = Rcw2.dot(x3Dw) + zcw;
+                z = Rcw2.dot(x3Dw) + zcw;
 
                 // 取得當前幀的座標系之下，地圖點的深度
                 vDepths.push_back(z);

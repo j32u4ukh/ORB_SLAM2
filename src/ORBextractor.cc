@@ -604,14 +604,17 @@ namespace ORB_SLAM2
         _keypoints.clear();
         _keypoints.reserve(nkeypoints);
 
-        int offset = 0;
+        int offset = 0, nkeypointsLevel;
+        vector<KeyPoint>::iterator kp_it, kp_end;
+        Mat workingMat, desc;
+        float scale;
 
         for (int level = 0; level < nlevels; ++level)
         {
             vector<KeyPoint> &keypoints = all_keypoints[level];
 
             // 金字塔第 level 層的 ORB 特徵點個數
-            int nkeypointsLevel = (int)keypoints.size();
+            nkeypointsLevel = (int)keypoints.size();
 
             if (nkeypointsLevel == 0)
             {
@@ -620,14 +623,14 @@ namespace ORB_SLAM2
 
             // preprocess the resized image
             // 複製一份金字塔第 level 層的影像
-            Mat workingMat = mvImagePyramid[level].clone();
+            workingMat = mvImagePyramid[level].clone();
 
             // 高斯模糊
             GaussianBlur(workingMat, workingMat, Size(7, 7), 2, 2, BORDER_REFLECT_101);
 
             // Compute the descriptors
             // 取得 descriptors 的子矩陣（修改 desc 也會修改到 descriptors 相對應的位置）
-            Mat desc = descriptors.rowRange(offset, offset + nkeypointsLevel);
+            desc = descriptors.rowRange(offset, offset + nkeypointsLevel);
 
             // 計算 workingMat 的 ORB 描述子，儲存至 desc
             computeDescriptors(workingMat, keypoints, desc, pattern);
@@ -638,8 +641,8 @@ namespace ORB_SLAM2
             if (level != 0)
             {
                 // getScale(level, firstLevel, scaleFactor);
-                float scale = mvScaleFactor[level];                
-                vector<KeyPoint>::iterator kp_it, kp_end = keypoints.end();
+                scale = mvScaleFactor[level];                
+                kp_end = keypoints.end();
 
                 for (kp_it = keypoints.begin(); kp_it != kp_end; kp_it++)
                 {
@@ -657,14 +660,17 @@ namespace ORB_SLAM2
     // 縮放影像金字塔各層級的影像
     void ORBextractor::ComputePyramid(cv::Mat image)
     {
+        float scale;
+        Mat masktemp;
+
         for (int level = 0; level < nlevels; ++level)
         {
             // 取得金字塔第 level 層的縮放尺度
-            float scale = mvInvScaleFactor[level];
+            scale = mvInvScaleFactor[level];
 
             Size sz(cvRound((float)image.cols * scale), cvRound((float)image.rows * scale));
             Size wholeSize(sz.width + EDGE_THRESHOLD * 2, sz.height + EDGE_THRESHOLD * 2);
-            Mat temp(wholeSize, image.type()), masktemp;
+            Mat temp(wholeSize, image.type());
 
             // 初始化第 level 層的影像金字塔 mvImagePyramid[level]
             mvImagePyramid[level] = temp(Rect(EDGE_THRESHOLD, EDGE_THRESHOLD, sz.width, sz.height));
@@ -699,6 +705,8 @@ namespace ORB_SLAM2
 
         const float W = 30;
 
+        /// TODO: 兩個迴圈或許可以合併？
+
         // 遍歷影像金字塔各層
         for (int level = 0; level < nlevels; level++)
         {
@@ -706,7 +714,7 @@ namespace ORB_SLAM2
         }
 
         // compute orientations
-        for (int level = 0; level < nlevels; ++level)
+        for (int level = 0; level < nlevels; level++)
         {
             // 利用灰階質心法計算特徵點的角度（角度資訊儲存於 KeyPoint 當中）
             computeOrientation(mvImagePyramid[level], allKeypoints[level], umax);

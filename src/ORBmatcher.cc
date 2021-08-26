@@ -2173,9 +2173,9 @@ namespace ORB_SLAM2
             }
 
             // 從 F2 取出指定區域內，由『指定金字塔層級(level1: 0)』找到的關鍵點的索引值
-            vIndices2 = F2.GetFeaturesInArea(vbPrevMatched[i1].x, 
-                                                            vbPrevMatched[i1].y, 
-                                                            windowSize, level1, level1);
+            vIndices2 = F2.GetFeaturesInArea(vbPrevMatched[i1].x,
+                                             vbPrevMatched[i1].y,
+                                             windowSize, level1, level1);
 
             if (vIndices2.empty()){
                 continue;

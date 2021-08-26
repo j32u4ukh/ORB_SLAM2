@@ -201,10 +201,12 @@ namespace ORB_SLAM2
 
         // Fill undistorted keypoint vector
         mvKeysUn.resize(N);
+        
+        cv::KeyPoint kp;
 
         for (int i = 0; i < N; i++)
         {
-            cv::KeyPoint kp = mvKeys[i];
+            kp = mvKeys[i];
             kp.pt.x = mat.at<float>(i, 0);
             kp.pt.y = mat.at<float>(i, 1);
 
@@ -222,10 +224,13 @@ namespace ORB_SLAM2
             cv::Mat mat(4, 2, CV_32F);
             mat.at<float>(0, 0) = 0.0;
             mat.at<float>(0, 1) = 0.0;
+
             mat.at<float>(1, 0) = imLeft.cols;
             mat.at<float>(1, 1) = 0.0;
+
             mat.at<float>(2, 0) = 0.0;
             mat.at<float>(2, 1) = imLeft.rows;
+
             mat.at<float>(3, 0) = imLeft.cols;
             mat.at<float>(3, 1) = imLeft.rows;
 
@@ -342,6 +347,7 @@ namespace ORB_SLAM2
                                   (int)ceil((y - mnMinY + r) * mfGridElementHeightInv));
 
         const bool bCheckLevels = (minLevel > 0) || (maxLevel >= 0);
+        float distx, disty;
         int ix, iy;
 
         for (ix = nMinCellX; ix <= nMaxCellX; ix++)
@@ -377,8 +383,8 @@ namespace ORB_SLAM2
                         }   
                     }
 
-                    const float distx = kpUn.pt.x - x;
-                    const float disty = kpUn.pt.y - y;
+                    distx = kpUn.pt.x - x;
+                    disty = kpUn.pt.y - y;
 
                     if (fabs(distx) < r && fabs(disty) < r)
                     {
