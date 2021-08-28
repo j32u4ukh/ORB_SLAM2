@@ -281,7 +281,7 @@ namespace ORB_SLAM2
                     if (!pTracker->mCurrentFrame.mvbOutlier[i])
                     {
                         // 若地圖點被至少 1 個關鍵幀觀察到
-                        if (pMP->getObservationNumber() > 0){
+                        if (pMP->beObservedNumber() > 0){
                             
                             // 地圖中匹配成功的地圖點
                             mvbMap[i] = true;

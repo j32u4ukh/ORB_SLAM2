@@ -303,7 +303,7 @@ namespace ORB_SLAM2
     }
 
     // 這個地圖點被幾個關鍵幀觀察到
-    int MapPoint::getObservationNumber()
+    int MapPoint::beObservedNumber()
     {
         unique_lock<mutex> lock(mMutexFeatures);
 

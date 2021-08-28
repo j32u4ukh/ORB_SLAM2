@@ -878,7 +878,7 @@ namespace ORB_SLAM2
                     if (bCheckObs)
                     {
                         // 這個地圖點被足過多的關鍵幀觀察到
-                        if (pMP->getObservationNumber() >= minObs)
+                        if (pMP->beObservedNumber() >= minObs)
                         {
                             nPoints++;
                         }

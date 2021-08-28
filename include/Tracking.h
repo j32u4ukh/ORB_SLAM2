@@ -22,21 +22,23 @@
 #ifndef TRACKING_H
 #define TRACKING_H
 
-#include<opencv2/core/core.hpp>
-#include<opencv2/features2d/features2d.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d/features2d.hpp>
 
-#include"Viewer.h"
-#include"FrameDrawer.h"
-#include"Map.h"
-#include"LocalMapping.h"
-#include"LoopClosing.h"
-#include"Frame.h"
+#include "Viewer.h"
+#include "FrameDrawer.h"
+#include "Map.h"
+#include "LocalMapping.h"
+#include "LoopClosing.h"
+#include "Frame.h"
 #include "ORBVocabulary.h"
-#include"KeyFrameDatabase.h"
-#include"ORBextractor.h"
+#include "KeyFrameDatabase.h"
+#include "ORBextractor.h"
 #include "Initializer.h"
 #include "MapDrawer.h"
 #include "System.h"
+#include "ORBmatcher.h"
+#include "PnPsolver.h"
 
 #include <mutex>
 
@@ -174,6 +176,18 @@ protected:
 
     inline void recordTrackingResult();
     inline bool update(bool bOK);
+    inline void createRelocatePnPsolver(vector<KeyFrame *> &vpCandidateKFs, int &nCandidates,
+                                           vector<bool> &vbDiscarded, ORBmatcher &matcher, 
+                                           vector<vector<MapPoint *>> &vvpMapPointMatches, 
+                                           vector<PnPsolver *> &vpPnPsolvers);
+    inline string checkRelocalization(cv::Mat &Tcw, vector<bool> &bInliers, int &nGood, 
+                                      const int i, ORBmatcher &matcher2,
+                                         vector<vector<MapPoint *>> &vvpMapPointMatches,
+                                         vector<KeyFrame *> &vpCandidateKFs, bool &bMatch);
+
+    inline bool relocate(int &nCandidates, vector<bool> &vbDiscarded, 
+                            vector<KeyFrame *> &vpCandidateKFs, const vector<PnPsolver *> &vpPnPsolvers, 
+                            vector<vector<MapPoint *>> &vvpMapPointMatches);
 
     // *****
 

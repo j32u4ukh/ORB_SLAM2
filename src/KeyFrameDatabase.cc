@@ -307,6 +307,7 @@ namespace ORB_SLAM2
 
         // nscores 沒用處
         int nscores = 0;
+        float si;
 
         // Compute similarity score.
         for(KeyFrame *pKFi : lKFsSharingWords){
@@ -318,7 +319,7 @@ namespace ORB_SLAM2
                 nscores++;
 
                 // 重定位分數
-                float si = mpVoc->score(F->mBowVec, pKFi->mBowVec);
+                si = mpVoc->score(F->mBowVec, pKFi->mBowVec);
                 pKFi->mRelocScore = si;
 
                 lScoreAndMatch.push_back(make_pair(si, pKFi));
@@ -332,20 +333,24 @@ namespace ORB_SLAM2
         // lScoreAndMatch 的進階版，紀錄各關鍵幀和『當前幀 F』的 BoW 相似性得分
         // 此處分數同時考慮其他觀察到相同地圖點的關鍵幀的 BoW 相似性得分，關鍵幀則更新為 BoW 相似性得分最高者
         list<pair<float, KeyFrame *>> lAccScoreAndMatch;
-        float bestAccScore = 0;
+        float bestAccScore = 0, bestScore, accScore;
+        KeyFrame *pKFi, *pBestKF;
+
+        // 返回至多 10 個已連結的有序關鍵幀（已連結：彼此觀察到相同地圖點的關鍵幀）
+        vector<KeyFrame *> vpNeighs;
 
         // Lets now accumulate score by covisibility
         for(pair<float, KeyFrame *> score_match : lScoreAndMatch){
 
             // 關鍵幀和『當前幀 F』的 BoW 相似性得分
-            float bestScore = score_match.first;
-            float accScore = score_match.first;
+            bestScore = score_match.first;
+            accScore = score_match.first;
 
-            KeyFrame *pKFi = score_match.second;
-            KeyFrame *pBestKF = pKFi;
+            pKFi = score_match.second;
+            pBestKF = pKFi;
 
             // 返回至多 10 個已連結的有序關鍵幀（已連結：彼此觀察到相同地圖點的關鍵幀）
-            vector<KeyFrame *> vpNeighs = pKFi->GetBestCovisibilityKeyFrames(10);
+            vpNeighs = pKFi->GetBestCovisibilityKeyFrames(10);
 
             for(KeyFrame *pKF2 : vpNeighs){
                 
@@ -391,7 +396,7 @@ namespace ORB_SLAM2
             // 若 BoW 相似性得分大於最低要求
             if (si > minScoreToRetain)
             {
-                KeyFrame *pKFi = score_match.second;
+                pKFi = score_match.second;
 
                 if (!spAlreadyAddedKF.count(pKFi))
                 {

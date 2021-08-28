@@ -390,8 +390,8 @@ namespace ORB_SLAM2
 
             // 第二篩選條件
             // 『當前幀』和『首個觀察到地圖點 pMP 的關鍵幀』之間應至少間隔 3 幀
-            // pMP->getObservationNumber() <= cnThObs 單目模式下，觀察到『地圖點 pMP』的關鍵幀，至少需要 3 個以上
-            else if (((int)nCurrentKFid - (int)pMP->mnFirstKFid) >= 2 && pMP->getObservationNumber() <= cnThObs)
+            // pMP->beObservedNumber() <= cnThObs 單目模式下，觀察到『地圖點 pMP』的關鍵幀，至少需要 3 個以上
+            else if (((int)nCurrentKFid - (int)pMP->mnFirstKFid) >= 2 && pMP->beObservedNumber() <= cnThObs)
             {
                 // 『地圖點 pMP』不夠好，清空這個地圖點、觀察到這個地圖點的所有關鍵幀，以及它自己對應的關鍵點索引值
                 pMP->SetBadFlag();
@@ -1021,7 +1021,7 @@ namespace ORB_SLAM2
                         nMPs++;
 
                         // 這個地圖點被足夠多的關鍵幀觀察到
-                        if (pMP->getObservationNumber() > thObs)
+                        if (pMP->beObservedNumber() > thObs)
                         {
                             // 根據『關鍵點索引值 i』取得關鍵點，再取得其所在的金字塔層級
                             const int &scaleLevel = pKF->mvKeysUn[i].octave;

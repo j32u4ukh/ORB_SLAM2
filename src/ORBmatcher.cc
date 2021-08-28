@@ -610,7 +610,7 @@ namespace ORB_SLAM2
                     if (!pMPinKF->isBad())
                     {
                         // 被較多關鍵幀觀察到的地圖點取代被較少關鍵幀觀察到的地圖點
-                        if (pMPinKF->getObservationNumber() > pMP->getObservationNumber())
+                        if (pMPinKF->beObservedNumber() > pMP->beObservedNumber())
                         {
                             pMP->Replace(pMPinKF);
                         }
@@ -1029,11 +1029,8 @@ namespace ORB_SLAM2
         const float factor = 1.0f / HISTO_LENGTH;
 
         // We perform the matching over ORB that belong to the same vocabulary node (at a certain level)
-        DBoW2::FeatureVector::const_iterator KFit = vFeatVecKF.begin();
-        DBoW2::FeatureVector::const_iterator KFend = vFeatVecKF.end();
-
-        DBoW2::FeatureVector::const_iterator Fit = F.mFeatVec.begin();
-        DBoW2::FeatureVector::const_iterator Fend = F.mFeatVec.end();
+        DBoW2::FeatureVector::const_iterator KFit = vFeatVecKF.begin(), KFend = vFeatVecKF.end();
+        DBoW2::FeatureVector::const_iterator Fit = F.mFeatVec.begin(), Fend = F.mFeatVec.end();
 
         MapPoint *pMP;
         int bestDist1, bestIdxF, bestDist2;
@@ -1815,7 +1812,7 @@ namespace ORB_SLAM2
                         if (CurrentFrame.mvpMapPoints[i2]){
 
                             // 若該地圖點被至少 1 個關鍵幀觀察到，則無須再進行後續匹配（因為已經匹配成功）
-                            if (CurrentFrame.mvpMapPoints[i2]->getObservationNumber() > 0){
+                            if (CurrentFrame.mvpMapPoints[i2]->beObservedNumber() > 0){
                                 continue;
                             }
                         }
@@ -2084,7 +2081,7 @@ namespace ORB_SLAM2
 
                 if (F.mvpMapPoints[idx])
                 {
-                    if (F.mvpMapPoints[idx]->getObservationNumber() > 0)
+                    if (F.mvpMapPoints[idx]->beObservedNumber() > 0)
                     {
                         continue;
                     }
