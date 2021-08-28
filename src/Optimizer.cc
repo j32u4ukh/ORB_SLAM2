@@ -1441,114 +1441,115 @@ namespace ORB_SLAM2
 
             // ==================================================
             // ==================================================
-            // addPoseOptimization(pFrame, nInitialCorrespondences, optimizer, vnIndexEdgeMono, 
-            //                          vpEdgesMono, vpEdgesStereo, vnIndexEdgeStereo);
+            addPoseOptimization(pFrame, nInitialCorrespondences, optimizer, vnIndexEdgeMono, 
+                                     vpEdgesMono, vpEdgesStereo, vnIndexEdgeStereo);
 
-            g2o::EdgeSE3ProjectXYZOnlyPose *e;
-            g2o::EdgeStereoSE3ProjectXYZOnlyPose *e_stereo;
-            cv::Mat Xw;
+            // g2o::EdgeSE3ProjectXYZOnlyPose *e;
+            // g2o::EdgeStereoSE3ProjectXYZOnlyPose *e_stereo;
+            // cv::Mat Xw;
 
-            for (int i = 0; i < N; i++)
-            {
-                // 依序取得 pFrame 觀察到的地圖點
-                MapPoint *pMP = pFrame->mvpMapPoints[i];
+            // for (int i = 0; i < N; i++)
+            // {
+            //     // 依序取得 pFrame 觀察到的地圖點
+            //     MapPoint *pMP = pFrame->mvpMapPoints[i];
 
-                if (pMP)
-                {
-                    // 單目的這個值，會是負的
-                    const float &kp_ur = pFrame->mvuRight[i];
+            //     if (pMP)
+            //     {
+            //         // 單目的這個值，會是負的
+            //         const float &kp_ur = pFrame->mvuRight[i];
                         
-                    // 地圖點可被觀察到，因此不是 Outlier
-                    pFrame->mvbOutlier[i] = false;
+            //         // 地圖點可被觀察到，因此不是 Outlier
+            //         pFrame->mvbOutlier[i] = false;
 
-                    nInitialCorrespondences++;
+            //         nInitialCorrespondences++;
 
-                    // 取得與地圖點相對應的 pFrame 的特徵點
-                    const cv::KeyPoint &kpUn = pFrame->mvKeysUn[i];
+            //         // 取得與地圖點相對應的 pFrame 的特徵點
+            //         const cv::KeyPoint &kpUn = pFrame->mvKeysUn[i];
 
-                    // Monocular observation
-                    if (kp_ur < 0)
-                    {
-                        e = newEdgeSE3ProjectXYZOnlyPose(optimizer, pFrame, kpUn);
+            //         // Monocular observation
+            //         if (kp_ur < 0)
+            //         {
+            //             e = newEdgeSE3ProjectXYZOnlyPose(optimizer, pFrame, kpUn);
                         
-                        // // 特徵點的位置
-                        // Eigen::Matrix<double, 2, 1> obs;
-                        // obs << kpUn.pt.x, kpUn.pt.y;
+            //             // // 特徵點的位置
+            //             // Eigen::Matrix<double, 2, 1> obs;
+            //             // obs << kpUn.pt.x, kpUn.pt.y;
 
-                        // // 一元邊：重投影誤差（僅用於優化相機位姿時）
-                        // g2o::EdgeSE3ProjectXYZOnlyPose *e = new g2o::EdgeSE3ProjectXYZOnlyPose();
+            //             // // 一元邊：重投影誤差（僅用於優化相機位姿時）
+            //             // g2o::EdgeSE3ProjectXYZOnlyPose *e = new g2o::EdgeSE3ProjectXYZOnlyPose();
 
-                        // e->setVertex(0, 
-                        //             dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(0)));
-                        // e->setMeasurement(obs);
+            //             // e->setVertex(0, 
+            //             //             dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(0)));
+            //             // e->setMeasurement(obs);
                         
-                        // const float invSigma2 = pFrame->mvInvLevelSigma2[kpUn.octave];
-                        // e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
+            //             // const float invSigma2 = pFrame->mvInvLevelSigma2[kpUn.octave];
+            //             // e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
 
-                        // g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
-                        // rk->setDelta(deltaMono);
-                        // e->setRobustKernel(rk);
+            //             // g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+            //             // rk->setDelta(deltaMono);
+            //             // e->setRobustKernel(rk);
 
-                        // // 相機內參
-                        // e->fx = pFrame->fx;
-                        // e->fy = pFrame->fy;
-                        // e->cx = pFrame->cx;
-                        // e->cy = pFrame->cy;
+            //             // // 相機內參
+            //             // e->fx = pFrame->fx;
+            //             // e->fy = pFrame->fy;
+            //             // e->cx = pFrame->cx;
+            //             // e->cy = pFrame->cy;
 
-                        // 圖點的世界座標
-                        Xw = pMP->GetWorldPos();
+            //             // 圖點的世界座標
+            //             Xw = pMP->GetWorldPos();
                         
-                        e->Xw[0] = Xw.at<float>(0);
-                        e->Xw[1] = Xw.at<float>(1);
-                        e->Xw[2] = Xw.at<float>(2);
+            //             e->Xw[0] = Xw.at<float>(0);
+            //             e->Xw[1] = Xw.at<float>(1);
+            //             e->Xw[2] = Xw.at<float>(2);
 
-                        optimizer.addEdge(e);
-                        vpEdgesMono.push_back(e);
-                        vnIndexEdgeMono.push_back(i);
-                    }
+            //             optimizer.addEdge(e);
+            //             vpEdgesMono.push_back(e);
+            //             vnIndexEdgeMono.push_back(i);
+            //         }
 
-                    // Stereo observation（暫時跳過）
-                    else 
-                    {
-                        //SET EDGE
-                        e_stereo = newEdgeStereoSE3ProjectXYZOnlyPose(optimizer, pFrame, 
-                                                                      kpUn, kp_ur);
+            //         // Stereo observation（暫時跳過）
+            //         else 
+            //         {
+            //             //SET EDGE
+            //             e_stereo = newEdgeStereoSE3ProjectXYZOnlyPose(optimizer, pFrame, 
+            //                                                           kpUn, kp_ur);
 
-                        // Eigen::Matrix<double, 3, 1> obs;
+            //             // Eigen::Matrix<double, 3, 1> obs;
                         
-                        // obs << kpUn.pt.x, kpUn.pt.y, kp_ur;
+            //             // obs << kpUn.pt.x, kpUn.pt.y, kp_ur;
 
-                        // e_stereo = new g2o::EdgeStereoSE3ProjectXYZOnlyPose();
+            //             // e_stereo = new g2o::EdgeStereoSE3ProjectXYZOnlyPose();
 
-                        // e_stereo->setVertex(0, 
-                        //             dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(0)));
-                        // e_stereo->setMeasurement(obs);
-                        // const float invSigma2 = pFrame->mvInvLevelSigma2[kpUn.octave];
-                        // Eigen::Matrix3d Info = Eigen::Matrix3d::Identity() * invSigma2;
-                        // e_stereo->setInformation(Info);
+            //             // e_stereo->setVertex(0, 
+            //             //             dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(0)));
+            //             // e_stereo->setMeasurement(obs);
+            //             // const float invSigma2 = pFrame->mvInvLevelSigma2[kpUn.octave];
+            //             // Eigen::Matrix3d Info = Eigen::Matrix3d::Identity() * invSigma2;
+            //             // e_stereo->setInformation(Info);
 
-                        // g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
-                        // e_stereo->setRobustKernel(rk);
-                        // rk->setDelta(deltaStereo);
+            //             // g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+            //             // e_stereo->setRobustKernel(rk);
+            //             // rk->setDelta(deltaStereo);
 
-                        // e_stereo->fx = pFrame->fx;
-                        // e_stereo->fy = pFrame->fy;
-                        // e_stereo->cx = pFrame->cx;
-                        // e_stereo->cy = pFrame->cy;
-                        // e_stereo->bf = pFrame->mbf;
+            //             // e_stereo->fx = pFrame->fx;
+            //             // e_stereo->fy = pFrame->fy;
+            //             // e_stereo->cx = pFrame->cx;
+            //             // e_stereo->cy = pFrame->cy;
+            //             // e_stereo->bf = pFrame->mbf;
 
-                        Xw = pMP->GetWorldPos();
+            //             Xw = pMP->GetWorldPos();
 
-                        e_stereo->Xw[0] = Xw.at<float>(0);
-                        e_stereo->Xw[1] = Xw.at<float>(1);
-                        e_stereo->Xw[2] = Xw.at<float>(2);
+            //             e_stereo->Xw[0] = Xw.at<float>(0);
+            //             e_stereo->Xw[1] = Xw.at<float>(1);
+            //             e_stereo->Xw[2] = Xw.at<float>(2);
 
-                        optimizer.addEdge(e_stereo);
-                        vpEdgesStereo.push_back(e_stereo);
-                        vnIndexEdgeStereo.push_back(i);
-                    }
-                }
-            }
+            //             optimizer.addEdge(e_stereo);
+            //             vpEdgesStereo.push_back(e_stereo);
+            //             vnIndexEdgeStereo.push_back(i);
+            //         }
+            //     }
+            // }
+            
             // ==================================================
         }
 
@@ -1557,140 +1558,137 @@ namespace ORB_SLAM2
             return 0;
         }
 
-
-
-
-
         // ==================================================
         // ==================================================
-        // addPoseOptimizationEdges(vSE3, pFrame, optimizer, vpEdgesMono, vnIndexEdgeMono, 
-        //                          vpEdgesStereo, vnIndexEdgeStereo);
+        int nBad = addPoseOptimizationEdges(vSE3, pFrame, optimizer, vpEdgesMono, vnIndexEdgeMono,
+                                            vpEdgesStereo, vnIndexEdgeStereo);
 
-        // We perform 4 optimizations, after each optimization we classify observation as 
-        // inlier/outlier. At the next optimization, outliers are not included, but at the end 
-        // they can be classified as inliers again.
-        const float chi2Mono[4] = {5.991, 5.991, 5.991, 5.991};
-        const float chi2Stereo[4] = {7.815, 7.815, 7.815, 7.815};
+        // // We perform 4 optimizations, after each optimization we classify observation as
+        // // inlier/outlier. At the next optimization, outliers are not included, but at the end
+        // // they can be classified as inliers again.
+        // const float chi2Mono[4] = {5.991, 5.991, 5.991, 5.991};
+        // const float chi2Stereo[4] = {7.815, 7.815, 7.815, 7.815};
 
-        // 定義每輪優化要優化幾次（每輪優化後會『將足夠好的邊設為無須再優化』，才再次進行優化）
-        const int its[4] = {10, 10, 10, 10};
+        // // 定義每輪優化要優化幾次（每輪優化後會『將足夠好的邊設為無須再優化』，才再次進行優化）
+        // const int its[4] = {10, 10, 10, 10};
 
-        int nBad = 0;
+        // int nBad = 0;
 
-        // 優化『pFrame 觀察到的地圖點』的位置
-        for (size_t it = 0; it < 4; it++)
-        {
-            // 將 pFrame 位姿轉型成『轉換矩陣』，作為 vSE3 的初始估計值
-            /// NOTE: 似乎沒有在每次優化後更新 pFrame 的位姿，只在此函式結束前的最後更新而已
-            vSE3->setEstimate(Converter::toSE3Quat(pFrame->mTcw));
-            optimizer.initializeOptimization(0);
+        // // 優化『pFrame 觀察到的地圖點』的位置
+        // for (size_t it = 0; it < 4; it++)
+        // {
+        //     // 將 pFrame 位姿轉型成『轉換矩陣』，作為 vSE3 的初始估計值
+        //     /// NOTE: 似乎沒有在每次優化後更新 pFrame 的位姿，只在此函式結束前的最後更新而已
+        //     vSE3->setEstimate(Converter::toSE3Quat(pFrame->mTcw));
+        //     optimizer.initializeOptimization(0);
 
-            // 優化 its[it] 次
-            optimizer.optimize(its[it]);
+        //     // 優化 its[it] 次
+        //     optimizer.optimize(its[it]);
 
-            // 
-            nBad = 0;
-
-
+        //     // 
+        //     nBad = 0;
 
 
 
-            // ==================================================
-            // ==================================================
-            // addPoseOptimizationMonoEdges(vpEdgesMono, vnIndexEdgeMono, pFrame, chi2Mono, it, nBad);
-
-            for (size_t i = 0, iend = vpEdgesMono.size(); i < iend; i++)
-            {
-                // 取出 optimizer 的第 i 個『邊』
-                g2o::EdgeSE3ProjectXYZOnlyPose *e = vpEdgesMono[i];
-
-                const size_t idx = vnIndexEdgeMono[i];
-
-                // 若為第 idx 個特徵點為 Outlier
-                if (pFrame->mvbOutlier[idx])
-                {
-                    // 利用『邊』計算誤差
-                    e->computeError();
-                }
-
-                // chi2() 基於 computeError() 所計算的誤差，取得 chi2 值
-                const float chi2 = e->chi2();
-
-                // 若 chi2 值比預設門檻高
-                if (chi2 > chi2Mono[it])
-                {
-                    // 將第 idx 個特徵點認定為 Outlier
-                    pFrame->mvbOutlier[idx] = true;
-
-                    // 持續優化這個『邊』
-                    e->setLevel(1);
-
-                    nBad++;
-                }
-
-                // 若 chi2 值比預設門檻低
-                else
-                {
-                    // 將第 idx 個特徵點認定為內點
-                    pFrame->mvbOutlier[idx] = false;
-
-                    // 不再優化這個『邊』
-                    e->setLevel(0);
-                }
-
-                // 第 3 輪(it == 2)以後，無須使用 RobustKernel
-                if (it == 2)
-                {
-                    e->setRobustKernel(0);
-                }
-            }
-            // ==================================================
 
 
+        //     // ==================================================
+        //     // ==================================================
+        //     // addPoseOptimizationMonoEdges(vpEdgesMono, vnIndexEdgeMono, pFrame, chi2Mono, it, nBad);
 
-            // ==================================================
-            // ==================================================
-            // addPoseOptimizationStereoEdges(pFrame, vpEdgesStereo, vnIndexEdgeStereo, 
-            //                                chi2Stereo, it, nBad);
+        //     for (size_t i = 0, iend = vpEdgesMono.size(); i < iend; i++)
+        //     {
+        //         // 取出 optimizer 的第 i 個『邊』
+        //         g2o::EdgeSE3ProjectXYZOnlyPose *e = vpEdgesMono[i];
 
-            for (size_t i = 0, iend = vpEdgesStereo.size(); i < iend; i++)
-            {
-                g2o::EdgeStereoSE3ProjectXYZOnlyPose *e = vpEdgesStereo[i];
+        //         const size_t idx = vnIndexEdgeMono[i];
 
-                const size_t idx = vnIndexEdgeStereo[i];
+        //         // 若為第 idx 個特徵點為 Outlier
+        //         if (pFrame->mvbOutlier[idx])
+        //         {
+        //             // 利用『邊』計算誤差
+        //             e->computeError();
+        //         }
 
-                if (pFrame->mvbOutlier[idx])
-                {
-                    e->computeError();
-                }
+        //         // chi2() 基於 computeError() 所計算的誤差，取得 chi2 值
+        //         const float chi2 = e->chi2();
 
-                const float chi2 = e->chi2();
+        //         // 若 chi2 值比預設門檻高
+        //         if (chi2 > chi2Mono[it])
+        //         {
+        //             // 將第 idx 個特徵點認定為 Outlier
+        //             pFrame->mvbOutlier[idx] = true;
 
-                if (chi2 > chi2Stereo[it])
-                {
-                    pFrame->mvbOutlier[idx] = true;
-                    e->setLevel(1);
-                    nBad++;
-                }
-                else
-                {
-                    e->setLevel(0);
-                    pFrame->mvbOutlier[idx] = false;
-                }
+        //             // 持續優化這個『邊』
+        //             e->setLevel(1);
 
-                if (it == 2){
-                    e->setRobustKernel(0);
-                }
-            }
-            // ==================================================
+        //             nBad++;
+        //         }
+
+        //         // 若 chi2 值比預設門檻低
+        //         else
+        //         {
+        //             // 將第 idx 個特徵點認定為內點
+        //             pFrame->mvbOutlier[idx] = false;
+
+        //             // 不再優化這個『邊』
+        //             e->setLevel(0);
+        //         }
+
+        //         // 第 3 輪(it == 2)以後，無須使用 RobustKernel
+        //         if (it == 2)
+        //         {
+        //             e->setRobustKernel(0);
+        //         }
+        //     }
+        //     // ==================================================
 
 
 
-            // 若 optimizer 還需要優化的『邊』足夠少（少於 10 個），則結束優化
-            if (optimizer.edges().size() < 10){
-                break;
-            }
-        }
+        //     // ==================================================
+        //     // ==================================================
+        //     // addPoseOptimizationStereoEdges(pFrame, vpEdgesStereo, vnIndexEdgeStereo, 
+        //     //                                chi2Stereo, it, nBad);
+
+        //     for (size_t i = 0, iend = vpEdgesStereo.size(); i < iend; i++)
+        //     {
+        //         g2o::EdgeStereoSE3ProjectXYZOnlyPose *e = vpEdgesStereo[i];
+
+        //         const size_t idx = vnIndexEdgeStereo[i];
+
+        //         if (pFrame->mvbOutlier[idx])
+        //         {
+        //             e->computeError();
+        //         }
+
+        //         const float chi2 = e->chi2();
+
+        //         if (chi2 > chi2Stereo[it])
+        //         {
+        //             pFrame->mvbOutlier[idx] = true;
+        //             e->setLevel(1);
+        //             nBad++;
+        //         }
+        //         else
+        //         {
+        //             e->setLevel(0);
+        //             pFrame->mvbOutlier[idx] = false;
+        //         }
+
+        //         if (it == 2){
+        //             e->setRobustKernel(0);
+        //         }
+        //     }
+        //     // ==================================================
+
+
+
+        //     // 若 optimizer 還需要優化的『邊』足夠少（少於 10 個），則結束優化
+        //     if (optimizer.edges().size() < 10){
+        //         break;
+        //     }
+        // }
+        
         // ==================================================
 
 
@@ -2884,15 +2882,15 @@ namespace ORB_SLAM2
         }
     }
 
-    void Optimizer::addPoseOptimizationEdges(g2o::VertexSE3Expmap *vSE3, Frame *pFrame,
-                                             g2o::SparseOptimizer &op, 
-                                             vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono,
-                                             vector<size_t> &vnIndexEdgeMono, 
-                                             vector<g2o::EdgeStereoSE3ProjectXYZOnlyPose *> &vpEdgesStereo,
-                                             vector<size_t> &vnIndexEdgeStereo)
+    int Optimizer::addPoseOptimizationEdges(g2o::VertexSE3Expmap *vSE3, Frame *pFrame,
+                                            g2o::SparseOptimizer &op,
+                                            vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono,
+                                            vector<size_t> &vnIndexEdgeMono,
+                                            vector<g2o::EdgeStereoSE3ProjectXYZOnlyPose *> &vpEdgesStereo,
+                                            vector<size_t> &vnIndexEdgeStereo)
     {
-        // We perform 4 optimizations, after each optimization we classify observation as 
-        // inlier/outlier. At the next optimization, outliers are not included, but at the end 
+        // We perform 4 optimizations, after each optimization we classify observation as
+        // inlier/outlier. At the next optimization, outliers are not included, but at the end
         // they can be classified as inliers again.
         /// TODO: 或可轉換為靜態變數，減少重複宣告
         const float chi2Mono[4] = {5.991, 5.991, 5.991, 5.991};
@@ -2914,19 +2912,22 @@ namespace ORB_SLAM2
             // 優化 its[it] 次
             op.optimize(its[it]);
 
-            // 
+            //
             nBad = 0;
 
             addPoseOptimizationMonoEdges(vpEdgesMono, vnIndexEdgeMono, pFrame, chi2Mono, it, nBad);
 
-            addPoseOptimizationStereoEdges(pFrame, vpEdgesStereo, vnIndexEdgeStereo, 
+            addPoseOptimizationStereoEdges(pFrame, vpEdgesStereo, vnIndexEdgeStereo,
                                            chi2Stereo, it, nBad);
 
             // 若 optimizer 還需要優化的『邊』足夠少（少於 10 個），則結束優化
-            if (op.edges().size() < 10){
+            if (op.edges().size() < 10)
+            {
                 break;
             }
         }
+
+        return nBad;
     }
 
     void Optimizer::addPoseOptimizationMonoEdges(vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono, 

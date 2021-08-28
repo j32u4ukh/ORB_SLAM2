@@ -207,12 +207,12 @@ public:
                                                       vector<size_t> &vnIndexEdgeStereo,
                                                       const float chi2Stereo[], const size_t it, int &nBad);
 
-    static inline void addPoseOptimizationEdges(g2o::VertexSE3Expmap *vSE3, Frame *pFrame,
-                                                g2o::SparseOptimizer &op,
-                                                vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono,
-                                                vector<size_t> &vnIndexEdgeMono,
-                                                vector<g2o::EdgeStereoSE3ProjectXYZOnlyPose *> &vpEdgesStereo,
-                                                vector<size_t> &vnIndexEdgeStereo);
+    static inline int addPoseOptimizationEdges(g2o::VertexSE3Expmap *vSE3, Frame *pFrame,
+                                               g2o::SparseOptimizer &op,
+                                               vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono,
+                                               vector<size_t> &vnIndexEdgeMono,
+                                               vector<g2o::EdgeStereoSE3ProjectXYZOnlyPose *> &vpEdgesStereo,
+                                               vector<size_t> &vnIndexEdgeStereo);
 
     // ********************************************************************************
     static inline g2o::EdgeSE3ProjectXYZ *addEdgeSE3ProjectXYZ(g2o::SparseOptimizer &op,
