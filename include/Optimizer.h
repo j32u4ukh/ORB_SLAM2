@@ -183,6 +183,13 @@ public:
                                             const g2o::Sim3 Swi, g2o::SparseOptimizer &op, const int nIDi,
                                             vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> vScw);
 
+    static inline void updateEssentialPoses(const vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op,
+                                            vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> &vCorrectedSwc);
+    
+    static inline void updateEssentialMapPoints(const vector<MapPoint *> vpMPs, KeyFrame *pCurKF,
+                                                const vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> &vScw,
+                                                const vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> &vCorrectedSwc);
+
     // ***** Optimizer::PoseOptimization *****
 
     static inline void addPoseOptimization(Frame *pFrame, int &nInitialCorrespondences,
