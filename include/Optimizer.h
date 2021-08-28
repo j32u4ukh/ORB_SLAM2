@@ -87,7 +87,7 @@ public:
 
     static inline void extractLocalKeyFrames(list<KeyFrame *> &lLocalKeyFrames, KeyFrame *pKF);
 
-    static inline void extractLocalKeyFrames(list<MapPoint *> &lLocalMapPoints,
+    static inline void extractLocalMapPoints(list<MapPoint *> &lLocalMapPoints,
                                              const list<KeyFrame *> &lLocalKeyFrames, 
                                              const KeyFrame *pKF);
 
@@ -113,18 +113,10 @@ public:
     static inline void filterMonoLocalMapPoints(vector<g2o::EdgeSE3ProjectXYZ *> &vpEdgesMono,
                                                 vector<MapPoint *> &vpMapPointEdgeMono);
 
-    static inline void filterStereoLocalMapPoints(vector<g2o::EdgeStereoSE3ProjectXYZ *> &vpEdgesStereo,
-                                                  vector<MapPoint *> &vpMapPointEdgeStereo);
-
     static inline void markEarseMono(vector<pair<KeyFrame *, MapPoint *>> &vToErase,
                                      vector<MapPoint *> &vpMapPointEdgeMono,
                                      vector<g2o::EdgeSE3ProjectXYZ *> &vpEdgesMono,
                                      vector<KeyFrame *> &vpEdgeKFMono);
-
-    static inline void markEarseStereo(vector<pair<KeyFrame *, MapPoint *>> &vToErase,
-                                       vector<MapPoint *> &vpMapPointEdgeStereo,
-                                       vector<g2o::EdgeStereoSE3ProjectXYZ *> &vpEdgesStereo,
-                                       vector<KeyFrame *> &vpEdgeKFStereo);
 
     static inline void executeEarsing(vector<pair<KeyFrame *, MapPoint *>> &vToErase);
 
@@ -236,6 +228,14 @@ public:
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================
+
+    static inline void filterStereoLocalMapPoints(vector<g2o::EdgeStereoSE3ProjectXYZ *> &vpEdgesStereo,
+                                                  vector<MapPoint *> &vpMapPointEdgeStereo);
+
+    static inline void markEarseStereo(vector<pair<KeyFrame *, MapPoint *>> &vToErase,
+                                       vector<MapPoint *> &vpMapPointEdgeStereo,
+                                       vector<g2o::EdgeStereoSE3ProjectXYZ *> &vpEdgesStereo,
+                                       vector<KeyFrame *> &vpEdgeKFStereo);
 
     static inline g2o::EdgeStereoSE3ProjectXYZ *addEdgeStereoSE3ProjectXYZ(g2o::SparseOptimizer &op,
                                                                            const cv::KeyPoint kpUn,

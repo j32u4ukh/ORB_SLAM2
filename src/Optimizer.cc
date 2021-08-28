@@ -295,28 +295,28 @@ namespace ORB_SLAM2
 
         // ================================================================================
         // ================================================================================
-        // extractLocalKeyFrames(lLocalKeyFrames, pKF);
+        extractLocalKeyFrames(lLocalKeyFrames, pKF);
 
-        // Extract
-        lLocalKeyFrames.push_back(pKF);
+        // // Extract
+        // lLocalKeyFrames.push_back(pKF);
 
-        // 標注 pKF 已參與 pKF 的 LocalBundleAdjustment
-        pKF->mnBALocalForKF = pKF->mnId;
+        // // 標注 pKF 已參與 pKF 的 LocalBundleAdjustment
+        // pKF->mnBALocalForKF = pKF->mnId;
 
-        // 『關鍵幀 pKF』的共視關鍵幀（根據觀察到的地圖點數量排序）
-        const vector<KeyFrame *> vNeighKFs = pKF->GetVectorCovisibleKeyFrames();
+        // // 『關鍵幀 pKF』的共視關鍵幀（根據觀察到的地圖點數量排序）
+        // const vector<KeyFrame *> vNeighKFs = pKF->GetVectorCovisibleKeyFrames();
 
-        // 篩選好的『關鍵幀 pKF』的共視關鍵幀
+        // // 篩選好的『關鍵幀 pKF』的共視關鍵幀
 
-        for(KeyFrame *pKFi : vNeighKFs)
-        {
-            // 標注『關鍵幀 pKFi』已參與『關鍵幀 pKF』的 LocalBundleAdjustment，避免重複添加到 lLocalKeyFrames
-            pKFi->mnBALocalForKF = pKF->mnId;
+        // for(KeyFrame *pKFi : vNeighKFs)
+        // {
+        //     // 標注『關鍵幀 pKFi』已參與『關鍵幀 pKF』的 LocalBundleAdjustment，避免重複添加到 lLocalKeyFrames
+        //     pKFi->mnBALocalForKF = pKF->mnId;
 
-            if (!pKFi->isBad()){
-                lLocalKeyFrames.push_back(pKFi);
-            }
-        }
+        //     if (!pKFi->isBad()){
+        //         lLocalKeyFrames.push_back(pKFi);
+        //     }
+        // }
         // ================================================================================
 
 
@@ -329,30 +329,30 @@ namespace ORB_SLAM2
         // 共視地圖點：『共視關鍵幀 list<KeyFrame *> lLocalKeyFrames』所觀察到的地圖點
         list<MapPoint *> lLocalMapPoints;
 
-        // extractLocalKeyFrames(lLocalMapPoints, lLocalKeyFrames, pKF);
+        extractLocalMapPoints(lLocalMapPoints, lLocalKeyFrames, pKF);
 
-        for(KeyFrame * local_kf : lLocalKeyFrames)
-        {
-            // 『關鍵幀 (*lit)』的關鍵點觀察到的地圖點
-            vector<MapPoint *> vpMPs = local_kf->GetMapPointMatches();
+        // for(KeyFrame * local_kf : lLocalKeyFrames)
+        // {
+        //     // 『關鍵幀 (*lit)』的關鍵點觀察到的地圖點
+        //     vector<MapPoint *> vpMPs = local_kf->GetMapPointMatches();
 
-            for(MapPoint *pMP : vpMPs)
-            {
-                if (pMP)
-                {
-                    if (!pMP->isBad())
-                    {
-                        if (pMP->mnBALocalForKF != pKF->mnId)
-                        {
-                            lLocalMapPoints.push_back(pMP);
-                            // 標注『地圖點 pMP』已參與『關鍵幀 pKF』的 LocalBundleAdjustment
-                            // 避免重複添加到 lLocalMapPoints
-                            pMP->mnBALocalForKF = pKF->mnId;
-                        }
-                    }
-                }
-            }
-        }
+        //     for(MapPoint *pMP : vpMPs)
+        //     {
+        //         if (pMP)
+        //         {
+        //             if (!pMP->isBad())
+        //             {
+        //                 if (pMP->mnBALocalForKF != pKF->mnId)
+        //                 {
+        //                     lLocalMapPoints.push_back(pMP);
+        //                     // 標注『地圖點 pMP』已參與『關鍵幀 pKF』的 LocalBundleAdjustment
+        //                     // 避免重複添加到 lLocalMapPoints
+        //                     pMP->mnBALocalForKF = pKF->mnId;
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
         // ================================================================================
 
 
@@ -365,29 +365,29 @@ namespace ORB_SLAM2
         // 哪些關鍵幀同時也觀察到 lLocalMapPoints 當中的地圖點
         list<KeyFrame *> lFixedCameras;
 
-        // extractFixedCameras(lFixedCameras, lLocalMapPoints, pKF);
+        extractFixedCameras(lFixedCameras, lLocalMapPoints, pKF);
 
-        for(MapPoint* local_mp : lLocalMapPoints)
-        {
-            // 觀察到『共視地圖點 (*lit)』的關鍵幀，及其對應的特徵點的索引值
-            map<KeyFrame *, size_t> observations = local_mp->GetObservations();
+        // for(MapPoint* local_mp : lLocalMapPoints)
+        // {
+        //     // 觀察到『共視地圖點 (*lit)』的關鍵幀，及其對應的特徵點的索引值
+        //     map<KeyFrame *, size_t> observations = local_mp->GetObservations();
 
-            for(pair<KeyFrame *, size_t> obs : observations)
-            {
-                KeyFrame *pKFi = obs.first;
+        //     for(pair<KeyFrame *, size_t> obs : observations)
+        //     {
+        //         KeyFrame *pKFi = obs.first;
 
-                // Local && Fixed
-                // 檢查『關鍵幀 pKFi』是否已參與『關鍵幀 pKF』的 LocalBundleAdjustment
-                if (pKFi->mnBALocalForKF != pKF->mnId && pKFi->mnBAFixedForKF != pKF->mnId)
-                {
-                    pKFi->mnBAFixedForKF = pKF->mnId;
+        //         // Local && Fixed
+        //         // 檢查『關鍵幀 pKFi』是否已參與『關鍵幀 pKF』的 LocalBundleAdjustment
+        //         if (pKFi->mnBALocalForKF != pKF->mnId && pKFi->mnBAFixedForKF != pKF->mnId)
+        //         {
+        //             pKFi->mnBAFixedForKF = pKF->mnId;
 
-                    if (!pKFi->isBad()){
-                        lFixedCameras.push_back(pKFi);
-                    }
-                }
-            }
-        }
+        //             if (!pKFi->isBad()){
+        //                 lFixedCameras.push_back(pKFi);
+        //             }
+        //         }
+        //     }
+        // }
         // ================================================================================
 
         // g2o 的優化會分別使用到 lLocalKeyFrames, lLocalMapPoints, lFixedCameras
@@ -413,17 +413,17 @@ namespace ORB_SLAM2
 
         // ================================================================================
         // ================================================================================
-        // addLocalKeyFrames(lLocalKeyFrames, optimizer, maxKFid);
-        for(KeyFrame *pKFi : lLocalKeyFrames)
-        {
-            id = pKFi->mnId;
-            addVertexSE3Expmap(optimizer, pKFi->GetPose(), id, id == 0);
+        addLocalKeyFrames(lLocalKeyFrames, optimizer, maxKFid);
+        // for(KeyFrame *pKFi : lLocalKeyFrames)
+        // {
+        //     id = pKFi->mnId;
+        //     addVertexSE3Expmap(optimizer, pKFi->GetPose(), id, id == 0);
 
-            if (id > maxKFid)
-            {
-                maxKFid = id;
-            }
-        }
+        //     if (id > maxKFid)
+        //     {
+        //         maxKFid = id;
+        //     }
+        // }
         // ================================================================================
         
         // list<KeyFrame *>::iterator lit, lend;
@@ -433,17 +433,17 @@ namespace ORB_SLAM2
         // ================================================================================
         // Set Fixed KeyFrame vertices
         // Fixed 共視關鍵幀作為頂點加入優化
-        // addFixedCameras(lFixedCameras, optimizer, maxKFid);
-        for(KeyFrame *pKFi : lFixedCameras)
-        {
-            id = pKFi->mnId;
-            addVertexSE3Expmap(optimizer, pKFi->GetPose(), id, true);
+        addFixedCameras(lFixedCameras, optimizer, maxKFid);
+        // for(KeyFrame *pKFi : lFixedCameras)
+        // {
+        //     id = pKFi->mnId;
+        //     addVertexSE3Expmap(optimizer, pKFi->GetPose(), id, true);
 
-            if (id > maxKFid)
-            {
-                maxKFid = id;
-            }
-        }
+        //     if (id > maxKFid)
+        //     {
+        //         maxKFid = id;
+        //     }
+        // }
         // ================================================================================
 
         // Set MapPoint vertices
@@ -471,66 +471,66 @@ namespace ORB_SLAM2
 
         // ================================================================================
         // ================================================================================
-        // addLocalMapPoints(lLocalMapPoints, optimizer, maxKFid, pKF, 
-        //                   vpEdgesMono, vpEdgeKFMono, vpMapPointEdgeMono,
-        //                   vpEdgesStereo, vpEdgeKFStereo, vpMapPointEdgeStereo);        
-        g2o::EdgeSE3ProjectXYZ *e;
-        g2o::EdgeStereoSE3ProjectXYZ *e_stereo;
-        g2o::VertexSBAPointXYZ *vPoint;
+        addLocalMapPoints(lLocalMapPoints, optimizer, maxKFid, pKF, 
+                          vpEdgesMono, vpEdgeKFMono, vpMapPointEdgeMono,
+                          vpEdgesStereo, vpEdgeKFStereo, vpMapPointEdgeStereo);        
+        // g2o::EdgeSE3ProjectXYZ *e;
+        // g2o::EdgeStereoSE3ProjectXYZ *e_stereo;
+        // g2o::VertexSBAPointXYZ *vPoint;
 
-        // 『共視地圖點』作為『頂點』，而『觀察到共視地圖點的特徵點的位置』作為『邊』
-        for(MapPoint *pMP : lLocalMapPoints)
-        {
-            id = pMP->mnId + maxKFid + 1;
-            vPoint = newVertexSBAPointXYZ(pMP->GetWorldPos(), id);
-            vPoint->setMarginalized(true);
+        // // 『共視地圖點』作為『頂點』，而『觀察到共視地圖點的特徵點的位置』作為『邊』
+        // for(MapPoint *pMP : lLocalMapPoints)
+        // {
+        //     id = pMP->mnId + maxKFid + 1;
+        //     vPoint = newVertexSBAPointXYZ(pMP->GetWorldPos(), id);
+        //     vPoint->setMarginalized(true);
 
-            // 『Local 共視關鍵幀所觀察到的地圖點』作為頂點加入優化
-            optimizer.addVertex(vPoint);
+        //     // 『Local 共視關鍵幀所觀察到的地圖點』作為頂點加入優化
+        //     optimizer.addVertex(vPoint);
 
-            // 和 list<KeyFrame *> lFixedCameras 區塊很相似，但前面區塊只取出關鍵幀而已
-            const map<KeyFrame *, size_t> observations = pMP->GetObservations();
+        //     // 和 list<KeyFrame *> lFixedCameras 區塊很相似，但前面區塊只取出關鍵幀而已
+        //     const map<KeyFrame *, size_t> observations = pMP->GetObservations();
 
-            // Set edges
-            for(pair<KeyFrame *, size_t> obs : observations)
-            {
-                KeyFrame *pKFi = obs.first;
+        //     // Set edges
+        //     for(pair<KeyFrame *, size_t> obs : observations)
+        //     {
+        //         KeyFrame *pKFi = obs.first;
 
-                if (!pKFi->isBad())
-                {
-                    size_t kp_idx = obs.second;
+        //         if (!pKFi->isBad())
+        //         {
+        //             size_t kp_idx = obs.second;
 
-                    // 根據索引值，取得已校正的關鍵點
-                    const cv::KeyPoint &kpUn = pKFi->mvKeysUn[kp_idx];
+        //             // 根據索引值，取得已校正的關鍵點
+        //             const cv::KeyPoint &kpUn = pKFi->mvKeysUn[kp_idx];
 
-                    // 單目的這個數值會是負的
-                    const float kp_ur = pKFi->mvuRight[kp_idx];
+        //             // 單目的這個數值會是負的
+        //             const float kp_ur = pKFi->mvuRight[kp_idx];
 
-                    const float &invSigma2 = pKFi->mvInvLevelSigma2[kpUn.octave];
+        //             const float &invSigma2 = pKFi->mvInvLevelSigma2[kpUn.octave];
 
-                    // Monocular observation
-                    if (kp_ur < 0)
-                    {
-                        e = addEdgeSE3ProjectXYZ(optimizer, kpUn, pKFi, id, pKFi->mnId, false);
+        //             // Monocular observation
+        //             if (kp_ur < 0)
+        //             {
+        //                 e = addEdgeSE3ProjectXYZ(optimizer, kpUn, pKFi, id, pKFi->mnId, false);
 
-                        vpEdgesMono.push_back(e);
-                        vpEdgeKFMono.push_back(pKFi);
-                        vpMapPointEdgeMono.push_back(pMP);
-                    }
+        //                 vpEdgesMono.push_back(e);
+        //                 vpEdgeKFMono.push_back(pKFi);
+        //                 vpMapPointEdgeMono.push_back(pMP);
+        //             }
 
-                    // Stereo observation（非單目，暫時跳過）
-                    else 
-                    {
-                        e_stereo = addEdgeStereoSE3ProjectXYZ(optimizer, kpUn, pKF, kp_idx, 
-                                                              id, pKF->mnId, false);
+        //             // Stereo observation（非單目，暫時跳過）
+        //             else 
+        //             {
+        //                 e_stereo = addEdgeStereoSE3ProjectXYZ(optimizer, kpUn, pKF, kp_idx, 
+        //                                                       id, pKF->mnId, false);
                                                               
-                        vpEdgesStereo.push_back(e_stereo);
-                        vpEdgeKFStereo.push_back(pKFi);
-                        vpMapPointEdgeStereo.push_back(pMP);
-                    }
-                }            
-            }
-        }
+        //                 vpEdgesStereo.push_back(e_stereo);
+        //                 vpEdgeKFStereo.push_back(pKFi);
+        //                 vpMapPointEdgeStereo.push_back(pMP);
+        //             }
+        //         }            
+        //     }
+        // }
         // ================================================================================
 
         if (pbStopFlag)
@@ -562,29 +562,29 @@ namespace ORB_SLAM2
         {
             // ================================================================================
             // ================================================================================
-            // filterMonoLocalMapPoints(vpEdgesMono, vpMapPointEdgeMono);
+            filterMonoLocalMapPoints(vpEdgesMono, vpMapPointEdgeMono);
 
-            // Check inlier observations
-            for (size_t i = 0, iend = vpEdgesMono.size(); i < iend; i++)
-            {
-                pMP = vpMapPointEdgeMono[i];
+            // // Check inlier observations
+            // for (size_t i = 0, iend = vpEdgesMono.size(); i < iend; i++)
+            // {
+            //     pMP = vpMapPointEdgeMono[i];
 
-                if (pMP->isBad()){
-                    continue;
-                }
+            //     if (pMP->isBad()){
+            //         continue;
+            //     }
 
-                e = vpEdgesMono[i];                
+            //     e = vpEdgesMono[i];                
 
-                // 『誤差較大』或『深度不為正』的邊
-                if (e->chi2() > 5.991 || !e->isDepthPositive())
-                {
-                    // 再次納入優化
-                    e->setLevel(1);
-                }
+            //     // 『誤差較大』或『深度不為正』的邊
+            //     if (e->chi2() > 5.991 || !e->isDepthPositive())
+            //     {
+            //         // 再次納入優化
+            //         e->setLevel(1);
+            //     }
 
-                // 不使用 RobustKernel
-                e->setRobustKernel(0);
-            }
+            //     // 不使用 RobustKernel
+            //     e->setRobustKernel(0);
+            // }
             // ================================================================================
             
             
@@ -593,26 +593,26 @@ namespace ORB_SLAM2
 
             // ================================================================================
             // ================================================================================
-            // filterStereoLocalMapPoints(vpEdgesStereo, vpMapPointEdgeStereo);
+            filterStereoLocalMapPoints(vpEdgesStereo, vpMapPointEdgeStereo);
 
-            // 和單目無關，暫時跳過
-            for (size_t i = 0, iend = vpEdgesStereo.size(); i < iend; i++)
-            {
-                pMP = vpMapPointEdgeStereo[i];
+            // // 和單目無關，暫時跳過
+            // for (size_t i = 0, iend = vpEdgesStereo.size(); i < iend; i++)
+            // {
+            //     pMP = vpMapPointEdgeStereo[i];
 
-                if (pMP->isBad()){
-                    continue;
-                }
+            //     if (pMP->isBad()){
+            //         continue;
+            //     }
 
-                e_stereo = vpEdgesStereo[i];
+            //     e_stereo = vpEdgesStereo[i];
                 
-                if (e_stereo->chi2() > 7.815 || !e_stereo->isDepthPositive())
-                {
-                    e_stereo->setLevel(1);
-                }
+            //     if (e_stereo->chi2() > 7.815 || !e_stereo->isDepthPositive())
+            //     {
+            //         e_stereo->setLevel(1);
+            //     }
 
-                e_stereo->setRobustKernel(0);
-            }
+            //     e_stereo->setRobustKernel(0);
+            // }
             // ================================================================================
 
             // Optimize again without the outliers
@@ -633,27 +633,27 @@ namespace ORB_SLAM2
 
         // ================================================================================
         // ================================================================================
-        // markEarseMono(vToErase, vpMapPointEdgeMono, vpEdgesMono, vpEdgeKFMono);
+        markEarseMono(vToErase, vpMapPointEdgeMono, vpEdgesMono, vpEdgeKFMono);
 
-        // Check inlier observations
-        for (size_t i = 0, iend = vpEdgesMono.size(); i < iend; i++)
-        {
-            e = vpEdgesMono[i];
-            pMP = vpMapPointEdgeMono[i];
+        // // Check inlier observations
+        // for (size_t i = 0, iend = vpEdgesMono.size(); i < iend; i++)
+        // {
+        //     e = vpEdgesMono[i];
+        //     pMP = vpMapPointEdgeMono[i];
 
-            if (pMP->isBad()){
-                continue;
-            }
+        //     if (pMP->isBad()){
+        //         continue;
+        //     }
 
-            // 『誤差較大』或『深度不為正』的邊
-            if (e->chi2() > 5.991 || !e->isDepthPositive())
-            {
-                KeyFrame *pKFi = vpEdgeKFMono[i];
+        //     // 『誤差較大』或『深度不為正』的邊
+        //     if (e->chi2() > 5.991 || !e->isDepthPositive())
+        //     {
+        //         KeyFrame *pKFi = vpEdgeKFMono[i];
 
-                // 標注為要移除的 (KeyFrame, MapPoint)
-                vToErase.push_back(make_pair(pKFi, pMP));
-            }
-        }
+        //         // 標注為要移除的 (KeyFrame, MapPoint)
+        //         vToErase.push_back(make_pair(pKFi, pMP));
+        //     }
+        // }
         // ================================================================================
 
 
@@ -662,24 +662,24 @@ namespace ORB_SLAM2
 
         // ================================================================================
         // ================================================================================
-        // markEarseStereo(vToErase, vpMapPointEdgeStereo, vpEdgesStereo, vpEdgeKFStereo);
+        markEarseStereo(vToErase, vpMapPointEdgeStereo, vpEdgesStereo, vpEdgeKFStereo);
 
-        // 和單目無關，暫時跳過
-        for (size_t i = 0, iend = vpEdgesStereo.size(); i < iend; i++)
-        {
-            e_stereo = vpEdgesStereo[i];
-            pMP = vpMapPointEdgeStereo[i];
+        // // 和單目無關，暫時跳過
+        // for (size_t i = 0, iend = vpEdgesStereo.size(); i < iend; i++)
+        // {
+        //     e_stereo = vpEdgesStereo[i];
+        //     pMP = vpMapPointEdgeStereo[i];
 
-            if (pMP->isBad()){
-                continue;
-            }
+        //     if (pMP->isBad()){
+        //         continue;
+        //     }
 
-            if (e_stereo->chi2() > 7.815 || !e_stereo->isDepthPositive())
-            {
-                KeyFrame *pKFi = vpEdgeKFStereo[i];
-                vToErase.push_back(make_pair(pKFi, pMP));
-            }
-        }
+        //     if (e_stereo->chi2() > 7.815 || !e_stereo->isDepthPositive())
+        //     {
+        //         KeyFrame *pKFi = vpEdgeKFStereo[i];
+        //         vToErase.push_back(make_pair(pKFi, pMP));
+        //     }
+        // }
         // ================================================================================
 
         // Get Map Mutex
@@ -690,19 +690,19 @@ namespace ORB_SLAM2
         {
             // ================================================================================
             // ================================================================================
-            // executeEarsing(vToErase);
-            for(pair<KeyFrame *, MapPoint *> to_earse : vToErase)
-            {                
-                KeyFrame *pKFi = to_earse.first;
-                pMP = to_earse.second;
+            executeEarsing(vToErase);
+            // for(pair<KeyFrame *, MapPoint *> to_earse : vToErase)
+            // {                
+            //     KeyFrame *pKFi = to_earse.first;
+            //     pMP = to_earse.second;
 
-                // 從當前關鍵幀觀察到的地圖點當中移除『地圖點 pMPi』，表示其實沒有觀察到
-                pKFi->EraseMapPointMatch(pMP);  
+            //     // 從當前關鍵幀觀察到的地圖點當中移除『地圖點 pMPi』，表示其實沒有觀察到
+            //     pKFi->EraseMapPointMatch(pMP);  
 
-                // 移除『關鍵幀 pKFi』，更新關鍵幀的計數，若『觀察到這個地圖點的關鍵幀』太少（少於 3 個），
-                // 則將地圖點與關鍵幀等全部移除
-                pMP->EraseObservation(pKFi);
-            }
+            //     // 移除『關鍵幀 pKFi』，更新關鍵幀的計數，若『觀察到這個地圖點的關鍵幀』太少（少於 3 個），
+            //     // 則將地圖點與關鍵幀等全部移除
+            //     pMP->EraseObservation(pKFi);
+            // }
             // ================================================================================
         }
 
@@ -1913,7 +1913,7 @@ namespace ORB_SLAM2
         }
     }
 
-    void Optimizer::extractLocalKeyFrames(list<MapPoint *> &lLocalMapPoints,
+    void Optimizer::extractLocalMapPoints(list<MapPoint *> &lLocalMapPoints,
                                           const list<KeyFrame *> &lLocalKeyFrames, const KeyFrame *pKF)
     {
         vector<MapPoint *> vpMPs;
@@ -2108,32 +2108,6 @@ namespace ORB_SLAM2
         }
     }
 
-    void Optimizer::filterStereoLocalMapPoints(vector<g2o::EdgeStereoSE3ProjectXYZ *> &vpEdgesStereo,
-                                      vector<MapPoint *> &vpMapPointEdgeStereo)
-    {
-        g2o::EdgeStereoSE3ProjectXYZ *e_stereo;
-        MapPoint *pMP;
-
-        // 和單目無關，暫時跳過
-        for (size_t i = 0, iend = vpEdgesStereo.size(); i < iend; i++)
-        {
-            pMP = vpMapPointEdgeStereo[i];
-
-            if (pMP->isBad()){
-                continue;
-            }
-
-            e_stereo = vpEdgesStereo[i];
-            
-            if (e_stereo->chi2() > 7.815 || !e_stereo->isDepthPositive())
-            {
-                e_stereo->setLevel(1);
-            }
-
-            e_stereo->setRobustKernel(0);
-        }
-    }
-
     void Optimizer::markEarseMono(vector<pair<KeyFrame *, MapPoint *>> &vToErase,
                                   vector<MapPoint *> &vpMapPointEdgeMono,
                                   vector<g2o::EdgeSE3ProjectXYZ *> &vpEdgesMono,
@@ -2161,35 +2135,6 @@ namespace ORB_SLAM2
                 kf = vpEdgeKFMono[i];
 
                 // 標注為要移除的 (KeyFrame, MapPoint)
-                vToErase.push_back(make_pair(kf, mp));
-            }
-        }
-    }
-
-    void Optimizer::markEarseStereo(vector<pair<KeyFrame *, MapPoint *>> &vToErase,
-                                      vector<MapPoint *> &vpMapPointEdgeStereo,
-                                      vector<g2o::EdgeStereoSE3ProjectXYZ *> &vpEdgesStereo,
-                                      vector<KeyFrame *> &vpEdgeKFStereo)
-    {
-        g2o::EdgeStereoSE3ProjectXYZ *e_stereo;
-        MapPoint *mp;
-        KeyFrame *kf;
-
-        // 和單目無關，暫時跳過
-        for (size_t i = 0, iend = vpEdgesStereo.size(); i < iend; i++)
-        {
-            mp = vpMapPointEdgeStereo[i];
-
-            if (mp->isBad()){
-                continue;
-            }
-
-            // vector<g2o::EdgeStereoSE3ProjectXYZ *> vpEdgesStere
-            e_stereo = vpEdgesStereo[i];            
-
-            if (e_stereo->chi2() > 7.815 || !e_stereo->isDepthPositive())
-            {
-                kf = vpEdgeKFStereo[i];
                 vToErase.push_back(make_pair(kf, mp));
             }
         }
@@ -3098,6 +3043,63 @@ namespace ORB_SLAM2
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================
+
+    void Optimizer::filterStereoLocalMapPoints(vector<g2o::EdgeStereoSE3ProjectXYZ *> &vpEdgesStereo,
+                                      vector<MapPoint *> &vpMapPointEdgeStereo)
+    {
+        g2o::EdgeStereoSE3ProjectXYZ *e_stereo;
+        MapPoint *pMP;
+
+        // 和單目無關，暫時跳過
+        for (size_t i = 0, iend = vpEdgesStereo.size(); i < iend; i++)
+        {
+            pMP = vpMapPointEdgeStereo[i];
+
+            if (pMP->isBad()){
+                continue;
+            }
+
+            e_stereo = vpEdgesStereo[i];
+            
+            if (e_stereo->chi2() > 7.815 || !e_stereo->isDepthPositive())
+            {
+                e_stereo->setLevel(1);
+            }
+
+            e_stereo->setRobustKernel(0);
+        }
+    }
+
+    void Optimizer::markEarseStereo(vector<pair<KeyFrame *, MapPoint *>> &vToErase,
+                                      vector<MapPoint *> &vpMapPointEdgeStereo,
+                                      vector<g2o::EdgeStereoSE3ProjectXYZ *> &vpEdgesStereo,
+                                      vector<KeyFrame *> &vpEdgeKFStereo)
+    {
+        g2o::EdgeStereoSE3ProjectXYZ *e_stereo;
+        MapPoint *mp;
+        KeyFrame *kf;
+
+        // 和單目無關，暫時跳過
+        for (size_t i = 0, iend = vpEdgesStereo.size(); i < iend; i++)
+        {
+            mp = vpMapPointEdgeStereo[i];
+
+            if (mp->isBad()){
+                continue;
+            }
+
+            // vector<g2o::EdgeStereoSE3ProjectXYZ *> vpEdgesStere
+            e_stereo = vpEdgesStereo[i];            
+
+            if (e_stereo->chi2() > 7.815 || !e_stereo->isDepthPositive())
+            {
+                kf = vpEdgeKFStereo[i];
+                vToErase.push_back(make_pair(kf, mp));
+            }
+        }
+    }
+
+        
 
     g2o::EdgeStereoSE3ProjectXYZ* Optimizer::addEdgeStereoSE3ProjectXYZ(g2o::SparseOptimizer &op, 
                                                                         const cv::KeyPoint kpUn, 
