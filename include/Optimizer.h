@@ -71,7 +71,7 @@ public:
     // ==================================================
 
     // **********
-    static inline void addKeyFramePoses(vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op,
+    static inline void addKeyFramePoses(const vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op,
                                         long unsigned int &maxKFid);
 
     static inline void addMapPoints(const vector<MapPoint *> &vpMP, g2o::SparseOptimizer &op,
