@@ -431,30 +431,21 @@ namespace ORB_SLAM2
 
         // Retrieve neighbor keyframes in covisibility graph
         // nn 是關聯幀數量，估計仍然是處於運行效率的考慮，通過它來設定了一個上限
-        int nn = 10;
-
         if (mbMonocular)
         {
-            nn = 20;
+            createMonoMapPointsByKeyFrame(20);
+        }
+        else
+        {
+            createStereoMapPointsByKeyFrame(10);
         }
 
-        // if (mbMonocular)
-        // {
-        //     // TODO: createMonoMapPointsByKeyFrame
-        // }
-        // else
-        // {
-        //     // TODO: createStereoMapPointsByKeyFrame
-        // }
-
 
 
 
 
         // ================================================================================
         // ================================================================================
-        createStereoMapPointsByKeyFrame(nn);
-
         // // GetBestCovisibilityKeyFrames：獲取臨接圖中的關聯幀
         // // 自『根據觀察到的地圖點數量排序的共視關鍵幀』當中返回至多 nn（對單目而言是 20） 個共視關鍵幀
         // const vector<KeyFrame *> vpNeighKFs = mpCurrentKeyFrame->GetBestCovisibilityKeyFrames(nn);
@@ -1179,9 +1170,110 @@ namespace ORB_SLAM2
     // 自行封裝函式 
     // ==================================================
 
-    void LocalMapping::createMonoMapPointsByKeyFrame()
+    void LocalMapping::createMonoMapPointsByKeyFrame(const int nn)
     {
+        KeyFrame *pKF2;
+        cv::Mat Ow2, vBaseline, F12, Rcw2, Rwc2, tcw2;
+        vector<pair<size_t, size_t>> vMatchedIndices;
+
+        // GetBestCovisibilityKeyFrames：獲取臨接圖中的關聯幀
+        // 自『根據觀察到的地圖點數量排序的共視關鍵幀』當中返回至多 nn（對單目而言是 20） 個共視關鍵幀
+        const vector<KeyFrame *> vpNeighKFs = mpCurrentKeyFrame->GetBestCovisibilityKeyFrames(nn);
+
+        ORBmatcher matcher(0.6, false);
+
+        // 計數器 nnew 用於對新建的地圖點計數
+        int nnew = 0;
+
+        // 取得相機內參 fx1, fy1 ……
+        const float &fx1 = mpCurrentKeyFrame->fx;
+        const float &fy1 = mpCurrentKeyFrame->fy;
+        const float &cx1 = mpCurrentKeyFrame->cx;
+        const float &cy1 = mpCurrentKeyFrame->cy;
+        const float &invfx1 = mpCurrentKeyFrame->invfx;
+        const float &invfy1 = mpCurrentKeyFrame->invfy;
+
+        cv::Mat Rcw1 = mpCurrentKeyFrame->GetRotation();
+        cv::Mat Rwc1 = Rcw1.t();
+        cv::Mat tcw1 = mpCurrentKeyFrame->GetTranslation();
         
+        // 獲取當前幀的位姿 Tcw1
+        cv::Mat Tcw1(3, 4, CV_32F);
+        Rcw1.copyTo(Tcw1.colRange(0, 3));
+        tcw1.copyTo(Tcw1.col(3));
+
+        // 相機中心坐標 Ow1
+        cv::Mat Ow1 = mpCurrentKeyFrame->GetCameraCenter();
+
+        // ratioFactor 是一個比例因子，用於篩選尺度一致性
+        // 根據當前關鍵幀的尺度因子，計算 ratioFactor ，它將用於根據尺度一致性來判定新建的地圖點是否合理
+        const float ratioFactor = 1.5f * mpCurrentKeyFrame->mfScaleFactor;
+
+        // Search matches with epipolar restriction and triangulate
+        // 遍歷『根據觀察到的地圖點數量排序的共視關鍵幀』（對單目而言有 20 幀）
+        for (size_t i = 0; i < vpNeighKFs.size(); i++)
+        {
+            // 1. 至少與一個關鍵幀配合，三角化能夠與之匹配的 ORB 特征點，構建新的地圖點。
+            // 2. 如果有新的關鍵幀插入了，為了計算效率，就不再繼續與其它關鍵幀進行匹配三角化了。
+            // ＝ hasNewKeyFrames：檢查『新關鍵幀容器 mlNewKeyFrames』是否不為空
+            if (i > 0 && hasNewKeyFrames())
+            {
+                return;
+            }
+
+            // 第 i 個共視關鍵幀
+            pKF2 = vpNeighKFs[i];
+
+            // Check first that baseline is not too short
+            // 獲取臨接關鍵幀的相機中心坐標
+            Ow2 = pKF2->GetCameraCenter();
+
+            // 兩相機之間的距離，為計算視差時的基線
+            vBaseline = Ow2 - Ow1;
+
+            // 計算基線長度
+            const float baseline = cv::norm(vBaseline);
+
+            // 取得當前關鍵幀的座標系之下，關鍵幀觀察到的所有地圖點的深度中位數（當 q = 2）
+            const float medianDepthKF2 = pKF2->ComputeSceneMedianDepth(2);
+
+            // 計算『基線：深度』比例值
+            const float ratioBaselineDepth = baseline / medianDepthKF2;
+
+            // 若視差相對於深度太短，則跳過
+            if (ratioBaselineDepth < 0.01){
+                continue;
+            }
+
+            // Compute Fundamental Matrix
+            // 計算『基礎矩陣(Fundamental Matrix)』
+            F12 = ComputeF12(mpCurrentKeyFrame, pKF2);
+
+            // Search matches that fullfil epipolar constraint
+            vMatchedIndices.clear();
+
+            /* 進行特征點匹配。匹配的特征點對在兩個關鍵幀中的索引被保存在容器 vMatchedIndices 中，
+            匹配器的接口 SearchForTriangulation 還會對匹配的特征點進行篩選，只保留那些滿足對極約束的點對。*/
+            // 兩幀之間形成配對的各自地圖點索引值，（『關鍵幀 pKF1』的地圖點索引值，『關鍵幀 pKF2』的地圖點索引值），
+            // 存入 vMatchedIndices
+            matcher.SearchForTriangulation(mpCurrentKeyFrame, pKF2, F12, vMatchedIndices, false);
+
+            // 獲取『共視關鍵幀 pKF2』的位姿(Tcw2)和相機內參(fx2,fy2 ……)
+            Rcw2 = pKF2->GetRotation();
+            Rwc2 = Rcw2.t();
+            tcw2 = pKF2->GetTranslation();
+
+            cv::Mat Tcw2(3, 4, CV_32F);
+            Rcw2.copyTo(Tcw2.colRange(0, 3));
+            tcw2.copyTo(Tcw2.col(3));
+
+            createMonoMapPointsByKeyPoints(vMatchedIndices, pKF2, nnew, fx1, fy1, cx1, cy1,
+                                           invfx1, invfy1,
+                                           pKF2->fx, pKF2->fy, pKF2->cx, pKF2->cy,
+                                           pKF2->invfx, pKF2->invfy,
+                                           Rcw1, Rwc1, Rcw2, Rwc2, tcw1, tcw2, Tcw1, Tcw2,
+                                           Ow1, Ow2, ratioFactor);
+        }
     }
 
     void LocalMapping::createStereoMapPointsByKeyFrame(const int nn)
@@ -1299,12 +1391,217 @@ namespace ORB_SLAM2
                                              pKF2->fx, pKF2->fy, pKF2->cx, pKF2->cy, 
                                              pKF2->invfx, pKF2->invfy, 
                                              Rcw1, Rwc1, Rcw2, Rwc2, tcw1, tcw2, Tcw1, Tcw2, 
-                                             Ow1, Ow2, ratioFactor);
-        
+                                             Ow1, Ow2, ratioFactor); 
         }
     }
 
-    void LocalMapping::createMonoMapPointsByKeyPoints(){}
+    void LocalMapping::createMonoMapPointsByKeyPoints(vector<pair<size_t, size_t>> &vMatchedIndices,
+                                                      KeyFrame *pKF2, int &nnew,
+                                                      const float fx1, const float fy1,
+                                                      const float cx1, const float cy1,
+                                                      const float invfx1, const float invfy1,
+                                                      const float fx2, const float fy2,
+                                                      const float cx2, const float cy2,
+                                                      const float invfx2, const float invfy2,
+                                                      const cv::Mat Rcw1, const cv::Mat Rwc1,
+                                                      const cv::Mat Rcw2, const cv::Mat Rwc2,
+                                                      const cv::Mat tcw1, const cv::Mat tcw2,
+                                                      const cv::Mat Tcw1, const cv::Mat Tcw2,
+                                                      const cv::Mat Ow1, const cv::Mat Ow2,
+                                                      const float ratioFactor)
+    {
+        cv::Mat xn1, xn2, ray1, ray2, x3D, x3Dt, normal1, normal2, pos1, pos2;            
+        float z1, z2, u1, v1, errX1, errY1, u2, v2, errX2, errY2;
+        float dist1, dist2, error;
+        MapPoint *pMP;
+
+        // 遍歷所有的匹配點對，並分別進行三角化構建地圖點
+        for(pair<size_t, size_t> matched_indice : vMatchedIndices)
+        {
+            // 獲取匹配點對在兩幀中的索引，保存在 idx1 和 idx2 中。
+            const int &idx1 = matched_indice.first;
+            const int &idx2 = matched_indice.second;
+            
+            // 根據這兩個索引值分別獲取『關鍵幀 mpCurrentKeyFrame』和『共視關鍵幀 pKF2』上的特徵點 kp1, kp2
+            const cv::KeyPoint &kp1 = mpCurrentKeyFrame->mvKeysUn[idx1];
+            const cv::KeyPoint &kp2 = pKF2->mvKeysUn[idx2];
+
+            // ==================================================
+            // 根據針孔相機模型將『像素坐標』轉換為『歸一化平面坐標』，並計算視差角的餘弦值。
+            // ==================================================
+            // Check parallax between rays                
+            xn1 = (cv::Mat_<float>(3, 1) << 
+                                    (kp1.pt.x - cx1) * invfx1, (kp1.pt.y - cy1) * invfy1, 1.0);
+            xn2 = (cv::Mat_<float>(3, 1) << 
+                                    (kp2.pt.x - cx2) * invfx2, (kp2.pt.y - cy2) * invfy2, 1.0);
+
+            // Rwc 將相機座標轉換到世界座標下，ray 為世界座標原點指向特徵點的向量（同時也是它們在世界座標下的座標）
+            ray1 = Rwc1 * xn1;
+            ray2 = Rwc2 * xn2;
+
+            // 計算兩向量餘弦值
+            const float cosParallaxRays = ray1.dot(ray2) / (cv::norm(ray1) * cv::norm(ray2));
+            // 如果餘弦值為負數，意味著視差角超過了 90 度。在短時間內出現這種情況的可能性很小，一般都是算錯了，
+            // 出現了誤匹配才會发生的。餘弦值接近 1，意味著視差角太小，這樣的數據進行三角化容易產生較大的計算誤差。
+            // 所以 ORB-SLAM2 只在有足夠大的視差角的情況下對匹配特征點進行三角化。
+            // ==================================================
+
+            // 0 < cosParallaxRays < 0.9998 表示『角度沒超過 90 度（不是誤比對）』，
+            // 也『沒有因視差過小而導致餘弦值很接近 1』
+            if (cosParallaxRays > 0 && cosParallaxRays < 0.9998)
+            {
+                // Linear Triangulation Method
+                cv::Mat A(4, 4, CV_32F);
+                A.row(0) = xn1.at<float>(0) * Tcw1.row(2) - Tcw1.row(0);
+                A.row(1) = xn1.at<float>(1) * Tcw1.row(2) - Tcw1.row(1);
+                A.row(2) = xn2.at<float>(0) * Tcw2.row(2) - Tcw2.row(0);
+                A.row(3) = xn2.at<float>(1) * Tcw2.row(2) - Tcw2.row(1);
+
+                cv::Mat w, u, vt;
+                cv::SVD::compute(A, w, u, vt, cv::SVD::MODIFY_A | cv::SVD::FULL_UV);
+
+                x3D = vt.row(3).t();
+
+                if (x3D.at<float>(3) == 0){
+                    continue;
+                }
+
+                // Euclidean coordinates
+                // 得到特征點在世界坐標下的估計之後，三角化的工作就完成了
+                x3D = x3D.rowRange(0, 3) / x3D.at<float>(3);
+            }
+            else{
+                // No stereo and very low parallax
+                continue; 
+            }
+
+            // ==================================================
+            // ORB-SLAM2 還是對三角化後的地圖點進一步的篩選了一下。首先三角化的點一定在兩幀相機的前方
+            // ==================================================
+            x3Dt = x3D.t();
+
+            // Check triangulation in front of cameras
+            z1 = Rcw1.row(2).dot(x3Dt) + tcw1.at<float>(2);
+
+            if (z1 <= 0){
+                continue;
+            }
+
+            z2 = Rcw2.row(2).dot(x3Dt) + tcw2.at<float>(2);
+
+            if (z2 <= 0){
+                continue;
+            }
+            // ==================================================
+
+            // ==================================================
+            // 計算三角化後的地圖點在兩幀圖像中的重投影誤差，剔除那些誤差較大的點
+            // ==================================================
+            //Check reprojection error in first keyframe
+            const float &sigmaSquare1 = mpCurrentKeyFrame->mvLevelSigma2[kp1.octave];
+
+            // 計算特徵點在空間中的位置
+            const float x1 = Rcw1.row(0).dot(x3Dt) + tcw1.at<float>(0);
+            const float y1 = Rcw1.row(1).dot(x3Dt) + tcw1.at<float>(1);
+            const float invz1 = 1.0 / z1;
+
+            // 計算像素座標
+            u1 = fx1 * x1 * invz1 + cx1;
+            v1 = fy1 * y1 * invz1 + cy1;
+
+            // 計算重投影誤差
+            errX1 = u1 - kp1.pt.x;
+            errY1 = v1 - kp1.pt.y;
+
+            // 重投影誤差過大則跳過
+            if ((errX1 * errX1 + errY1 * errY1) > 5.991 * sigmaSquare1){
+                continue;
+            }  
+            // ==================================================
+
+            //Check reprojection error in second keyframe
+            const float sigmaSquare2 = pKF2->mvLevelSigma2[kp2.octave];
+
+            // 計算特徵點在空間中的位置
+            const float x2 = Rcw2.row(0).dot(x3Dt) + tcw2.at<float>(0);
+            const float y2 = Rcw2.row(1).dot(x3Dt) + tcw2.at<float>(1);
+
+            const float invz2 = 1.0 / z2;
+
+            // 計算像素座標
+            u2 = fx2 * x2 * invz2 + cx2;
+            v2 = fy2 * y2 * invz2 + cy2;
+
+            // 計算重投影誤差
+            errX2 = u2 - kp2.pt.x;
+            errY2 = v2 - kp2.pt.y;
+
+            // 重投影誤差過大則跳過
+            if ((errX2 * errX2 + errY2 * errY2) > 5.991 * sigmaSquare2){
+                continue;
+            }
+            // ==================================================
+
+            // ==================================================
+            // 計算三角化後地圖點在兩幀圖像中的深度比例，以及兩幀圖像的尺度因子的比例關系，剔除那些差異較大的點。
+            // ==================================================
+            //Check scale consistency
+            // normal1 = x3D - Ow1;
+            dist1 = cv::norm(x3D - Ow1);
+
+            if (dist1 == 0){
+                continue;
+            }
+
+            // normal2 = x3D - Ow2;
+            dist2 = cv::norm(x3D - Ow2);
+
+            if (dist2 == 0){
+                continue;
+            }
+
+            const float ratioDist = dist2 / dist1;
+            const float ratioOctave = mpCurrentKeyFrame->mvScaleFactors[kp1.octave] / 
+                                                                pKF2->mvScaleFactors[kp2.octave];
+
+            if (ratioDist * ratioFactor < ratioOctave || ratioDist > ratioOctave * ratioFactor){
+                continue;
+            }
+            // ==================================================
+
+            // Triangulation is succesfull
+            // 如果成功進行了三角化，就會新建一個地圖點，並相應的更新關鍵幀與該地圖點之間的可視關系。
+            pMP = new MapPoint(x3D, mpCurrentKeyFrame, mpMap);
+
+            // 『地圖點 pMP』被『關鍵幀 mpCurrentKeyFrame』的第 idx1 個關鍵點所觀察到
+            pMP->AddObservation(mpCurrentKeyFrame, idx1);
+
+            // 『地圖點 pMP』同時也被『關鍵幀 pKF2』的第 idx2 個關鍵點所觀察到
+            pMP->AddObservation(pKF2, idx2);
+
+            // 『關鍵幀 mpCurrentKeyFrame』的第 idx1 個關鍵點觀察到了『地圖點 pMP』
+            mpCurrentKeyFrame->AddMapPoint(pMP, idx1);
+
+            // 『關鍵幀 mpCurrentKeyFrame』的第 idx1 個關鍵點觀察到了『地圖點 pMP』
+            pKF2->AddMapPoint(pMP, idx2);
+
+            // 以『所有描述地圖點 pMP 的描述子的集合』的中心描述子，作為『地圖點 pMP』的描述子
+            pMP->ComputeDistinctiveDescriptors();
+
+            // 利用所有觀察到『地圖點 pMP』的關鍵幀來估計關鍵幀們平均指向的方向，
+            // 以及該地圖點可能的深度範圍(最近與最遠)
+            pMP->UpdateNormalAndDepth();
+
+            // 將『地圖點 pMP』加入地圖進行管理
+            mpMap->AddMapPoint(pMP);
+
+            // 將『地圖點 pMP』列為近期加入的地圖點
+            mlpRecentAddedMapPoints.push_back(pMP);
+
+            // 通過一個計數器 nnew 來累計新建的地圖點數量。
+            nnew++;
+        }    
+    }
     
     void LocalMapping::createStereoMapPointsByKeyPoints(vector<pair<size_t, size_t>> &vMatchedIndices,
                                                         KeyFrame *pKF2, int &nnew,
@@ -1581,8 +1878,52 @@ namespace ORB_SLAM2
             // 通過一個計數器 nnew 來累計新建的地圖點數量。
             nnew++;
         }
+    
     }
 
+    float LocalMapping::reprojectError(const cv::Mat pos, const float kp_x, const float kp_y,
+                                       const float fx, const float fy, const float cx, const float cy)
+    {
+        // 計算特徵點在空間中的位置
+        const float x = pos.at<float>(0);
+        const float y = pos.at<float>(1);
+        const float z = pos.at<float>(2);
+        const float invz = 1.0 / z;
+
+        // 計算像素座標
+        const float u = fx * x / z + cx;
+        const float v = fy * y / z + cy;
+
+        // 計算重投影誤差
+        const float error_x = u - kp_x;
+        const float error_y = v - kp_y;
+
+        return (error_x * error_x + error_y * error_y);
+    }
+
+    float LocalMapping::reprojectError(const cv::Mat pos, const float kp_x, const float kp_y,
+                                       const float fx, const float fy, 
+                                       const float cx, const float cy, 
+                                       const float mbf, const float kp_r)
+    {
+        // 計算特徵點在空間中的位置
+        const float x = pos.at<float>(0);
+        const float y = pos.at<float>(1);
+        const float z = pos.at<float>(2);
+
+        // 計算像素座標
+        const float u = fx * x / z + cx;
+        const float v = fy * y / z + cy;
+        const float r = u - mbf / z;
+
+        // 計算重投影誤差
+        const float error_x = u - kp_x;
+        const float error_y = v - kp_y;
+        const float error_r = r - kp_r;
+
+        return (error_x * error_x + error_y * error_y + error_r * error_r);
+    }
+    
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================

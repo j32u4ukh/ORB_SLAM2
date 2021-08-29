@@ -49,6 +49,14 @@ Total time: 9:11.8239
 Median tracking time: 0.0673193
 Mean tracking time: 0.0710586
 
+>>> 有 1 ～ 2 處的丟失追蹤
+#KeyFrame: 560
+#MapPoint: 55475
+Total time: 8:37.2825
+Median tracking time: 0.0696505
+Mean tracking time: 0.0732216
+
+
 
 
 virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()

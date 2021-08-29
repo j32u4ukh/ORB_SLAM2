@@ -134,10 +134,23 @@ protected:
     
     std::mutex mMutexAccept;
 
-    inline void createMonoMapPointsByKeyFrame();
+    inline void createMonoMapPointsByKeyFrame(const int nn);
     inline void createStereoMapPointsByKeyFrame(const int nn);
 
-    inline void createMonoMapPointsByKeyPoints();
+    inline void createMonoMapPointsByKeyPoints(vector<pair<size_t, size_t>> &vMatchedIndices,
+                                               KeyFrame *pKF2, int &nnew,
+                                               const float fx1, const float fy1,
+                                               const float cx1, const float cy1,
+                                               const float invfx1, const float invfy1,
+                                               const float fx2, const float fy2,
+                                               const float cx2, const float cy2,
+                                               const float invfx2, const float invfy2,
+                                               const cv::Mat Rcw1, const cv::Mat Rwc1,
+                                               const cv::Mat Rcw2, const cv::Mat Rwc2,
+                                               const cv::Mat tcw1, const cv::Mat tcw2,
+                                               const cv::Mat Tcw1, const cv::Mat Tcw2,
+                                               const cv::Mat Ow1, const cv::Mat Ow2,
+                                               const float ratioFactor);
     inline void createStereoMapPointsByKeyPoints(vector<pair<size_t, size_t>> &vMatchedIndices,
                                                  KeyFrame *pKF2, int &nnew,
                                                  const float fx1, const float fy1,
@@ -152,6 +165,14 @@ protected:
                                                  const cv::Mat Tcw1, const cv::Mat Tcw2,
                                                  const cv::Mat Ow1, const cv::Mat Ow2,
                                                  const float ratioFactor);
+
+    inline float reprojectError(const cv::Mat pos, const float kp_x, const float kp_y,
+                                const float fx, const float fy, const float cx, const float cy);
+
+    inline float reprojectError(const cv::Mat pos, const float kp_x, const float kp_y,
+                                const float fx, const float fy,
+                                const float cx, const float cy,
+                                const float mbf, const float kp_r);
 };
 
 } //namespace ORB_SLAM

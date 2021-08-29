@@ -1626,7 +1626,7 @@ namespace ORB_SLAM2
             {
                 if (!pMP->isBad() && !sAlreadyFound.count(pMP))
                 {
-                    //Project
+                    // Project
                     x3Dw = pMP->GetWorldPos();
                     x3Dc = Rcw * x3Dw + tcw;
 
@@ -2052,12 +2052,12 @@ namespace ORB_SLAM2
     }
 
     // std::tuple<bool, float, float, float>{need_continue, u, v, ur}
-    std::tuple<float, float, float> ORBmatcher::getPixelCoordinatesStereo(cv::Mat sp3Dc, 
-                                                                                const float bf, 
-                                                                                const float fx, 
-                                                                                const float fy,
-                                                                                const float cx, 
-                                                                                const float cy)
+    std::tuple<float, float, float> ORBmatcher::getPixelCoordinatesStereo(cv::Mat sp3Dc,
+                                                                          const float bf,
+                                                                          const float fx,
+                                                                          const float fy,
+                                                                          const float cx,
+                                                                          const float cy)
     {
         // std::tuple<float, float, float>{u, v, invz}
         std::tuple<float, float, float> u_v_invz;
