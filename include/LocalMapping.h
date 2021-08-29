@@ -135,7 +135,7 @@ protected:
     std::mutex mMutexAccept;
 
     inline void createMonoMapPointsByKeyFrame();
-    inline void createStereoMapPointsByKeyFrame();
+    inline void createStereoMapPointsByKeyFrame(const int nn);
 
     inline void createMonoMapPointsByKeyPoints();
     inline void createStereoMapPointsByKeyPoints(vector<pair<size_t, size_t>> &vMatchedIndices,
