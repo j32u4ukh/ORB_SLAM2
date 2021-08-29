@@ -51,6 +51,7 @@ namespace ORB_SLAM2
         mnId = nNextId++;
     }
 
+    /// NOTE: 20210829
     // 若觀察到這個地圖點的關鍵幀太少，移除當前地圖點(若可以就直接將不好的點排除，不要一直判斷它好不好)
     bool MapPoint::isBad()
     {
@@ -59,6 +60,7 @@ namespace ORB_SLAM2
         return mbBad;
     }
     
+    /// NOTE: 20210829
     // 檢查是否已添加過『關鍵幀 pKF』到當前地圖點
     bool MapPoint::IsInKeyFrame(KeyFrame *pKF)
     {
@@ -68,6 +70,7 @@ namespace ORB_SLAM2
         return (mObservations.count(pKF));
     }
 
+    /// NOTE: 20210829
     // 地圖點被關鍵幀的第 idx 個關鍵點觀察到
     void MapPoint::AddObservation(KeyFrame *pKF, size_t idx)
     {
@@ -90,6 +93,7 @@ namespace ORB_SLAM2
         }
     }
 
+    /// NOTE: 20210829
     // 利用所有觀察到這個地圖點的關鍵幀來估計關鍵幀們平均指向的方向，以及該地圖點可能的深度範圍(最近與最遠)
     void MapPoint::UpdateNormalAndDepth()
     {
@@ -120,7 +124,7 @@ namespace ORB_SLAM2
 
         int n = 0;
         KeyFrame *pKF;
-        cv::Mat Owi, normali;
+        cv::Mat Owi, normal_i;
 
         for(pair<KeyFrame *, size_t> obs : observations)
         {
@@ -128,10 +132,11 @@ namespace ORB_SLAM2
             Owi = pKF->GetCameraCenter();
 
             // 相機中心 指向 地圖點 的向量
-            normali = mWorldPos - Owi;
+            /// TODO: normal_i = Pos - Owi; 避免和其他執行續同時修改 mWorldPos
+            normal_i = mWorldPos - Owi;
 
-            // normal 為正歸化後的 normali 的累加
-            normal = normal + normali / cv::norm(normali);
+            // normal 為正歸化後的 normal_i 的累加
+            normal = normal + normal_i / cv::norm(normal_i);
 
             n++;
         }
@@ -156,12 +161,11 @@ namespace ORB_SLAM2
         }
     }
 
+    /// NOTE: 20210829
     // 以『所有描述這個地圖點的描述子的集合』的中心描述子，作為地圖點的描述子
     void MapPoint::ComputeDistinctiveDescriptors()
     {
         // Retrieve all observed descriptors
-        vector<cv::Mat> vDescriptors;
-
         map<KeyFrame *, size_t> observations;
 
         {
@@ -180,7 +184,9 @@ namespace ORB_SLAM2
             return;
         }
 
+        vector<cv::Mat> vDescriptors;        
         vDescriptors.reserve(observations.size());
+
         KeyFrame *pKF;
 
         for(pair<KeyFrame *, size_t> obs : observations){

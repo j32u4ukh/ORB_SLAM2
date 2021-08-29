@@ -341,6 +341,31 @@ namespace ORB_SLAM2
                     // 並返回是否成功重定位
                     bOK = Relocalization();
                 }
+
+                mCurrentFrame.mpReferenceKF = mpReferenceKF;
+
+                /* If we have an initial estimation of the camera pose and matching. 
+                Track the local map.
+                通過勻速運動模型或者重定位，我們已經得到了相機位姿的初始估計，
+                同時找到了一個與當前幀初步匹配的地圖點集合。
+                此時，我們可以把地圖投影到當前幀上找到更多的匹配地圖點。進而再次優化相機的位姿，得到更為精準的估計。
+                為了限制這一搜索過程的覆雜度，ORB-SLAM 只對一個局部地圖進行投影。
+                這個局部地圖包含了兩個關鍵幀集合 K1、K2，
+                K1 中的關鍵幀都與當前幀有共視的地圖點，K2 則是 K1 的元素在共視圖中的臨接節點。*/
+
+                // 在建圖模式下，Tracking 根據局部變量 bOK 控制是否進行局部地圖的更新。
+                // 它反映了是否成功的估計了相機位姿，若沒有則意味著當前視覺里程計跟丟了，再進行局部地圖更新就沒有意義了。
+                if (bOK)
+                {
+                    /* 函數 TrackLocalMap 具體完成了局部地圖的更新以及相機位姿的進一步優化工作，
+                    它將返回一個布爾數據表示更新和優化工作是否成功。
+                    只有成功地完成了這一項任務，我們才能認為視覺里程計真正完成了位姿跟蹤的操作。
+                    
+                    找出當前幀的『共視關鍵幀』以及其『已配對地圖點』，確保這些地圖點至少被 1 個關鍵幀觀察到，
+                    且重投影後的內點足夠多
+                    */                    
+                    bOK = TrackLocalMap();
+                }
             }
 
             // 定位模式
@@ -416,33 +441,9 @@ namespace ORB_SLAM2
                         bOK = bOKReloc || bOKMM;
                     }
                 }
-            }
 
-            mCurrentFrame.mpReferenceKF = mpReferenceKF;
+                mCurrentFrame.mpReferenceKF = mpReferenceKF;
 
-            // If we have an initial estimation of the camera pose and matching. Track the local map.
-            /* 通過勻速運動模型或者重定位，我們已經得到了相機位姿的初始估計，同時找到了一個與當前幀初步匹配的地圖點集合。
-            此時，我們可以把地圖投影到當前幀上找到更多的匹配地圖點。進而再次優化相機的位姿，得到更為精準的估計。
-            為了限制這一搜索過程的覆雜度，ORB-SLAM 只對一個局部地圖進行投影。這個局部地圖包含了兩個關鍵幀集合 K1、K2，
-            K1 中的關鍵幀都與當前幀有共視的地圖點，K2 則是 K1 的元素在共視圖中的臨接節點。*/
-            if (!mbOnlyTracking)
-            {
-                // 在建圖模式下，Tracking 根據局部變量 bOK 控制是否進行局部地圖的更新。
-                // 它反映了是否成功的估計了相機位姿，若沒有則意味著當前視覺里程計跟丟了，再進行局部地圖更新就沒有意義了。
-                if (bOK)
-                {
-                    /* 函數 TrackLocalMap 具體完成了局部地圖的更新以及相機位姿的進一步優化工作，
-                    它將返回一個布爾數據表示更新和優化工作是否成功。
-                    只有成功地完成了這一項任務，我們才能認為視覺里程計真正完成了位姿跟蹤的操作。
-                    
-                    找出當前幀的『共視關鍵幀』以及其『已配對地圖點』，確保這些地圖點至少被 1 個關鍵幀觀察到，
-                    且重投影後的內點足夠多
-                    */                    
-                    bOK = TrackLocalMap();
-                }
-            }
-            else
-            {
                 // mbVO true means that there are few matches to MapPoints in the map.
                 // We cannot retrieve a local map and therefore we do not perform TrackLocalMap().
                 // Once the system relocalizes the camera we will use the local map again.
@@ -451,7 +452,7 @@ namespace ORB_SLAM2
                     bOK = TrackLocalMap();
                 }
             }
-
+            
             bool if_return = update(bOK);
 
             if(if_return)
@@ -1240,9 +1241,11 @@ namespace ORB_SLAM2
             // 如果位姿優化之後仍然能夠匹配到地圖點，就認為在該幀中找到了地圖點
             if (mCurrentFrame.mvpMapPoints[i])
             {
+                // 不是外點
                 if (!mCurrentFrame.mvbOutlier[i])
                 {
-                    // 相應的調用地圖點接口 increaseFoundNumber 增加 mnFound 計數（實際能觀察到該地圖點的特徵點數）。
+                    // 相應的調用地圖點接口 increaseFoundNumber 增加 mnFound 計數
+                    // （實際能觀察到該地圖點的特徵點數）。
                     mCurrentFrame.mvpMapPoints[i]->increaseFoundNumber();
 
                     // 純定位模式
@@ -1284,6 +1287,7 @@ namespace ORB_SLAM2
     }
 
     // 設置參考用地圖點，更新當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』，以及其『已配對地圖點』
+    // 更新 mvpLocalKeyFrames 和 mvpLocalMapPoints
     void Tracking::UpdateLocalMap()
     {
         /* 要更新的這個局部地圖包含了兩個關鍵幀集合 K1、K2，
@@ -1300,6 +1304,7 @@ namespace ORB_SLAM2
 
         // 搜索局部地圖中的地圖點
         // 更新當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』的『已配對地圖點』
+        // 根據 mvpLocalKeyFrames 更新 mvpLocalMapPoints
         UpdateLocalPoints();
     }
 
@@ -1330,6 +1335,8 @@ namespace ORB_SLAM2
                         keyframeCounter[obs.first]++;
                     }
                 }
+
+                // 將不佳的『地圖點 pMP』設置為空
                 else
                 {
                     mCurrentFrame.mvpMapPoints[i] = NULL;
@@ -1344,25 +1351,26 @@ namespace ORB_SLAM2
         }
 
         // 創建了臨時變量 pKFmax 和 max 用於記錄與當前幀具有最多共視地圖點的關鍵幀和共視地圖點數量
-        int max = 0;
-        KeyFrame *pKFmax = static_cast<KeyFrame *>(NULL);
+        int max = 0, counter;
+        KeyFrame *pKFmax = static_cast<KeyFrame *>(NULL), *pKF;
 
-        // 紀錄有觀察到相同點的關鍵幀
+        // 重置 mvpLocalKeyFrames
         mvpLocalKeyFrames.clear();
         mvpLocalKeyFrames.reserve(3 * keyframeCounter.size());
 
         // All keyframes that observe a map point are included in the local map.
         // Also check which keyframe shares most points
+        // 紀錄有觀察到相同點的關鍵幀（共視關鍵幀）
         // 遍歷局部 map 容器 keyframeCounter 中的所有關鍵幀，將之保存到成員容器 mvpLocalKeyFrames 中
         for(pair<KeyFrame *, int> kf_counter : keyframeCounter){
 
-            KeyFrame *pKF = kf_counter.first;
+            pKF = kf_counter.first;
 
             if (pKF->isBad()){
                 continue;
             }
 
-            int counter = kf_counter.second;
+            counter = kf_counter.second;
 
             // it->second：觀察到當前幀地圖點的次數
             // 更新觀察到最多次的關鍵幀，及其次數
@@ -1383,23 +1391,21 @@ namespace ORB_SLAM2
         // Include also some not-already-included keyframes that are neighbors to
         // already-included keyframes
         // 計算集合 K2，遍歷集合 K1 中的所有元素，獲取它們在共視圖中的臨接節點。
-        vector<KeyFrame *>::const_iterator itKF = mvpLocalKeyFrames.begin();
-        vector<KeyFrame *>::const_iterator itEndKF = mvpLocalKeyFrames.end();
-
+        vector<KeyFrame *>::const_iterator itKF, itEndKF = mvpLocalKeyFrames.end();
         KeyFrame *pParent;
 
         // 遍歷共視關鍵幀
-        for (; itKF != itEndKF; itKF++)
+        for (itKF = mvpLocalKeyFrames.begin(); itKF != itEndKF; itKF++)
         {
             // Limit the number of keyframes
             // 為了節約計算資源，ORB-SLAM2 將集合 K1、K2 中的關鍵幀數量限制在了 80 幀。
-            if (mvpLocalKeyFrames.size() > 80)
+            if (mvpLocalKeyFrames.size() == 80)
             {
                 break;
             }
 
             // 共視關鍵幀 pKF
-            KeyFrame *pKF = *itKF;
+            pKF = *itKF;
 
             // 獲取考察關鍵幀的共視圖臨接節點，在調用的時候為之傳遞了一個參數 10，表示獲取最多 10 個臨接關鍵幀
             // GetBestCovisibilityKeyFrames：根據觀察到的地圖點數量排序的共視關鍵幀
@@ -1466,7 +1472,7 @@ namespace ORB_SLAM2
         }
     }
 
-    // 更新當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』的『已配對地圖點』
+    // 更新當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』的『已配對地圖點』(更新 mvpLocalMapPoints)
     void Tracking::UpdateLocalPoints()
     {
         mvpLocalMapPoints.clear();
@@ -1504,20 +1510,22 @@ namespace ORB_SLAM2
     void Tracking::SearchLocalPoints()
     {
         // Do not search map points already matched
-        vector<MapPoint *>::iterator vit = mCurrentFrame.mvpMapPoints.begin();
-        vector<MapPoint *>::iterator vend = mCurrentFrame.mvpMapPoints.end();
+        vector<MapPoint *>::iterator vit, vend = mCurrentFrame.mvpMapPoints.end();
+        MapPoint *pMP;
         
         /* 遍歷了當前幀的所有地圖點，增加可視幀計數，同時更新其成員變量 mnLastFrameSeen。
         這些地圖點是位姿估計時得到的與當前幀匹配的地圖點，它們有可能出現在局部地圖關鍵幀集合 K1、K2 中。 
         由於它們已經是匹配的了，所以不再需要進行投影篩選了，因此更新其成員變量 mnLastFrameSeen。*/
-        for (; vit != vend; vit++)
+        for (vit = mCurrentFrame.mvpMapPoints.begin(); vit != vend; vit++)
         {
-            MapPoint *pMP = *vit;
+            pMP = *vit;
 
             if (pMP)
             {
                 if (pMP->isBad())
                 {
+                    // 智慧指標才有辦法作到，foreach 下的 MapPoint *pMP 無法使實際數據變為空，
+                    // 除非 mCurrentFrame.mvpMapPoints[i] = NULL
                     *vit = static_cast<MapPoint *>(NULL);
                 }
                 else
@@ -1534,14 +1542,14 @@ namespace ORB_SLAM2
 
         // Project points in frame and check its visibility
         // 對局部地圖中的地圖點進行投影篩選
-        for(MapPoint *pMP : mvpLocalMapPoints){
-
-            if (pMP->mnLastFrameSeen == mCurrentFrame.mnId)
+        for(MapPoint *local_mp : mvpLocalMapPoints)
+        {
+            if (local_mp->isBad())
             {
                 continue;
             }
 
-            if (pMP->isBad())
+            if (local_mp->mnLastFrameSeen == mCurrentFrame.mnId)
             {
                 continue;
             }
@@ -1550,9 +1558,9 @@ namespace ORB_SLAM2
             /* 通過當前幀的接口函數 isInFrustum 完成實際的投影篩選工作。
             這個函數有兩個參數，第一個參數就是待篩的地圖點指針，
             第二個參數則是拒絕待篩地圖點的視角余弦閾值，這里是 0.5 = cos60◦。*/
-            if (mCurrentFrame.isInFrustum(pMP, 0.5))
+            if (mCurrentFrame.isInFrustum(local_mp, 0.5))
             {
-                pMP->increaseVisibleEstimateNumber();
+                local_mp->increaseVisibleEstimateNumber();
                 nToMatch++;
             }
         }
@@ -1994,7 +2002,7 @@ namespace ORB_SLAM2
             for (lit = mlpTemporalPoints.begin(); lit != lend; lit++)
             {
                 /// TODO: 或許可改寫成 delete *lit;
-                MapPoint *pMP = *lit;
+                pMP = *lit;
                 delete pMP;
             }
 

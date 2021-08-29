@@ -2031,8 +2031,6 @@ namespace ORB_SLAM2
     int ORBmatcher::SearchByProjection(Frame &F, const vector<MapPoint *> &vpMapPoints, const float th)
     {
         int nmatches = 0, bestDist, bestLevel, bestDist2, bestLevel2, bestIdx;
-
-        // const bool bFactor = th != 1.0;
         MapPoint *pMP;
         float r;
 
@@ -2053,12 +2051,7 @@ namespace ORB_SLAM2
             // The size of the window will depend on the viewing direction
             r = th * RadiusByViewingCos(pMP->mTrackViewCos);
 
-            // if (bFactor){
-            //     r *= th;
-            // }
-
-            const vector<size_t> vIndices = 
-                                            F.GetFeaturesInArea(pMP->mTrackProjX,
+            const vector<size_t> vIndices = F.GetFeaturesInArea(pMP->mTrackProjX,
                                                                 pMP->mTrackProjY, 
                                                                 r * F.mvScaleFactors[nPredictedLevel], 
                                                                 nPredictedLevel - 1, 
@@ -2118,7 +2111,8 @@ namespace ORB_SLAM2
             // Apply ratio to second match (only if best and second are in the same scale level)
             if (bestDist <= TH_HIGH)
             {
-                if (bestLevel == bestLevel2 && bestDist > mfNNratio * bestDist2){
+                if (bestLevel == bestLevel2 && bestDist > mfNNratio * bestDist2)
+                {
                     continue;
                 }
 

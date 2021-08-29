@@ -34,6 +34,7 @@ namespace ORB_SLAM2
     {
     }
 
+    /// NOTE: 20210829
     // 將『關鍵幀 pKF』加到地圖的『關鍵幀陣列』中
     void Map::AddKeyFrame(KeyFrame *pKF)
     {

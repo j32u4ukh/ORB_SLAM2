@@ -113,6 +113,7 @@ namespace ORB_SLAM2
         Cw = Twc * center;
     }
 
+    /// NOTE: 20210829
     void KeyFrame::ComputeBoW()
     {
         if (mBowVec.empty() || mFeatVec.empty())
@@ -126,6 +127,7 @@ namespace ORB_SLAM2
         }
     }
 
+    /// NOTE: 20210829
     // 取得關鍵幀觀察到的地圖點
     vector<MapPoint *> KeyFrame::GetMapPointMatches()
     {
@@ -158,6 +160,7 @@ namespace ORB_SLAM2
         return mbBad;
     }
 
+    /// NOTE: 20210829
     // 其他關鍵幀和當前關鍵幀觀察到相同的地圖點，且各自都觀察到足夠多的地圖點，則會和當前幀產生鏈結
     void KeyFrame::UpdateConnections()
     {
@@ -216,10 +219,9 @@ namespace ORB_SLAM2
 
         //If the counter is greater than threshold add connection
         //In case no keyframe counter is over threshold add the one with maximum counter
-        int nmax = 0;
+        int nmax = 0, th = 15, count;;
         KeyFrame *pKFmax = NULL;
-        int th = 15, count;
-
+        
         vector<pair<int, KeyFrame *>> vPairs;
         vPairs.reserve(KFcounter.size());
 
@@ -255,6 +257,7 @@ namespace ORB_SLAM2
         list<KeyFrame *> lKFs;
         list<int> lWs;
 
+        // 將排序後的 vPairs 依序加入 lWs/lKFs
         for(pair<int, KeyFrame *> count_kf : vPairs)
         {
             // 將『關鍵幀觀察到的地圖點數量』加入 lWs 進行管理

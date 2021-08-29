@@ -262,7 +262,7 @@ namespace ORB_SLAM2
         mvbVO = vector<bool>(N, false);
         mvbMap = vector<bool>(N, false);
         mbOnlyTracking = pTracker->mbOnlyTracking;
-
+        
         // 第 2 幀時 pTracker->mLastProcessedState 才會是 Tracking::NOT_INITIALIZED
         if (pTracker->mLastProcessedState == Tracking::NOT_INITIALIZED)
         {
@@ -272,9 +272,11 @@ namespace ORB_SLAM2
         
         else if (pTracker->mLastProcessedState == Tracking::OK)
         {
+            MapPoint *pMP;
+
             for (int i = 0; i < N; i++)
             {
-                MapPoint *pMP = pTracker->mCurrentFrame.mvpMapPoints[i];
+                pMP = pTracker->mCurrentFrame.mvpMapPoints[i];
 
                 if (pMP)
                 {

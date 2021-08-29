@@ -412,8 +412,8 @@ namespace ORB_SLAM2
 
     // 判定一個地圖點是否會出現在但前相機的視野範圍內
     // pMP是待考察的地圖點指針
-    // viewingCosLimit是拒絕地圖點的視角余弦閾值，如果當前相機的視角方向v與地圖點的平均視角方向n夾角的余弦值小於該參數，
-    // 就認為地圖點不在相機的視野範圍內
+    // viewingCosLimit 為『是否拒絕地圖點的視角余弦』的閾值，如果當前相機的視角方向 v 與地圖點的平均視角方向 n 夾角的
+    // 余弦值小於該參數，就認為地圖點不在相機的視野範圍內
     bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
     {
         pMP->mbTrackInView = false;
@@ -430,8 +430,9 @@ namespace ORB_SLAM2
         const float &PcZ = Pc.at<float>(2);
 
         // Check positive depth
-        // 如果投影之後，地圖點的深度為負數，以為著該地圖點在相機的後面，拋棄之。
-        if (PcZ < 0.0f){
+        // 如果投影之後，地圖點的深度為負數，表示該地圖點在相機的後面，拋棄之。
+        if (PcZ < 0.0f)
+        {
             return false;
         }
 
@@ -441,11 +442,12 @@ namespace ORB_SLAM2
         // Project in image and check it is not outside
         const float invz = 1.0f / PcZ;
         const float u = fx * PcX * invz + cx;
-        const float v = fy * PcY * invz + cy;
-
+        
         if (u < mnMinX || u > mnMaxX){
             return false;
         }
+
+        const float v = fy * PcY * invz + cy;
             
         if (v < mnMinY || v > mnMaxY){
             return false;

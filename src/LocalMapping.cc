@@ -253,6 +253,7 @@ namespace ORB_SLAM2
         SetFinish();
     }
 
+    /// NOTE: 20210829
     // 檢查『新關鍵幀容器 mlNewKeyFrames』是否不為空（有關鍵幀）
     bool LocalMapping::hasNewKeyFrames()
     {
@@ -261,6 +262,7 @@ namespace ORB_SLAM2
         return (!mlNewKeyFrames.empty());
     }
 
+    /// NOTE: 20210829
     // 處理『關鍵幀 mpCurrentKeyFrame』和其他關鍵幀、地圖點、地圖之間的連結
     void LocalMapping::ProcessNewKeyFrame()
     {
@@ -285,8 +287,9 @@ namespace ORB_SLAM2
         // 用 vpMapPointMatches 儲存『關鍵幀 mpCurrentKeyFrame』觀察到的地圖點
         const vector<MapPoint *> vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
         MapPoint *pMP;
+        size_t i, len = vpMapPointMatches.size();
 
-        for (size_t i = 0; i < vpMapPointMatches.size(); i++)
+        for (i = 0; i < len; i++)
         {
             // 由於 vpMapPointMatches中 的每個元素都與關鍵幀中的每個特征點相對應，並不是所有的特征點都
             // 成功匹配到了一個地圖點，那些沒有匹配的特征點所對應的地圖點就是 NULL
@@ -335,6 +338,7 @@ namespace ORB_SLAM2
         mpMap->AddKeyFrame(mpCurrentKeyFrame);
     }
 
+    /// NOTE: 20210829
     // 遍歷所有新增的地圖點，通過多道篩選才繼續保留，否則標注為差並移除，存在過久也會被移除但不標注為差
     void LocalMapping::MapPointCulling()
     {
@@ -346,13 +350,6 @@ namespace ORB_SLAM2
         2. 創建了地圖點，並經過了兩幀關鍵幀之後，至少要有三個關鍵幀能夠觀測到該點。
         */
 
-        // Check Recent Added MapPoints
-        // 獲取了最近新增的地圖點集合的叠代器
-        list<MapPoint *>::iterator lit = mlpRecentAddedMapPoints.begin();
-
-        // 『關鍵幀 mpCurrentKeyFrame』的 ID
-        const unsigned long int nCurrentKFid = mpCurrentKeyFrame->mnId;
-
         int nThObs;
 
         // 根據單目相機還是深度相機設定一個閾值，用於篩選條件 2 的判定
@@ -363,13 +360,21 @@ namespace ORB_SLAM2
         else{
             nThObs = 3;
         }
-            
+
+        // Check Recent Added MapPoints
+        // 獲取了最近新增的地圖點集合的叠代器
+        list<MapPoint *>::iterator lit = mlpRecentAddedMapPoints.begin();
+
+        // 『關鍵幀 mpCurrentKeyFrame』的 ID
+        const unsigned long int nCurrentKFid = mpCurrentKeyFrame->mnId;
+
         const int cnThObs = nThObs;
+        MapPoint *pMP;
 
         // 遍歷所有新增的地圖點，通過多道篩選才繼續保留，否則標注為差並移除，存在過久也會被移除但不標注為差
         while (lit != mlpRecentAddedMapPoints.end())
         {
-            MapPoint *pMP = *lit;
+            pMP = *lit;
 
             // 如果地圖點的接口 isBad 返回 true 表示這個地圖點曾因為某種原因被認定為野點，將被拋棄掉
             if (pMP->isBad())
@@ -412,6 +417,7 @@ namespace ORB_SLAM2
         }
     }
 
+    /// NOTE: 20210829
     // 根據配對資訊，透過三角測量找出空間中的地圖點
     void LocalMapping::CreateNewMapPoints()
     {
@@ -854,6 +860,7 @@ namespace ORB_SLAM2
                 -v.at<float>(1),  v.at<float>(0),              0);
     }
 
+    /// NOTE: 20210829
     // 將『關鍵幀 mpCurrentKeyFrame』觀察到的地圖點與現有的融合，更新關鍵幀之間的共視關係與連結
     void LocalMapping::SearchInNeighbors()
     {
@@ -903,24 +910,22 @@ namespace ORB_SLAM2
         // 『關鍵幀 mpCurrentKeyFrame』觀察到的地圖點
         vector<MapPoint *> vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
 
-        for(KeyFrame *pKFi : vpTargetKFs){
-            // 『關鍵幀 pKFi』觀察到的地圖點和『現有地圖點』兩者的描述子距離很近，
-            // 保留被更多關鍵幀觀察到的一點取代另一點
-            /// TODO: 保留較新的一點，除非觀察到舊點的關鍵幀數量顯著多於新點
-            matcher.Fuse(pKFi, vpMapPointMatches);
-        }
-
         // Search matches by projection from target KFs in current KF
         // 共視關鍵幀所觀察到的地圖點
         vector<MapPoint *> vpFuseCandidates;
         vpFuseCandidates.reserve(vpTargetKFs.size() * vpMapPointMatches.size());
 
-        /// TODO: 檢視是否可以和上方的迴圈合併？都是 for(KeyFrame *pKFi : vpTargetKFs)
-        // 遍歷『關鍵幀 mpCurrentKeyFrame』的共視關鍵幀和『共視關鍵幀的共視關鍵幀』
-        for(KeyFrame *pKFi : vpTargetKFs)
-        {
+        vector<MapPoint *> vpMapPointsKFi;
+
+        for(KeyFrame *pKFi : vpTargetKFs){
+            // 『關鍵幀 pKFi』觀察到的地圖點和『現有地圖點』兩者的描述子距離很近，
+            // 保留被更多關鍵幀觀察到的一點取代另一點
+            /// TODO: 保留較新的一點，除非觀察到舊點的關鍵幀數量顯著多於新點
+            matcher.Fuse(pKFi, vpMapPointMatches);
+
+            // 遍歷『關鍵幀 mpCurrentKeyFrame』的共視關鍵幀和『共視關鍵幀的共視關鍵幀』
             // 取得『關鍵幀 pKFi』觀察到的地圖點
-            vector<MapPoint *> vpMapPointsKFi = pKFi->GetMapPointMatches();
+            vpMapPointsKFi = pKFi->GetMapPointMatches();
 
             for(MapPoint *pMP : vpMapPointsKFi)
             {
