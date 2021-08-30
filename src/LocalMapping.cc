@@ -874,7 +874,7 @@ namespace ORB_SLAM2
                 -v.at<float>(1),  v.at<float>(0),              0);
     }
 
-    /// NOTE: 20210829
+    /// NOTE: 20210830
     // 將『關鍵幀 mpCurrentKeyFrame』觀察到的地圖點與現有的融合，更新關鍵幀之間的共視關係與連結
     void LocalMapping::SearchInNeighbors()
     {
@@ -885,100 +885,125 @@ namespace ORB_SLAM2
             nn = 20;
         }
 
-        // 返回至多 nn(單目為 20) 個『關鍵幀 mpCurrentKeyFrame』的共視關鍵幀（根據觀察到的地圖點數量排序）
-        const vector<KeyFrame *> vpNeighKFs = mpCurrentKeyFrame->GetBestCovisibilityKeyFrames(nn);
-
         // 『關鍵幀 mpCurrentKeyFrame』的共視關鍵幀和『共視關鍵幀的共視關鍵幀』
         vector<KeyFrame *> vpTargetKFs;
 
-        // 遍歷『關鍵幀 mpCurrentKeyFrame』的共視關鍵幀
-        for(KeyFrame * pKFi : vpNeighKFs){
+        // ================================================================================
+        // ================================================================================
+        extractCovisibleKeyFrames(vpTargetKFs, nn);
 
-            /// NOTE: mnFuseTargetForKF 似乎是在避免重複當前環節用的變數
-            if (pKFi->isBad() || pKFi->mnFuseTargetForKF == mpCurrentKeyFrame->mnId){
-                continue;
-            }
+        // // 返回至多 nn(單目為 20) 個『關鍵幀 mpCurrentKeyFrame』的共視關鍵幀（根據觀察到的地圖點數量排序）
+        // const vector<KeyFrame *> vpNeighKFs = mpCurrentKeyFrame->GetBestCovisibilityKeyFrames(nn);
 
-            vpTargetKFs.push_back(pKFi);
-            pKFi->mnFuseTargetForKF = mpCurrentKeyFrame->mnId;
+        // // 遍歷『關鍵幀 mpCurrentKeyFrame』的共視關鍵幀
+        // for(KeyFrame * pKFi : vpNeighKFs){
 
-            // Extend to some second neighbors
-            // 返回至多 5 個『關鍵幀 pKFi』的共視關鍵幀（根據觀察到的地圖點數量排序）
-            // 對『關鍵幀 mpCurrentKeyFrame』而言就是共視的共視（自己和部份共視幀也被包含在此當中）
-            const vector<KeyFrame *> vpSecondNeighKFs = pKFi->GetBestCovisibilityKeyFrames(5);
+        //     /// NOTE: mnFuseTargetForKF 似乎是在避免重複當前環節用的變數
+        //     if (pKFi->isBad() || pKFi->mnFuseTargetForKF == mpCurrentKeyFrame->mnId){
+        //         continue;
+        //     }
 
-            for(KeyFrame *pKFi2 : vpSecondNeighKFs){
+        //     vpTargetKFs.push_back(pKFi);
+        //     pKFi->mnFuseTargetForKF = mpCurrentKeyFrame->mnId;
 
-                if (pKFi2->isBad() || pKFi2->mnFuseTargetForKF == mpCurrentKeyFrame->mnId || 
-                    pKFi2->mnId == mpCurrentKeyFrame->mnId){
-                    continue;
-                }
+        //     // Extend to some second neighbors
+        //     // 返回至多 5 個『關鍵幀 pKFi』的共視關鍵幀（根據觀察到的地圖點數量排序）
+        //     // 對『關鍵幀 mpCurrentKeyFrame』而言就是共視的共視（自己和部份共視幀也被包含在此當中）
+        //     const vector<KeyFrame *> vpSecondNeighKFs = pKFi->GetBestCovisibilityKeyFrames(5);
 
-                vpTargetKFs.push_back(pKFi2);
-            }
-        }
+        //     for(KeyFrame *pKFi2 : vpSecondNeighKFs){
+
+        //         if (pKFi2->isBad() || pKFi2->mnFuseTargetForKF == mpCurrentKeyFrame->mnId || 
+        //             pKFi2->mnId == mpCurrentKeyFrame->mnId){
+        //             continue;
+        //         }
+
+        //         vpTargetKFs.push_back(pKFi2);
+        //     }
+        // }
+        // ================================================================================
+
+
+
+        // ================================================================================
+        // ================================================================================
+        findFuseCandidateMapPoints(vpTargetKFs);
+
         
-        // Search matches by projection from current KF in target KFs
-        ORBmatcher matcher;
+        // // Search matches by projection from current KF in target KFs
+        // ORBmatcher matcher;
 
-        // 『關鍵幀 mpCurrentKeyFrame』觀察到的地圖點
-        vector<MapPoint *> vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
+        // // Search matches by projection from target KFs in current KF
+        // // 共視關鍵幀所觀察到的地圖點
+        // vector<MapPoint *> vpFuseCandidates;        
 
-        // Search matches by projection from target KFs in current KF
-        // 共視關鍵幀所觀察到的地圖點
-        vector<MapPoint *> vpFuseCandidates;
-        vpFuseCandidates.reserve(vpTargetKFs.size() * vpMapPointMatches.size());
+        // // 『關鍵幀 mpCurrentKeyFrame』觀察到的地圖點
+        // vector<MapPoint *> vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
 
-        vector<MapPoint *> vpMapPointsKFi;
+        // vpFuseCandidates.reserve(vpTargetKFs.size() * vpMapPointMatches.size());
 
-        for(KeyFrame *pKFi : vpTargetKFs){
-            // 『關鍵幀 pKFi』觀察到的地圖點和『現有地圖點』兩者的描述子距離很近，
-            // 保留被更多關鍵幀觀察到的一點取代另一點
-            /// TODO: 保留較新的一點，除非觀察到舊點的關鍵幀數量顯著多於新點
-            matcher.Fuse(pKFi, vpMapPointMatches);
+        // vector<MapPoint *> vpMapPointsKFi;
 
-            // 遍歷『關鍵幀 mpCurrentKeyFrame』的共視關鍵幀和『共視關鍵幀的共視關鍵幀』
-            // 取得『關鍵幀 pKFi』觀察到的地圖點
-            vpMapPointsKFi = pKFi->GetMapPointMatches();
+        // for(KeyFrame *pKFi : vpTargetKFs){
+        //     // 『關鍵幀 pKFi』觀察到的地圖點和『現有地圖點』兩者的描述子距離很近，
+        //     // 保留被更多關鍵幀觀察到的一點取代另一點
+        //     /// TODO: 保留較新的一點，除非觀察到舊點的關鍵幀數量顯著多於新點
+        //     matcher.Fuse(pKFi, vpMapPointMatches);
 
-            for(MapPoint *pMP : vpMapPointsKFi)
-            {
-                if (!pMP){
-                    continue;
-                }
+        //     // 遍歷『關鍵幀 mpCurrentKeyFrame』的共視關鍵幀和『共視關鍵幀的共視關鍵幀』
+        //     // 取得『關鍵幀 pKFi』觀察到的地圖點
+        //     vpMapPointsKFi = pKFi->GetMapPointMatches();
 
-                if (pMP->isBad() || pMP->mnFuseCandidateForKF == mpCurrentKeyFrame->mnId){
-                    continue;
-                }
+        //     for(MapPoint *pMP : vpMapPointsKFi)
+        //     {
+        //         if (!pMP){
+        //             continue;
+        //         }
 
-                pMP->mnFuseCandidateForKF = mpCurrentKeyFrame->mnId;
-                vpFuseCandidates.push_back(pMP);
-            }
-        }
+        //         if (pMP->isBad() || pMP->mnFuseCandidateForKF == mpCurrentKeyFrame->mnId){
+        //             continue;
+        //         }
+
+        //         pMP->mnFuseCandidateForKF = mpCurrentKeyFrame->mnId;
+        //         vpFuseCandidates.push_back(pMP);
+        //     }
+        // }
         
-        // 『關鍵幀 mpCurrentKeyFrame』觀察到的地圖點和『現有地圖點』兩者的描述子距離很近，
-        // 保留被更多關鍵幀觀察到的一點取代另一點
-        matcher.Fuse(mpCurrentKeyFrame, vpFuseCandidates);
+        // // 『關鍵幀 mpCurrentKeyFrame』觀察到的地圖點和『現有地圖點』兩者的描述子距離很近，
+        // // 保留被更多關鍵幀觀察到的一點取代另一點
+        // matcher.Fuse(mpCurrentKeyFrame, vpFuseCandidates);
+        // ================================================================================
 
+
+
+
+        // ================================================================================
+        // ================================================================================
+        updateFuseMapPoints();
         // Update points
         // 更新後的『關鍵幀 mpCurrentKeyFrame』觀察到的地圖點
-        vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
+        // vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
 
-        for(MapPoint *pMP : vpMapPointMatches){
+        // for(MapPoint *pMP : vpMapPointMatches){
 
-            if (pMP)
-            {
-                if (!pMP->isBad())
-                {
-                    // 以『所有描述這個地圖點的描述子的集合』的中心描述子，作為地圖點的描述子
-                    pMP->ComputeDistinctiveDescriptors();
+        //     if (pMP)
+        //     {
+        //         if (!pMP->isBad())
+        //         {
+        //             // 以『所有描述這個地圖點的描述子的集合』的中心描述子，作為地圖點的描述子
+        //             pMP->ComputeDistinctiveDescriptors();
 
-                    // 利用所有觀察到這個地圖點的關鍵幀來估計關鍵幀們平均指向的方向，
-                    // 以及該地圖點可能的深度範圍(最近與最遠)
-                    pMP->UpdateNormalAndDepth();
-                }
-            }
-        }
+        //             // 利用所有觀察到這個地圖點的關鍵幀來估計關鍵幀們平均指向的方向，
+        //             // 以及該地圖點可能的深度範圍(最近與最遠)
+        //             pMP->UpdateNormalAndDepth();
+        //         }
+        //     }
+        // }
+        // ================================================================================
+
+
+
+
 
         // Update connections in covisibility graph
         // 其他關鍵幀和『關鍵幀 mpCurrentKeyFrame』觀察到相同的地圖點，且各自都觀察到足夠多的地圖點，則會與之產生鏈結
@@ -1881,49 +1906,108 @@ namespace ORB_SLAM2
     
     }
 
-    float LocalMapping::reprojectError(const cv::Mat pos, const float kp_x, const float kp_y,
-                                       const float fx, const float fy, const float cx, const float cy)
+    void LocalMapping::extractCovisibleKeyFrames(vector<KeyFrame *> &vpTargetKFs, const int nn)
     {
-        // 計算特徵點在空間中的位置
-        const float x = pos.at<float>(0);
-        const float y = pos.at<float>(1);
-        const float z = pos.at<float>(2);
-        const float invz = 1.0 / z;
+        // 返回至多 nn(單目為 20) 個『關鍵幀 mpCurrentKeyFrame』的共視關鍵幀（根據觀察到的地圖點數量排序）
+        const vector<KeyFrame *> vpNeighKFs = mpCurrentKeyFrame->GetBestCovisibilityKeyFrames(nn);
 
-        // 計算像素座標
-        const float u = fx * x / z + cx;
-        const float v = fy * y / z + cy;
+        // 遍歷『關鍵幀 mpCurrentKeyFrame』的共視關鍵幀
+        for(KeyFrame * pKFi : vpNeighKFs){
 
-        // 計算重投影誤差
-        const float error_x = u - kp_x;
-        const float error_y = v - kp_y;
+            /// NOTE: mnFuseTargetForKF 似乎是在避免重複當前環節用的變數
+            if (pKFi->isBad() || pKFi->mnFuseTargetForKF == mpCurrentKeyFrame->mnId)
+            {
+                continue;
+            }
 
-        return (error_x * error_x + error_y * error_y);
+            vpTargetKFs.push_back(pKFi);
+            pKFi->mnFuseTargetForKF = mpCurrentKeyFrame->mnId;
+
+            // Extend to some second neighbors
+            // 返回至多 5 個『關鍵幀 pKFi』的共視關鍵幀（根據觀察到的地圖點數量排序）
+            // 對『關鍵幀 mpCurrentKeyFrame』而言就是共視的共視（自己和部份共視幀也被包含在此當中）
+            const vector<KeyFrame *> vpSecondNeighKFs = pKFi->GetBestCovisibilityKeyFrames(5);
+
+            for(KeyFrame *pKFi2 : vpSecondNeighKFs){
+
+                if (pKFi2->isBad() || pKFi2->mnFuseTargetForKF == mpCurrentKeyFrame->mnId || 
+                    pKFi2->mnId == mpCurrentKeyFrame->mnId){
+                    continue;
+                }
+
+                vpTargetKFs.push_back(pKFi2);
+            }
+        }
     }
 
-    float LocalMapping::reprojectError(const cv::Mat pos, const float kp_x, const float kp_y,
-                                       const float fx, const float fy, 
-                                       const float cx, const float cy, 
-                                       const float mbf, const float kp_r)
+    void LocalMapping::findFuseCandidateMapPoints(vector<KeyFrame *> &vpTargetKFs)
     {
-        // 計算特徵點在空間中的位置
-        const float x = pos.at<float>(0);
-        const float y = pos.at<float>(1);
-        const float z = pos.at<float>(2);
+        // Search matches by projection from current KF in target KFs
+        ORBmatcher matcher;
 
-        // 計算像素座標
-        const float u = fx * x / z + cx;
-        const float v = fy * y / z + cy;
-        const float r = u - mbf / z;
+        // 『關鍵幀 mpCurrentKeyFrame』觀察到的地圖點
+        vector<MapPoint *> vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
 
-        // 計算重投影誤差
-        const float error_x = u - kp_x;
-        const float error_y = v - kp_y;
-        const float error_r = r - kp_r;
+        // Search matches by projection from target KFs in current KF
+        // 共視關鍵幀所觀察到的地圖點
+        vector<MapPoint *> vpFuseCandidates;   
+        vpFuseCandidates.reserve(vpTargetKFs.size() * vpMapPointMatches.size());
 
-        return (error_x * error_x + error_y * error_y + error_r * error_r);
+        vector<MapPoint *> vpMapPointsKFi;
+
+        for(KeyFrame *pKFi : vpTargetKFs)
+        {
+            // 『關鍵幀 pKFi』觀察到的地圖點和『現有地圖點』兩者的描述子距離很近，
+            // 保留被更多關鍵幀觀察到的一點取代另一點
+            /// TODO: 保留較新的一點，除非觀察到舊點的關鍵幀數量顯著多於新點
+            matcher.Fuse(pKFi, vpMapPointMatches);
+
+            // 遍歷『關鍵幀 mpCurrentKeyFrame』的共視關鍵幀和『共視關鍵幀的共視關鍵幀』
+            // 取得『關鍵幀 pKFi』觀察到的地圖點
+            vpMapPointsKFi = pKFi->GetMapPointMatches();
+
+            for(MapPoint *pMP : vpMapPointsKFi)
+            {
+                if (!pMP){
+                    continue;
+                }
+
+                if (pMP->isBad() || pMP->mnFuseCandidateForKF == mpCurrentKeyFrame->mnId){
+                    continue;
+                }
+
+                pMP->mnFuseCandidateForKF = mpCurrentKeyFrame->mnId;
+                vpFuseCandidates.push_back(pMP);
+            }
+        }
+
+        // 『關鍵幀 mpCurrentKeyFrame』觀察到的地圖點和『現有地圖點』兩者的描述子距離很近，
+        // 保留被更多關鍵幀觀察到的一點取代另一點
+        matcher.Fuse(mpCurrentKeyFrame, vpFuseCandidates);
     }
     
+    void LocalMapping::updateFuseMapPoints()
+    {
+        // Update points
+        // 更新後的『關鍵幀 mpCurrentKeyFrame』觀察到的地圖點
+        vector<MapPoint *> vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
+
+        for(MapPoint *pMP : vpMapPointMatches){
+
+            if (pMP)
+            {
+                if (!pMP->isBad())
+                {
+                    // 以『所有描述這個地圖點的描述子的集合』的中心描述子，作為地圖點的描述子
+                    pMP->ComputeDistinctiveDescriptors();
+
+                    // 利用所有觀察到這個地圖點的關鍵幀來估計關鍵幀們平均指向的方向，
+                    // 以及該地圖點可能的深度範圍(最近與最遠)
+                    pMP->UpdateNormalAndDepth();
+                }
+            }
+        }
+    }
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================

@@ -166,13 +166,9 @@ protected:
                                                  const cv::Mat Ow1, const cv::Mat Ow2,
                                                  const float ratioFactor);
 
-    inline float reprojectError(const cv::Mat pos, const float kp_x, const float kp_y,
-                                const float fx, const float fy, const float cx, const float cy);
-
-    inline float reprojectError(const cv::Mat pos, const float kp_x, const float kp_y,
-                                const float fx, const float fy,
-                                const float cx, const float cy,
-                                const float mbf, const float kp_r);
+    inline void extractCovisibleKeyFrames(vector<KeyFrame *> &vpTargetKFs, const int nn);
+    inline void findFuseCandidateMapPoints(vector<KeyFrame *> &vpTargetKFs);
+    inline void updateFuseMapPoints();                    
 };
 
 } //namespace ORB_SLAM

@@ -50,11 +50,11 @@ Median tracking time: 0.0673193
 Mean tracking time: 0.0710586
 
 >>> 有 1 ～ 2 處的丟失追蹤
-#KeyFrame: 560
-#MapPoint: 55475
-Total time: 8:37.2825
-Median tracking time: 0.0696505
-Mean tracking time: 0.0732216
+#KeyFrame: 660
+#MapPoint: 67330
+Total time: 10:17.7828
+Median tracking time: 0.0681872
+Mean tracking time: 0.0730904
 
 
 
