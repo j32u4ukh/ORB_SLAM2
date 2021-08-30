@@ -51,6 +51,7 @@ namespace ORB_SLAM2
         return mbStopped;
     }
 
+    /// NOTE: 20210830
     // 請求中止『執行續 LocalMapping』
     bool LocalMapping::stopRequested()
     {
@@ -1027,6 +1028,9 @@ namespace ORB_SLAM2
 
         // 『關鍵幀 mpCurrentKeyFrame』的共視關鍵幀（根據觀察到的地圖點數量排序）
         vector<KeyFrame *> vpLocalKeyFrames = mpCurrentKeyFrame->GetVectorCovisibleKeyFrames();
+        int nObs, nRedundantObservations, nMPs;
+        MapPoint *pMP;
+        size_t i, iend;
 
         for(KeyFrame *pKF : vpLocalKeyFrames){
 
@@ -1037,16 +1041,18 @@ namespace ORB_SLAM2
             // 『關鍵幀 pKF』的關鍵點觀察到的地圖點
             const vector<MapPoint *> vpMapPoints = pKF->GetMapPointMatches();
 
-            int nObs = 3;
-            const int thObs = nObs;
-            int nRedundantObservations = 0;
+            nObs = 3;
+            nRedundantObservations = 0;
 
             // 『關鍵幀 pKF』的關鍵點觀察到的『有效地圖點』個數
-            int nMPs = 0;
+            nMPs = 0;
 
-            for (size_t i = 0, iend = vpMapPoints.size(); i < iend; i++)
+            const int thObs = nObs;
+            
+
+            for (i = 0, iend = vpMapPoints.size(); i < iend; i++)
             {
-                MapPoint *pMP = vpMapPoints[i];
+                pMP = vpMapPoints[i];
 
                 if (pMP)
                 {
@@ -1067,43 +1073,47 @@ namespace ORB_SLAM2
                         // 這個地圖點被足夠多的關鍵幀觀察到
                         if (pMP->beObservedNumber() > thObs)
                         {
+                            // pKF->mvKeysUn[i].octave
                             // 根據『關鍵點索引值 i』取得關鍵點，再取得其所在的金字塔層級
-                            const int &scaleLevel = pKF->mvKeysUn[i].octave;
+                            demeritsCullingKeyFrames(pKF, pMP, pKF->mvKeysUn[i].octave, 
+                                                     thObs, nRedundantObservations);
 
-                            // 觀察到『共視地圖點 pMP』的『關鍵幀』，以及其『關鍵點』的索引值
-                            const map<KeyFrame *, size_t> observations = pMP->GetObservations();
+                            // const int &scaleLevel = pKF->mvKeysUn[i].octave;
+
+                            // // 觀察到『共視地圖點 pMP』的『關鍵幀』，以及其『關鍵點』的索引值
+                            // const map<KeyFrame *, size_t> observations = pMP->GetObservations();
                             
-                            // 『地圖點 pMP』在相對小關鍵幀（相同、高 1 階或更精細的比例）中看到，
-                            // 則該關鍵幀被認為是冗餘的
-                            int nObs = 0;
+                            // // 『地圖點 pMP』在相對小關鍵幀（相同、高 1 階或更精細的比例）中看到，
+                            // // 則該關鍵幀被認為是冗餘的
+                            // int nObs = 0;
 
-                            for(pair<KeyFrame *, size_t> obs : observations){
+                            // for(pair<KeyFrame *, size_t> obs : observations){
 
-                                KeyFrame *pKFi = obs.first;
-                                size_t kp_idx = obs.second;
+                            //     KeyFrame *pKFi = obs.first;
+                            //     size_t kp_idx = obs.second;
 
-                                if (pKFi == pKF){
-                                    continue;
-                                }
+                            //     if (pKFi == pKF){
+                            //         continue;
+                            //     }
 
-                                // 根據『關鍵點索引值 kp_idx』取得關鍵點，再取得其所在的金字塔層級
-                                const int &scaleLeveli = pKFi->mvKeysUn[kp_idx].octave;
+                            //     // 根據『關鍵點索引值 kp_idx』取得關鍵點，再取得其所在的金字塔層級
+                            //     const int &scaleLeveli = pKFi->mvKeysUn[kp_idx].octave;
 
-                                // 相對小關鍵幀（相同、高 1 階或更精細的比例）中看到
-                                if (scaleLeveli <= scaleLevel + 1)
-                                {
-                                    nObs++;
+                            //     // 相對小關鍵幀（相同、高 1 階或更精細的比例）中看到
+                            //     if (scaleLeveli <= scaleLevel + 1)
+                            //     {
+                            //         nObs++;
 
-                                    if (nObs >= thObs){
-                                        break;
-                                    }
-                                }
-                            }
+                            //         if (nObs >= thObs){
+                            //             break;
+                            //         }
+                            //     }
+                            // }
 
-                            if (nObs >= thObs)
-                            {
-                                nRedundantObservations++;
-                            }
+                            // if (nObs >= thObs)
+                            // {
+                            //     nRedundantObservations++;
+                            // }
                         }
                     }
                 }
@@ -2008,6 +2018,51 @@ namespace ORB_SLAM2
             }
         }
     }
+    
+    void LocalMapping::demeritsCullingKeyFrames(KeyFrame *pKF, MapPoint *pMP, const int scaleLevel, 
+                                                const int thObs, int &nRedundantObservations)
+    {
+        // 根據『關鍵點索引值 i』取得關鍵點，再取得其所在的金字塔層級
+        // const int &scaleLevel = pKF->mvKeysUn[i].octave;
+
+        // 觀察到『共視地圖點 pMP』的『關鍵幀』，以及其『關鍵點』的索引值
+        const map<KeyFrame *, size_t> observations = pMP->GetObservations();
+        
+        // 『地圖點 pMP』在相對小關鍵幀（相同、高 1 階或更精細的比例）中看到，
+        // 則該關鍵幀被認為是冗餘的
+        int nObs = 0;
+        KeyFrame *pKFi;
+        size_t kp_idx;
+
+        for(pair<KeyFrame *, size_t> obs : observations){
+
+            pKFi = obs.first;
+            kp_idx = obs.second;
+
+            if (pKFi == pKF){
+                continue;
+            }
+
+            // 根據『關鍵點索引值 kp_idx』取得關鍵點，再取得其所在的金字塔層級
+            const int &scaleLeveli = pKFi->mvKeysUn[kp_idx].octave;
+
+            // 相對小關鍵幀（相同、高 1 階或更精細的比例）中看到
+            if (scaleLeveli <= scaleLevel + 1)
+            {
+                nObs++;
+
+                if (nObs >= thObs){
+                    break;
+                }
+            }
+        }
+
+        if (nObs >= thObs)
+        {
+            nRedundantObservations++;
+        }
+    }
+
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================

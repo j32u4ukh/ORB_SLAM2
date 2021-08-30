@@ -111,6 +111,7 @@ namespace ORB_SLAM2
         updateMapPoints(vpMP, vbNotIncludedMP, optimizer, maxKFid, nLoopKF);
     }
 
+    /// NOTE: 20210830
     // 根據區域的共視關係，取出關鍵幀與地圖點來進行多次優化，優化後的誤差若仍過大的估計會被移除，並更新估計結果
     // 『共視關鍵幀』、『共視關鍵幀的共視關鍵幀』、『共視地圖點』作為『頂點』
     // 『觀察到共視地圖點的特徵點的位置』作為『邊』
@@ -208,8 +209,6 @@ namespace ORB_SLAM2
                 bDoMore = false;
             }
         }
-
-        MapPoint *pMP;
 
         if (bDoMore)
         {

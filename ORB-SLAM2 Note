@@ -24,7 +24,7 @@ $ /home/j32u4ukh/Documents/ORB_SLAM2/build>
 ../Examples/Monocular/mono_kitti ../Vocabulary/ORBvoc.txt ../Examples/Monocular/KITTI00-02.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/00"
 
 # 執行時間
-[foreach 改版前]
+[develop - foreach 改版前]
 詞袋數據讀取 00:09.80
 median tracking time: 0.0596703
 mean tracking time: 0.0700843
@@ -50,12 +50,11 @@ Median tracking time: 0.0673193
 Mean tracking time: 0.0710586
 
 >>> 有 1 ～ 2 處的丟失追蹤
-#KeyFrame: 660
-#MapPoint: 67330
-Total time: 10:17.7828
-Median tracking time: 0.0681872
-Mean tracking time: 0.0730904
-
+#KeyFrame: 648
+#MapPoint: 63863
+Total time: 9:23.3315
+Median tracking time: 0.062858
+Mean tracking time: 0.0659681
 
 
 

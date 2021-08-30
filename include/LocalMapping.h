@@ -168,7 +168,9 @@ protected:
 
     inline void extractCovisibleKeyFrames(vector<KeyFrame *> &vpTargetKFs, const int nn);
     inline void findFuseCandidateMapPoints(vector<KeyFrame *> &vpTargetKFs);
-    inline void updateFuseMapPoints();                    
+    inline void updateFuseMapPoints();  
+    inline void demeritsCullingKeyFrames(KeyFrame *pKF, MapPoint *pMP, const int scaleLevel, 
+                                         const int thObs, int &nRedundantObservations);                  
 };
 
 } //namespace ORB_SLAM

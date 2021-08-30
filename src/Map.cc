@@ -63,6 +63,7 @@ namespace ORB_SLAM2
         /// TODO: This only erase the pointer. Delete the MapPoint
     }
 
+    /// NOTE: 20210830
     // 返回地圖中的關鍵幀數量
     long unsigned int Map::getInMapKeyFrameNumber()
     {
