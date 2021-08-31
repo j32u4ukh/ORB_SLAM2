@@ -26,8 +26,9 @@
 #include "Map.h"
 #include "ORBVocabulary.h"
 #include "Tracking.h"
-
+#include "Sim3Solver.h"
 #include "KeyFrameDatabase.h"
+#include "ORBmatcher.h"
 
 #include <thread>
 #include <mutex>
@@ -148,6 +149,17 @@ protected:
     bool mbFinished;
 
     std::mutex mMutexFinish;
+
+    inline float findLeastSimilarScore();
+    inline void updateConsistentGroups(vector<KeyFrame *> &vpCandidateKFs);
+    inline int newSim3Solvers(const int nInitialCandidates,
+                              vector<bool> &vbDiscarded, ORBmatcher &matcher,
+                              vector<vector<MapPoint *>> &vvpMapPointMatches,
+                              vector<Sim3Solver *> &vpSim3Solvers);
+    inline bool callOptimizeSim3(int &nCandidates, const int nInitialCandidates,
+                                 vector<bool> &vbDiscarded, ORBmatcher &matcher,
+                                 vector<vector<MapPoint *>> &vvpMapPointMatches,
+                                 vector<Sim3Solver *> &vpSim3Solvers);
 
     Map* mpMap;
     Tracking* mpTracker;

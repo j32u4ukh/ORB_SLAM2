@@ -208,33 +208,41 @@ namespace ORB_SLAM2
         // This is the lowest score to a connected keyframe in the covisibility graph
         // We will impose loop candidates to have a higher similarity than this
 
-        // 取得『關鍵幀 mpCurrentKF』的共視關鍵幀（根據觀察到的地圖點數量排序），用於協助篩選相似分數最小
-        const vector<KeyFrame *> vpConnectedKeyFrames = mpCurrentKF->GetVectorCovisibleKeyFrames();
+        // ================================================================================
+        // ================================================================================
+        // 相似分數最小 
+        float minScore = findLeastSimilarScore();
+        // float minScore = 1;
 
-        // 取得『關鍵幀 mpCurrentKF』的單字權重
-        const DBoW2::BowVector &CurrentBowVec = mpCurrentKF->mBowVec;
+        // // 取得『關鍵幀 mpCurrentKF』的共視關鍵幀（根據觀察到的地圖點數量排序），用於協助篩選相似分數最小
+        // const vector<KeyFrame *> vpConnectedKeyFrames = mpCurrentKF->GetVectorCovisibleKeyFrames();
 
-        // 相似分數最小
-        float minScore = 1;
+        // // 取得『關鍵幀 mpCurrentKF』的單字權重
+        // const DBoW2::BowVector &CurrentBowVec = mpCurrentKF->mBowVec;
 
-        // 篩選相似分數最小
-        for(KeyFrame *pKF : vpConnectedKeyFrames){
+        // // 篩選相似分數最小
+        // for(KeyFrame *pKF : vpConnectedKeyFrames){
 
-            if (pKF->isBad()){
-                continue;
-            }
+        //     if (pKF->isBad()){
+        //         continue;
+        //     }
             
-            // 取得『共視關鍵幀 pKF』的單字權重
-            const DBoW2::BowVector &BowVec = pKF->mBowVec;
+        //     // 取得『共視關鍵幀 pKF』的單字權重
+        //     const DBoW2::BowVector &BowVec = pKF->mBowVec;
 
-            // 比較『關鍵幀 mpCurrentKF』和『共視關鍵幀 pKF』的相似程度，值越大代表相似度越高[0, 1]
-            float score = mpORBVocabulary->score(CurrentBowVec, BowVec);
+        //     // 比較『關鍵幀 mpCurrentKF』和『共視關鍵幀 pKF』的相似程度，值越大代表相似度越高[0, 1]
+        //     float score = mpORBVocabulary->score(CurrentBowVec, BowVec);
 
-            // 篩選相似分數最小
-            if (score < minScore){
-                minScore = score;
-            }
-        }
+        //     // 篩選相似分數最小
+        //     if (score < minScore){
+        //         minScore = score;
+        //     }
+        // }
+
+        // ================================================================================
+
+
+
 
         // Query the database imposing the minimum score
         // 計算和『關鍵幀 pKF』有相同單字的『關鍵幀及其共視關鍵幀』和『關鍵幀 pKF』的相似程度，將相似程度高的關鍵幀返回
@@ -249,6 +257,12 @@ namespace ORB_SLAM2
             return false;
         }
 
+
+
+
+
+        // ================================================================================
+        // ================================================================================
         // For each loop candidate check consistency with previous loop candidates
         // Each candidate expands a covisibility group (keyframes connected to the loop candidate
         // in the covisibility graph)
@@ -260,94 +274,100 @@ namespace ORB_SLAM2
         * 如果他們至少共享一個關鍵幀，則該組與前一組一致
         * 我們必須在幾個連續的關鍵幀中檢測到一致的循環才能接受它
         */
-        mvpEnoughConsistentCandidates.clear();
+        updateConsistentGroups(vpCandidateKFs);
 
-        vector<ConsistentGroup> vCurrentConsistentGroups;
+        // mvpEnoughConsistentCandidates.clear();
 
-        //  std::vector<pair<set<KeyFrame*>,int>> mvConsistentGroups
-        vector<bool> vbConsistentGroup(mvConsistentGroups.size(), false);
+        // vector<ConsistentGroup> vCurrentConsistentGroups;
 
-        // 遍歷候選關鍵幀
-        for(KeyFrame *pCandidateKF : vpCandidateKFs){
+        // //  std::vector<pair<set<KeyFrame*>,int>> mvConsistentGroups
+        // vector<bool> vbConsistentGroup(mvConsistentGroups.size(), false);
+
+        // // 遍歷候選關鍵幀
+        // for(KeyFrame *pCandidateKF : vpCandidateKFs){
             
-            // 『候選關鍵幀 pCandidateKF』的『已連結關鍵幀』
-            set<KeyFrame *> spCandidateGroup = pCandidateKF->GetConnectedKeyFrames();
+        //     // 『候選關鍵幀 pCandidateKF』的『已連結關鍵幀』
+        //     set<KeyFrame *> spCandidateGroup = pCandidateKF->GetConnectedKeyFrames();
 
-            // spCandidateGroup：『候選關鍵幀 pCandidateKF』的『已連結關鍵幀』和『候選關鍵幀 pCandidateKF』
-            spCandidateGroup.insert(pCandidateKF);
+        //     // spCandidateGroup：『候選關鍵幀 pCandidateKF』的『已連結關鍵幀』和『候選關鍵幀 pCandidateKF』
+        //     spCandidateGroup.insert(pCandidateKF);
 
-            bool bEnoughConsistent = false;
-            bool bConsistentForSomeGroup = false;
+        //     bool bEnoughConsistent = false;
+        //     bool bConsistentForSomeGroup = false;
             
-            for (size_t iG = 0, iendG = mvConsistentGroups.size(); iG < iendG; iG++)
-            {
-                // 第 iG 個 ConsistentGroup 的關鍵幀們
-                set<KeyFrame *> sPreviousGroup = mvConsistentGroups[iG].first;
+        //     for (size_t iG = 0, iendG = mvConsistentGroups.size(); iG < iendG; iG++)
+        //     {
+        //         // 第 iG 個 ConsistentGroup 的關鍵幀們
+        //         set<KeyFrame *> sPreviousGroup = mvConsistentGroups[iG].first;
 
-                bool bConsistent = false;
+        //         bool bConsistent = false;
 
-                for(KeyFrame * sit : spCandidateGroup){
+        //         for(KeyFrame * sit : spCandidateGroup){
 
-                    // 若『關鍵幀 (*sit)』已存在 sPreviousGroup 當中
-                    if (sPreviousGroup.count(sit))
-                    {
-                        // 第 iG 個 ConsistentGroup 和 sPreviousGroup 具有『一致性（至少共享一個關鍵幀）』
-                        bConsistent = true;
+        //             // 若『關鍵幀 (*sit)』已存在 sPreviousGroup 當中
+        //             if (sPreviousGroup.count(sit))
+        //             {
+        //                 // 第 iG 個 ConsistentGroup 和 sPreviousGroup 具有『一致性（至少共享一個關鍵幀）』
+        //                 bConsistent = true;
 
-                        // spCandidateGroup 當中至少有一個『關鍵幀 (*sit)』已存在 sPreviousGroup 當中
-                        bConsistentForSomeGroup = true;
+        //                 // spCandidateGroup 當中至少有一個『關鍵幀 (*sit)』已存在 sPreviousGroup 當中
+        //                 bConsistentForSomeGroup = true;
 
-                        break;
-                    }
-                }
+        //                 break;
+        //             }
+        //         }
 
-                // 若 mvConsistentGroups 當中的關鍵幀有一個已存在於 sPreviousGroup 當中
-                if (bConsistent)
-                {
-                    int nPreviousConsistency = mvConsistentGroups[iG].second;
+        //         // 若 mvConsistentGroups 當中的關鍵幀有一個已存在於 sPreviousGroup 當中
+        //         if (bConsistent)
+        //         {
+        //             int nPreviousConsistency = mvConsistentGroups[iG].second;
 
-                    // 和 sPreviousGroup 至少共享一個關鍵幀的次數
-                    int nCurrentConsistency = nPreviousConsistency + 1;
+        //             // 和 sPreviousGroup 至少共享一個關鍵幀的次數
+        //             int nCurrentConsistency = nPreviousConsistency + 1;
 
-                    // 若第 iG 個共視群之前不存在
-                    if (!vbConsistentGroup[iG])
-                    {
-                        // spCandidateGroup：『候選關鍵幀 pCandidateKF』的『已連結關鍵幀』和
-                        // 『候選關鍵幀 pCandidateKF』
-                        ConsistentGroup cg = make_pair(spCandidateGroup, nCurrentConsistency);
-                        vCurrentConsistentGroups.push_back(cg);
+        //             // 若第 iG 個共視群之前不存在
+        //             if (!vbConsistentGroup[iG])
+        //             {
+        //                 // spCandidateGroup：『候選關鍵幀 pCandidateKF』的『已連結關鍵幀』和
+        //                 // 『候選關鍵幀 pCandidateKF』
+        //                 ConsistentGroup cg = make_pair(spCandidateGroup, nCurrentConsistency);
+        //                 vCurrentConsistentGroups.push_back(cg);
 
-                        // this avoid to include the same group more than once
-                        // 標注第 iG 個共視群已存在
-                        vbConsistentGroup[iG] = true; 
-                    }
+        //                 // this avoid to include the same group more than once
+        //                 // 標注第 iG 個共視群已存在
+        //                 vbConsistentGroup[iG] = true; 
+        //             }
 
-                    // 『一致性分數 nCurrentConsistency』大於門檻值 且 是第一次超過門檻
-                    if (nCurrentConsistency >= mnCovisibilityConsistencyTh && !bEnoughConsistent)
-                    {
-                        mvpEnoughConsistentCandidates.push_back(pCandidateKF);
+        //             // 『一致性分數 nCurrentConsistency』大於門檻值 且 是第一次超過門檻
+        //             if (nCurrentConsistency >= mnCovisibilityConsistencyTh && !bEnoughConsistent)
+        //             {
+        //                 mvpEnoughConsistentCandidates.push_back(pCandidateKF);
 
-                        // this avoid to insert the same candidate more than once
-                        bEnoughConsistent = true; 
-                    }
-                }
-            }
+        //                 // this avoid to insert the same candidate more than once
+        //                 bEnoughConsistent = true; 
+        //             }
+        //         }
+        //     }
 
-            // If the group is not consistent with any previous group insert 
-            // with consistency counter set to zero
-            // spCandidateGroup 當中沒有任一個『關鍵幀 (*sit)』存在 sPreviousGroup 當中
-            // 當 sPreviousGroup 還沒有內容時，也會先進到這個區塊
-            if (!bConsistentForSomeGroup)
-            {
-                // spCandidateGroup：『候選關鍵幀 pCandidateKF』的『已連結關鍵幀』，形成 ConsistentGroup
-                ConsistentGroup cg = make_pair(spCandidateGroup, 0);
-                vCurrentConsistentGroups.push_back(cg);
-            }
-        }
+        //     // If the group is not consistent with any previous group insert 
+        //     // with consistency counter set to zero
+        //     // spCandidateGroup 當中沒有任一個『關鍵幀 (*sit)』存在 sPreviousGroup 當中
+        //     // 當 sPreviousGroup 還沒有內容時，也會先進到這個區塊
+        //     if (!bConsistentForSomeGroup)
+        //     {
+        //         // spCandidateGroup：『候選關鍵幀 pCandidateKF』的『已連結關鍵幀』，形成 ConsistentGroup
+        //         ConsistentGroup cg = make_pair(spCandidateGroup, 0);
+        //         vCurrentConsistentGroups.push_back(cg);
+        //     }
+        // }
         
-        // Update Covisibility Consistent Groups
-        // 更新 mvConsistentGroups 為 vCurrentConsistentGroups
-        mvConsistentGroups = vCurrentConsistentGroups;
+        // // Update Covisibility Consistent Groups
+        // // 更新 mvConsistentGroups 為 vCurrentConsistentGroups
+        // mvConsistentGroups = vCurrentConsistentGroups;
+        // ================================================================================
+
+
+
 
         // Add Current Keyframe to database
         mpKeyFrameDB->add(mpCurrentKF);
@@ -369,7 +389,6 @@ namespace ORB_SLAM2
     bool LoopClosing::ComputeSim3()
     {
         // For each consistent loop candidate we try to compute a Sim3
-
         const int nInitialCandidates = mvpEnoughConsistentCandidates.size();
 
         // We compute first ORB matches for each candidate
@@ -387,6 +406,13 @@ namespace ORB_SLAM2
 
         // candidates with enough matches
         int nCandidates = 0;
+
+
+
+
+        // ================================================================================
+        // ================================================================================
+        // int nCandidates = newSim3Solvers(nInitialCandidates, nCandidates, vbDiscarded, matcher, vvpMapPointMatches, vpSim3Solvers);
 
         for (int i = 0; i < nInitialCandidates; i++)
         {
@@ -430,6 +456,15 @@ namespace ORB_SLAM2
             nCandidates++;
         }
 
+        // ================================================================================
+
+
+
+
+        // ================================================================================
+        // ================================================================================
+        // bool bMatch = callOptimizeSim3(nCandidates, nInitialCandidates, vbDiscarded, matcher, 
+        //                                vvpMapPointMatches, vpSim3Solvers);
         bool bMatch = false;
 
         // Perform alternatively RANSAC iterations for each candidate
@@ -517,6 +552,11 @@ namespace ORB_SLAM2
                 }
             }
         }
+
+        // ================================================================================
+
+
+
 
         if (!bMatch)
         {
@@ -1120,6 +1160,306 @@ namespace ORB_SLAM2
     void LoopClosing::SetLocalMapper(LocalMapping *pLocalMapper)
     {
         mpLocalMapper = pLocalMapper;
+    }
+
+    // ==================================================
+    // 自己封裝的函式
+    // ==================================================
+
+    float LoopClosing::findLeastSimilarScore()
+    {
+        // 相似分數最小
+        float minScore = 1, score;
+
+        // 取得『關鍵幀 mpCurrentKF』的共視關鍵幀（根據觀察到的地圖點數量排序），用於協助篩選相似分數最小
+        const vector<KeyFrame *> vpConnectedKeyFrames = mpCurrentKF->GetVectorCovisibleKeyFrames();
+
+        // 取得『關鍵幀 mpCurrentKF』的單字權重
+        const DBoW2::BowVector &CurrentBowVec = mpCurrentKF->mBowVec;
+
+        // 篩選相似分數最小
+        for(KeyFrame *pKF : vpConnectedKeyFrames){
+
+            if (pKF->isBad()){
+                continue;
+            }
+            
+            // 取得『共視關鍵幀 pKF』的單字權重
+            const DBoW2::BowVector &BowVec = pKF->mBowVec;
+
+            // 比較『關鍵幀 mpCurrentKF』和『共視關鍵幀 pKF』的相似程度，值越大代表相似度越高[0, 1]
+            score = mpORBVocabulary->score(CurrentBowVec, BowVec);
+
+            // 篩選相似分數最小
+            if (score < minScore){
+                minScore = score;
+            }
+        }
+
+        return minScore;
+    }
+
+    void LoopClosing::updateConsistentGroups(vector<KeyFrame *> &vpCandidateKFs)
+    {
+        // For each loop candidate check consistency with previous loop candidates
+        // Each candidate expands a covisibility group (keyframes connected to the loop candidate
+        // in the covisibility graph)
+        // A group is consistent with a previous group if they share at least a keyframe
+        // We must detect a consistent loop in several consecutive keyframes to accept it
+        /* 
+        * 對於每個循環候選檢查與先前循環候選的一致性
+        * 每個候選擴展一個共視群（連接到 共視圖 中循環候選的關鍵幀）
+        * 如果他們至少共享一個關鍵幀，則該組與前一組一致
+        * 我們必須在幾個連續的關鍵幀中檢測到一致的循環才能接受它
+        */
+        mvpEnoughConsistentCandidates.clear();
+
+        vector<ConsistentGroup> vCurrentConsistentGroups;
+
+        //  std::vector<pair<set<KeyFrame*>,int>> mvConsistentGroups
+        vector<bool> vbConsistentGroup(mvConsistentGroups.size(), false);
+
+        // 遍歷候選關鍵幀
+        for(KeyFrame *pCandidateKF : vpCandidateKFs){
+            
+            // 『候選關鍵幀 pCandidateKF』的『已連結關鍵幀』
+            set<KeyFrame *> spCandidateGroup = pCandidateKF->GetConnectedKeyFrames();
+
+            // spCandidateGroup：『候選關鍵幀 pCandidateKF』的『已連結關鍵幀』和『候選關鍵幀 pCandidateKF』
+            spCandidateGroup.insert(pCandidateKF);
+
+            bool bEnoughConsistent = false;
+            bool bConsistentForSomeGroup = false;
+            
+            for (size_t iG = 0, iendG = mvConsistentGroups.size(); iG < iendG; iG++)
+            {
+                // 第 iG 個 ConsistentGroup 的關鍵幀們
+                set<KeyFrame *> sPreviousGroup = mvConsistentGroups[iG].first;
+
+                bool bConsistent = false;
+
+                for(KeyFrame * sit : spCandidateGroup){
+
+                    // 若『關鍵幀 (*sit)』已存在 sPreviousGroup 當中
+                    if (sPreviousGroup.count(sit))
+                    {
+                        // 第 iG 個 ConsistentGroup 和 sPreviousGroup 具有『一致性（至少共享一個關鍵幀）』
+                        bConsistent = true;
+
+                        // spCandidateGroup 當中至少有一個『關鍵幀 (*sit)』已存在 sPreviousGroup 當中
+                        bConsistentForSomeGroup = true;
+
+                        break;
+                    }
+                }
+
+                // 若 mvConsistentGroups 當中的關鍵幀有一個已存在於 sPreviousGroup 當中
+                if (bConsistent)
+                {
+                    int nPreviousConsistency = mvConsistentGroups[iG].second;
+
+                    // 和 sPreviousGroup 至少共享一個關鍵幀的次數
+                    int nCurrentConsistency = nPreviousConsistency + 1;
+
+                    // 若第 iG 個共視群之前不存在
+                    if (!vbConsistentGroup[iG])
+                    {
+                        // spCandidateGroup：『候選關鍵幀 pCandidateKF』的『已連結關鍵幀』和
+                        // 『候選關鍵幀 pCandidateKF』
+                        ConsistentGroup cg = make_pair(spCandidateGroup, nCurrentConsistency);
+                        vCurrentConsistentGroups.push_back(cg);
+
+                        // this avoid to include the same group more than once
+                        // 標注第 iG 個共視群已存在
+                        vbConsistentGroup[iG] = true; 
+                    }
+
+                    // 『一致性分數 nCurrentConsistency』大於門檻值 且 是第一次超過門檻
+                    if (nCurrentConsistency >= mnCovisibilityConsistencyTh && !bEnoughConsistent)
+                    {
+                        mvpEnoughConsistentCandidates.push_back(pCandidateKF);
+
+                        // this avoid to insert the same candidate more than once
+                        bEnoughConsistent = true; 
+                    }
+                }
+            }
+
+            // If the group is not consistent with any previous group insert 
+            // with consistency counter set to zero
+            // spCandidateGroup 當中沒有任一個『關鍵幀 (*sit)』存在 sPreviousGroup 當中
+            // 當 sPreviousGroup 還沒有內容時，也會先進到這個區塊
+            if (!bConsistentForSomeGroup)
+            {
+                // spCandidateGroup：『候選關鍵幀 pCandidateKF』的『已連結關鍵幀』，形成 ConsistentGroup
+                ConsistentGroup cg = make_pair(spCandidateGroup, 0);
+                vCurrentConsistentGroups.push_back(cg);
+            }
+        }
+        
+        // Update Covisibility Consistent Groups
+        // 更新 mvConsistentGroups 為 vCurrentConsistentGroups
+        mvConsistentGroups = vCurrentConsistentGroups;
+    }
+
+    int LoopClosing::newSim3Solvers(const int nInitialCandidates, 
+                                     vector<bool> &vbDiscarded, ORBmatcher &matcher, 
+                                     vector<vector<MapPoint *>> &vvpMapPointMatches, 
+                                     vector<Sim3Solver *> &vpSim3Solvers)
+    {
+        Sim3Solver *pSolver;
+        KeyFrame *pKF;
+        int nmatches;
+
+        int nCandidates = 0;
+
+        for (int i = 0; i < nInitialCandidates; i++)
+        {
+            // pKF：mvpEnoughConsistentCandidates[i] detectloop 給出的候選關鍵幀
+            pKF = mvpEnoughConsistentCandidates[i];
+
+            // avoid that local mapping erase it while it is being processed in this thread
+            // 請求不要移除當前關鍵幀，避免在『執行續 LoopClosing』處理關鍵幀時被移除
+            pKF->SetNotErase();
+
+            // 若『關鍵幀 pKF』不佳
+            if (pKF->isBad())
+            {
+                // 標注為廢棄
+                vbDiscarded[i] = true;
+                continue;
+            }
+
+            // mpCurrentKF：當前關鍵幀
+            // vvpMapPointMatches[i]：mpCurrentKF 和 mvpEnoughConsistentCandidates[i]（pKF）匹配的地圖點
+            // 『關鍵幀 pKF1』和『關鍵幀 pKF2』上的關鍵點距離足夠小的關鍵點個數
+            nmatches = matcher.SearchByBoW(mpCurrentKF, pKF, vvpMapPointMatches[i]);
+
+            // 『關鍵幀 pKF1』和『關鍵幀 pKF2』配對的點數少於 20 
+            if (nmatches < 20)
+            {
+                vbDiscarded[i] = true;
+                continue;
+            }
+            else
+            {
+                // vvpMapPointMatches[i]：mpCurrentKF和mvpEnoughConsistentCandidates[i] （pKF）匹配的地圖點
+                // 將『關鍵幀 pKF1』和『關鍵幀 pKF2』的對結果用於優化
+                pSolver = new Sim3Solver(mpCurrentKF, pKF, vvpMapPointMatches[i], mbFixScale);
+                pSolver->SetRansacParameters(0.99, 20, 300);
+                vpSim3Solvers[i] = pSolver;
+            }
+
+            // 候選個數加一
+            nCandidates++;
+        }
+
+        return nCandidates;
+    }
+
+    bool LoopClosing::callOptimizeSim3(int &nCandidates, const int nInitialCandidates,
+                                       vector<bool> &vbDiscarded, ORBmatcher &matcher,
+                                       vector<vector<MapPoint *>> &vvpMapPointMatches,
+                                       vector<Sim3Solver *> &vpSim3Solvers)
+    {
+        bool bMatch = false, bNoMore;
+        KeyFrame *pKF;
+        int i, nInliers;
+        size_t j, jend;
+
+        vector<bool> vbInliers;
+        Sim3Solver *pSolver;
+        cv::Mat Scm, R, t;
+
+        // Perform alternatively RANSAC iterations for each candidate
+        // until one is succesful or all fail
+        while (nCandidates > 0 && !bMatch)
+        {
+            for (i = 0; i < nInitialCandidates; i++)
+            {
+                if (vbDiscarded[i]){
+                    continue;
+                }
+
+                pKF = mvpEnoughConsistentCandidates[i];
+
+                // Perform 5 Ransac Iterations
+                vbInliers.clear();
+                nInliers = 0;
+                bNoMore = false;
+
+                pSolver = vpSim3Solvers[i];
+
+                // Sim3Solver 執行 5 次
+                // 返回最佳規模尺度下的『相似轉換矩陣』
+                Scm = pSolver->iterate(5, bNoMore, vbInliers, nInliers);
+
+                // If Ransac reachs max. iterations discard keyframe
+                if (bNoMore)
+                {
+                    vbDiscarded[i] = true;
+                    nCandidates--;
+                }
+
+                // If RANSAC returns a Sim3, perform a guided matching and optimize with 
+                // all correspondences
+                if (!Scm.empty())
+                {
+                    // vvpMapPointMatches[i]：mpCurrentKF 和 mvpEnoughConsistentCandidates[i]（pKF）
+                    // 匹配的地圖點
+                    vector<MapPoint *> vpMapPointMatches(vvpMapPointMatches[i].size(), 
+                                                         static_cast<MapPoint *>(NULL));
+
+                    jend = vbInliers.size();
+
+                    for (j = 0; j < jend; j++)
+                    {
+                        // 若為內點（已在 pSolver->iterate 作過判斷）
+                        if (vbInliers[j])
+                        {
+                            vpMapPointMatches[j] = vvpMapPointMatches[i][j];
+                        }
+                    }
+
+                    // 最佳旋轉矩陣、平移向量、規模尺度，皆為在 pSolver->iterate 中求出
+                    R = pSolver->GetEstimatedRotation();
+                    t = pSolver->GetEstimatedTranslation();                    
+                    const float s = pSolver->GetEstimatedScale();
+
+                    // 利用『相似轉換矩陣』將 mpCurrentKF 和 pKF 各自觀察到的地圖點投影到彼此上，
+                    // 若雙方都找到同樣的匹配關係，則替換 vpMapPointMatches 的地圖點
+                    matcher.SearchBySim3(mpCurrentKF, pKF, vpMapPointMatches, s, R, t, 7.5);
+
+                    g2o::Sim3 gScm(Converter::toMatrix3d(R), Converter::toVector3d(t), s);
+
+                    // 將『地圖點 pMP1、pMP2』的位置轉換到相機座標系下，作為『頂點』加入優化，
+                    // 相對應的特徵點位置作為『邊』加入，優化並排除誤差過大的估計後，重新估計『相似轉換矩陣』
+                    const int nInliers = Optimizer::OptimizeSim3(
+                                            mpCurrentKF, pKF, vpMapPointMatches, gScm, 10, mbFixScale);
+
+                    // If optimization is succesful stop ransacs and continue
+                    if (nInliers >= 20)
+                    {
+                        bMatch = true;
+
+                        // mpMatchedKF：選定的閉環關鍵幀
+                        mpMatchedKF = pKF;
+
+                        g2o::Sim3 gSmw(Converter::toMatrix3d(pKF->GetRotation()), 
+                                       Converter::toVector3d(pKF->GetTranslation()), 1.0);
+                        mg2oScw = gScm * gSmw;
+                        mScw = Converter::toCvMat(mg2oScw);
+
+                        // vpMapPointMatches ＝ vvpMapPointMatches[i]
+                        // mpCurrentKF 和 mvpEnoughConsistentCandidates[i] 匹配的地圖點
+                        mvpCurrentMatchedPoints = vpMapPointMatches;
+                        break;
+                    }
+                }
+            }
+        }
+
+        return bMatch;
     }
 
     // ==================================================
