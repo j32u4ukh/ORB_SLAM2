@@ -160,6 +160,12 @@ protected:
                                  vector<bool> &vbDiscarded, ORBmatcher &matcher,
                                  vector<vector<MapPoint *>> &vvpMapPointMatches,
                                  vector<Sim3Solver *> &vpSim3Solvers);
+    inline void searchByProjection(ORBmatcher &matcher);
+    inline void whetherCorrectedSim3(const cv::Mat &Twc, KeyFrameAndPose &CorrectedSim3,
+                                     KeyFrameAndPose &NonCorrectedSim3);
+    inline void scaledCorrectedSim3(KeyFrameAndPose &CorrectedSim3, 
+                                    KeyFrameAndPose &NonCorrectedSim3);
+    inline void updateMatchedMapPoints();
 
     Map* mpMap;
     Tracking* mpTracker;
