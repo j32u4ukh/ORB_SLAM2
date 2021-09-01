@@ -57,6 +57,7 @@ Median tracking time: 0.0676628
 Mean tracking time: 0.0734964
 
 
+
 virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()
 沒有頂點的可能原因：
 * 都被標注為 isBad 導致沒有被加入

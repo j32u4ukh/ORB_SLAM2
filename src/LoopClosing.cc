@@ -404,57 +404,60 @@ namespace ORB_SLAM2
         vector<bool> vbDiscarded;
         vbDiscarded.resize(nInitialCandidates);
 
+        
+        
+
+
+
+
+        // ================================================================================
+        // ================================================================================
         // candidates with enough matches
-        int nCandidates = 0;
+        int nCandidates = newSim3Solvers(nInitialCandidates, vbDiscarded, matcher, 
+                                         vvpMapPointMatches, vpSim3Solvers);
 
+        // int nCandidates = 0;
+        // for (int i = 0; i < nInitialCandidates; i++)
+        // {
+        //     // pKF：mvpEnoughConsistentCandidates[i] detectloop 給出的候選關鍵幀
+        //     KeyFrame *pKF = mvpEnoughConsistentCandidates[i];
 
+        //     // avoid that local mapping erase it while it is being processed in this thread
+        //     // 請求不要移除當前關鍵幀，避免在『執行續 LoopClosing』處理關鍵幀時被移除
+        //     pKF->SetNotErase();
 
+        //     // 若『關鍵幀 pKF』不佳
+        //     if (pKF->isBad())
+        //     {
+        //         // 標注為廢棄
+        //         vbDiscarded[i] = true;
+        //         continue;
+        //     }
 
-        // ================================================================================
-        // ================================================================================
-        // int nCandidates = newSim3Solvers(nInitialCandidates, nCandidates, vbDiscarded, matcher, vvpMapPointMatches, vpSim3Solvers);
+        //     // mpCurrentKF：當前關鍵幀
+        //     // vvpMapPointMatches[i]：mpCurrentKF 和 mvpEnoughConsistentCandidates[i]（pKF）匹配的地圖點
+        //     // 『關鍵幀 pKF1』和『關鍵幀 pKF2』上的關鍵點距離足夠小的關鍵點個數
+        //     int nmatches = matcher.SearchByBoW(mpCurrentKF, pKF, vvpMapPointMatches[i]);
 
-        for (int i = 0; i < nInitialCandidates; i++)
-        {
-            // pKF：mvpEnoughConsistentCandidates[i] detectloop 給出的候選關鍵幀
-            KeyFrame *pKF = mvpEnoughConsistentCandidates[i];
+        //     // 『關鍵幀 pKF1』和『關鍵幀 pKF2』配對的點數少於 20 
+        //     if (nmatches < 20)
+        //     {
+        //         vbDiscarded[i] = true;
+        //         continue;
+        //     }
+        //     else
+        //     {
+        //         // vvpMapPointMatches[i]：mpCurrentKF和mvpEnoughConsistentCandidates[i] （pKF）匹配的地圖點
+        //         // 將『關鍵幀 pKF1』和『關鍵幀 pKF2』的對結果用於優化
+        //         Sim3Solver *pSolver = 
+        //                         new Sim3Solver(mpCurrentKF, pKF, vvpMapPointMatches[i], mbFixScale);
+        //         pSolver->SetRansacParameters(0.99, 20, 300);
+        //         vpSim3Solvers[i] = pSolver;
+        //     }
 
-            // avoid that local mapping erase it while it is being processed in this thread
-            // 請求不要移除當前關鍵幀，避免在『執行續 LoopClosing』處理關鍵幀時被移除
-            pKF->SetNotErase();
-
-            // 若『關鍵幀 pKF』不佳
-            if (pKF->isBad())
-            {
-                // 標注為廢棄
-                vbDiscarded[i] = true;
-                continue;
-            }
-
-            // mpCurrentKF：當前關鍵幀
-            // vvpMapPointMatches[i]：mpCurrentKF 和 mvpEnoughConsistentCandidates[i]（pKF）匹配的地圖點
-            // 『關鍵幀 pKF1』和『關鍵幀 pKF2』上的關鍵點距離足夠小的關鍵點個數
-            int nmatches = matcher.SearchByBoW(mpCurrentKF, pKF, vvpMapPointMatches[i]);
-
-            // 『關鍵幀 pKF1』和『關鍵幀 pKF2』配對的點數少於 20 
-            if (nmatches < 20)
-            {
-                vbDiscarded[i] = true;
-                continue;
-            }
-            else
-            {
-                // vvpMapPointMatches[i]：mpCurrentKF和mvpEnoughConsistentCandidates[i] （pKF）匹配的地圖點
-                // 將『關鍵幀 pKF1』和『關鍵幀 pKF2』的對結果用於優化
-                Sim3Solver *pSolver = 
-                                new Sim3Solver(mpCurrentKF, pKF, vvpMapPointMatches[i], mbFixScale);
-                pSolver->SetRansacParameters(0.99, 20, 300);
-                vpSim3Solvers[i] = pSolver;
-            }
-
-            // 候選個數加一
-            nCandidates++;
-        }
+        //     // 候選個數加一
+        //     nCandidates++;
+        // }
 
         // ================================================================================
 
@@ -463,95 +466,96 @@ namespace ORB_SLAM2
 
         // ================================================================================
         // ================================================================================
-        // bool bMatch = callOptimizeSim3(nCandidates, nInitialCandidates, vbDiscarded, matcher, 
-        //                                vvpMapPointMatches, vpSim3Solvers);
-        bool bMatch = false;
+        bool bMatch = callOptimizeSim3(nCandidates, nInitialCandidates, vbDiscarded, matcher, 
+                                       vvpMapPointMatches, vpSim3Solvers);
 
-        // Perform alternatively RANSAC iterations for each candidate
-        // until one is succesful or all fail
-        while (nCandidates > 0 && !bMatch)
-        {
-            for (int i = 0; i < nInitialCandidates; i++)
-            {
-                if (vbDiscarded[i]){
-                    continue;
-                }
+        // bool bMatch = false;
 
-                KeyFrame *pKF = mvpEnoughConsistentCandidates[i];
+        // // Perform alternatively RANSAC iterations for each candidate
+        // // until one is succesful or all fail
+        // while (nCandidates > 0 && !bMatch)
+        // {
+        //     for (int i = 0; i < nInitialCandidates; i++)
+        //     {
+        //         if (vbDiscarded[i]){
+        //             continue;
+        //         }
 
-                // Perform 5 Ransac Iterations
-                vector<bool> vbInliers;
-                int nInliers;
-                bool bNoMore;
+        //         KeyFrame *pKF = mvpEnoughConsistentCandidates[i];
 
-                Sim3Solver *pSolver = vpSim3Solvers[i];
+        //         // Perform 5 Ransac Iterations
+        //         vector<bool> vbInliers;
+        //         int nInliers;
+        //         bool bNoMore;
 
-                // Sim3Solver 執行 5 次
-                // 返回最佳規模尺度下的『相似轉換矩陣』
-                cv::Mat Scm = pSolver->iterate(5, bNoMore, vbInliers, nInliers);
+        //         Sim3Solver *pSolver = vpSim3Solvers[i];
 
-                // If Ransac reachs max. iterations discard keyframe
-                if (bNoMore)
-                {
-                    vbDiscarded[i] = true;
-                    nCandidates--;
-                }
+        //         // Sim3Solver 執行 5 次
+        //         // 返回最佳規模尺度下的『相似轉換矩陣』
+        //         cv::Mat Scm = pSolver->iterate(5, bNoMore, vbInliers, nInliers);
 
-                // If RANSAC returns a Sim3, perform a guided matching and optimize with 
-                // all correspondences
-                if (!Scm.empty())
-                {
-                    // vvpMapPointMatches[i]：mpCurrentKF 和 mvpEnoughConsistentCandidates[i]（pKF）
-                    // 匹配的地圖點
-                    vector<MapPoint *> vpMapPointMatches(vvpMapPointMatches[i].size(), 
-                                                         static_cast<MapPoint *>(NULL));
+        //         // If Ransac reachs max. iterations discard keyframe
+        //         if (bNoMore)
+        //         {
+        //             vbDiscarded[i] = true;
+        //             nCandidates--;
+        //         }
 
-                    for (size_t j = 0, jend = vbInliers.size(); j < jend; j++)
-                    {
-                        // 若為內點（已在 pSolver->iterate 作過判斷）
-                        if (vbInliers[j])
-                        {
-                            vpMapPointMatches[j] = vvpMapPointMatches[i][j];
-                        }
-                    }
+        //         // If RANSAC returns a Sim3, perform a guided matching and optimize with 
+        //         // all correspondences
+        //         if (!Scm.empty())
+        //         {
+        //             // vvpMapPointMatches[i]：mpCurrentKF 和 mvpEnoughConsistentCandidates[i]（pKF）
+        //             // 匹配的地圖點
+        //             vector<MapPoint *> vpMapPointMatches(vvpMapPointMatches[i].size(), 
+        //                                                  static_cast<MapPoint *>(NULL));
 
-                    // 最佳旋轉矩陣、平移向量、規模尺度，皆為在 pSolver->iterate 中求出
-                    cv::Mat R = pSolver->GetEstimatedRotation();
-                    cv::Mat t = pSolver->GetEstimatedTranslation();                    
-                    const float s = pSolver->GetEstimatedScale();
+        //             for (size_t j = 0, jend = vbInliers.size(); j < jend; j++)
+        //             {
+        //                 // 若為內點（已在 pSolver->iterate 作過判斷）
+        //                 if (vbInliers[j])
+        //                 {
+        //                     vpMapPointMatches[j] = vvpMapPointMatches[i][j];
+        //                 }
+        //             }
 
-                    // 利用『相似轉換矩陣』將 mpCurrentKF 和 pKF 各自觀察到的地圖點投影到彼此上，
-                    // 若雙方都找到同樣的匹配關係，則替換 vpMapPointMatches 的地圖點
-                    matcher.SearchBySim3(mpCurrentKF, pKF, vpMapPointMatches, s, R, t, 7.5);
+        //             // 最佳旋轉矩陣、平移向量、規模尺度，皆為在 pSolver->iterate 中求出
+        //             cv::Mat R = pSolver->GetEstimatedRotation();
+        //             cv::Mat t = pSolver->GetEstimatedTranslation();                    
+        //             const float s = pSolver->GetEstimatedScale();
 
-                    g2o::Sim3 gScm(Converter::toMatrix3d(R), Converter::toVector3d(t), s);
+        //             // 利用『相似轉換矩陣』將 mpCurrentKF 和 pKF 各自觀察到的地圖點投影到彼此上，
+        //             // 若雙方都找到同樣的匹配關係，則替換 vpMapPointMatches 的地圖點
+        //             matcher.SearchBySim3(mpCurrentKF, pKF, vpMapPointMatches, s, R, t, 7.5);
 
-                    // 將『地圖點 pMP1、pMP2』的位置轉換到相機座標系下，作為『頂點』加入優化，
-                    // 相對應的特徵點位置作為『邊』加入，優化並排除誤差過大的估計後，重新估計『相似轉換矩陣』
-                    const int nInliers = Optimizer::OptimizeSim3(
-                                            mpCurrentKF, pKF, vpMapPointMatches, gScm, 10, mbFixScale);
+        //             g2o::Sim3 gScm(Converter::toMatrix3d(R), Converter::toVector3d(t), s);
 
-                    // If optimization is succesful stop ransacs and continue
-                    if (nInliers >= 20)
-                    {
-                        bMatch = true;
+        //             // 將『地圖點 pMP1、pMP2』的位置轉換到相機座標系下，作為『頂點』加入優化，
+        //             // 相對應的特徵點位置作為『邊』加入，優化並排除誤差過大的估計後，重新估計『相似轉換矩陣』
+        //             const int nInliers = Optimizer::OptimizeSim3(
+        //                                     mpCurrentKF, pKF, vpMapPointMatches, gScm, 10, mbFixScale);
 
-                        // mpMatchedKF：選定的閉環關鍵幀
-                        mpMatchedKF = pKF;
+        //             // If optimization is succesful stop ransacs and continue
+        //             if (nInliers >= 20)
+        //             {
+        //                 bMatch = true;
 
-                        g2o::Sim3 gSmw(Converter::toMatrix3d(pKF->GetRotation()), 
-                                       Converter::toVector3d(pKF->GetTranslation()), 1.0);
-                        mg2oScw = gScm * gSmw;
-                        mScw = Converter::toCvMat(mg2oScw);
+        //                 // mpMatchedKF：選定的閉環關鍵幀
+        //                 mpMatchedKF = pKF;
 
-                        // vpMapPointMatches ＝ vvpMapPointMatches[i]
-                        // mpCurrentKF 和 mvpEnoughConsistentCandidates[i] 匹配的地圖點
-                        mvpCurrentMatchedPoints = vpMapPointMatches;
-                        break;
-                    }
-                }
-            }
-        }
+        //                 g2o::Sim3 gSmw(Converter::toMatrix3d(pKF->GetRotation()), 
+        //                                Converter::toVector3d(pKF->GetTranslation()), 1.0);
+        //                 mg2oScw = gScm * gSmw;
+        //                 mScw = Converter::toCvMat(mg2oScw);
+
+        //                 // vpMapPointMatches ＝ vvpMapPointMatches[i]
+        //                 // mpCurrentKF 和 mvpEnoughConsistentCandidates[i] 匹配的地圖點
+        //                 mvpCurrentMatchedPoints = vpMapPointMatches;
+        //                 break;
+        //             }
+        //         }
+        //     }
+        // }
 
         // ================================================================================
 
@@ -576,44 +580,45 @@ namespace ORB_SLAM2
 
         // ================================================================================
         // ================================================================================
-        // searchByProjection(matcher);
+        searchByProjection(matcher);
 
-        // Retrieve MapPoints seen in Loop Keyframe and neighbors
-        // 取得『選定的閉環關鍵幀 mpMatchedKF』的『共視關鍵幀』（根據觀察到的地圖點數量排序）
-        vector<KeyFrame *> vpLoopConnectedKFs = mpMatchedKF->GetVectorCovisibleKeyFrames();
+        // // Retrieve MapPoints seen in Loop Keyframe and neighbors
+        // // 取得『選定的閉環關鍵幀 mpMatchedKF』的『共視關鍵幀』（根據觀察到的地圖點數量排序）
+        // vector<KeyFrame *> vpLoopConnectedKFs = mpMatchedKF->GetVectorCovisibleKeyFrames();
 
-        // 『選定的閉環關鍵幀 mpMatchedKF』及其『共視關鍵幀』
-        vpLoopConnectedKFs.push_back(mpMatchedKF);
+        // // 『選定的閉環關鍵幀 mpMatchedKF』及其『共視關鍵幀』
+        // vpLoopConnectedKFs.push_back(mpMatchedKF);
 
-        mvpLoopMapPoints.clear();
+        // mvpLoopMapPoints.clear();
 
-        // 遍歷『關鍵幀 mpMatchedKF』及其『共視關鍵幀』
-        for(KeyFrame *pKF : vpLoopConnectedKFs){
+        // // 遍歷『關鍵幀 mpMatchedKF』及其『共視關鍵幀』
+        // for(KeyFrame *pKF : vpLoopConnectedKFs){
 
-            // 取得『關鍵幀 pKF』觀察到的地圖點
-            vector<MapPoint *> vpMapPoints = pKF->GetMapPointMatches();
+        //     // 取得『關鍵幀 pKF』觀察到的地圖點
+        //     vector<MapPoint *> vpMapPoints = pKF->GetMapPointMatches();
 
-            for(MapPoint *pMP : vpMapPoints){
+        //     for(MapPoint *pMP : vpMapPoints){
 
-                if (pMP)
-                {
-                    if (!pMP->isBad() && pMP->mnLoopPointForKF != mpCurrentKF->mnId)
-                    {
-                        // 『關鍵幀 mpMatchedKF』及其『共視關鍵幀』所觀察到的地圖點
-                        mvpLoopMapPoints.push_back(pMP);
-                        pMP->mnLoopPointForKF = mpCurrentKF->mnId;
-                    }
-                }
-            }
-        }
+        //         if (pMP)
+        //         {
+        //             if (!pMP->isBad() && pMP->mnLoopPointForKF != mpCurrentKF->mnId)
+        //             {
+        //                 // 『關鍵幀 mpMatchedKF』及其『共視關鍵幀』所觀察到的地圖點
+        //                 mvpLoopMapPoints.push_back(pMP);
+        //                 pMP->mnLoopPointForKF = mpCurrentKF->mnId;
+        //             }
+        //         }
+        //     }
+        // }
 
-        // Find more matches projecting with the computed Sim3
-        // vvpMapPointMatches[i]：mpCurrentKF 和 mvpEnoughConsistentCandidates[i]（pKF）
-        // mvpLoopMapPoints：和『關鍵幀 mpCurrentKF』已配對的『關鍵幀及其共視關鍵幀觀察到的地圖點』
-        // 已透過 Sim3 尋找了匹配關係，這裡在『已配對的關鍵幀及其共視關鍵幀觀察到的地圖點』當中進一步尋找匹配關係
-        // 『地圖點們 vpPoints』投影到『關鍵幀 pKF』上，vpMatched 為匹配結果，第 idx 個特徵點對應『地圖點 pMP』
-        // mvpLoopMapPoints 的地圖點若再次匹配成功，也會被保存在 mvpCurrentMatchedPoints
-        matcher.SearchByProjection(mpCurrentKF, mScw, mvpLoopMapPoints, mvpCurrentMatchedPoints, 10);
+        // // Find more matches projecting with the computed Sim3
+        // // vvpMapPointMatches[i]：mpCurrentKF 和 mvpEnoughConsistentCandidates[i]（pKF）
+        // // mvpLoopMapPoints：和『關鍵幀 mpCurrentKF』已配對的『關鍵幀及其共視關鍵幀觀察到的地圖點』
+        // // 已透過 Sim3 尋找了匹配關係，這裡在『已配對的關鍵幀及其共視關鍵幀觀察到的地圖點』當中進一步尋找匹配關係
+        // // 『地圖點們 vpPoints』投影到『關鍵幀 pKF』上，vpMatched 為匹配結果，第 idx 個特徵點對應『地圖點 pMP』
+        // // mvpLoopMapPoints 的地圖點若再次匹配成功，也會被保存在 mvpCurrentMatchedPoints
+        // matcher.SearchByProjection(mpCurrentKF, mScw, mvpLoopMapPoints, mvpCurrentMatchedPoints, 10);
+
         // ================================================================================
 
 
@@ -735,51 +740,51 @@ namespace ORB_SLAM2
 
             // ================================================================================
             // ================================================================================
-            // whetherCorrectedSim3(Twc, CorrectedSim3, NonCorrectedSim3);
+            whetherCorrectedSim3(Twc, CorrectedSim3, NonCorrectedSim3);
 
-            for(KeyFrame *pKFi : mvpCurrentConnectedKFs){
+            // for(KeyFrame *pKFi : mvpCurrentConnectedKFs){
 
-                // 『關鍵幀 pKFi』的位姿
-                cv::Mat Tiw = pKFi->GetPose();
+            //     // 『關鍵幀 pKFi』的位姿
+            //     cv::Mat Tiw = pKFi->GetPose();
 
-                if (pKFi != mpCurrentKF)
-                {
-                    // 『關鍵幀 mpCurrentKF』座標系到『關鍵幀 pKFi』座標系
-                    cv::Mat Tic = Tiw * Twc;
+            //     if (pKFi != mpCurrentKF)
+            //     {
+            //         // 『關鍵幀 mpCurrentKF』座標系到『關鍵幀 pKFi』座標系
+            //         cv::Mat Tic = Tiw * Twc;
 
-                    cv::Mat Ric = Tic.rowRange(0, 3).colRange(0, 3);
-                    cv::Mat tic = Tic.rowRange(0, 3).col(3);
+            //         cv::Mat Ric = Tic.rowRange(0, 3).colRange(0, 3);
+            //         cv::Mat tic = Tic.rowRange(0, 3).col(3);
 
-                    // 構成『相似轉換矩陣』
-                    g2o::Sim3 g2oSic(Converter::toMatrix3d(Ric), Converter::toVector3d(tic), 1.0);
-                    g2o::Sim3 g2oCorrectedSiw = g2oSic * mg2oScw;
+            //         // 構成『相似轉換矩陣』
+            //         g2o::Sim3 g2oSic(Converter::toMatrix3d(Ric), Converter::toVector3d(tic), 1.0);
+            //         g2o::Sim3 g2oCorrectedSiw = g2oSic * mg2oScw;
 
-                    //Pose corrected with the Sim3 of the loop closure
-                    // 紀錄當『關鍵幀 mpCurrentKF』座標系轉換到『關鍵幀 pKFi』座標系
-                    // 對應的『相似轉換矩陣 g2oCorrectedSiw』
-                    CorrectedSim3[pKFi] = g2oCorrectedSiw;
-                }
+            //         //Pose corrected with the Sim3 of the loop closure
+            //         // 紀錄當『關鍵幀 mpCurrentKF』座標系轉換到『關鍵幀 pKFi』座標系
+            //         // 對應的『相似轉換矩陣 g2oCorrectedSiw』
+            //         CorrectedSim3[pKFi] = g2oCorrectedSiw;
+            //     }
 
-                cv::Mat Riw = Tiw.rowRange(0, 3).colRange(0, 3);
-                cv::Mat tiw = Tiw.rowRange(0, 3).col(3);
+            //     cv::Mat Riw = Tiw.rowRange(0, 3).colRange(0, 3);
+            //     cv::Mat tiw = Tiw.rowRange(0, 3).col(3);
 
-                // 由『關鍵幀 pKFi』的位姿構成的『相似轉換矩陣 g2oSiw』
-                g2o::Sim3 g2oSiw(Converter::toMatrix3d(Riw), Converter::toVector3d(tiw), 1.0);
+            //     // 由『關鍵幀 pKFi』的位姿構成的『相似轉換矩陣 g2oSiw』
+            //     g2o::Sim3 g2oSiw(Converter::toMatrix3d(Riw), Converter::toVector3d(tiw), 1.0);
 
-                // Pose without correction
-                // 紀錄『關鍵幀 pKFi』對應的『相似轉換矩陣 g2oSiw』
-                NonCorrectedSim3[pKFi] = g2oSiw;
-            }
-
-            // ================================================================================
-
-
-
-
+            //     // Pose without correction
+            //     // 紀錄『關鍵幀 pKFi』對應的『相似轉換矩陣 g2oSiw』
+            //     NonCorrectedSim3[pKFi] = g2oSiw;
+            // }
 
             // ================================================================================
+
+
+
+
+
             // ================================================================================
-            // scaledCorrectedSim3(CorrectedSim3, NonCorrectedSim3);
+            // ================================================================================
+            scaledCorrectedSim3(CorrectedSim3, NonCorrectedSim3);
 
         /*
         typedef map<KeyFrame*,
@@ -787,143 +792,143 @@ namespace ORB_SLAM2
                     std::less<KeyFrame*>,
                     Eigen::aligned_allocator<std::pair<KeyFrame *const, g2o::Sim3>>> KeyFrameAndPose;
         */
-            // Correct all MapPoints obsrved by current keyframe and neighbors, 
-            // so that they align with the other side of the loop
-            KeyFrameAndPose::iterator mit = CorrectedSim3.begin();
-            KeyFrameAndPose::iterator mend = CorrectedSim3.end();
+            // // Correct all MapPoints obsrved by current keyframe and neighbors, 
+            // // so that they align with the other side of the loop
+            // KeyFrameAndPose::iterator mit = CorrectedSim3.begin();
+            // KeyFrameAndPose::iterator mend = CorrectedSim3.end();
 
-            // 遍歷 CorrectedSim3（紀錄當『關鍵幀 mpCurrentKF』座標系轉換到『關鍵幀 pKFi』座標系
-            // 對應的『相似轉換矩陣 g2oCorrectedSiw』）
-            for (; mit != mend; mit++)
-            {
-                KeyFrame *pKFi = mit->first;
+            // // 遍歷 CorrectedSim3（紀錄當『關鍵幀 mpCurrentKF』座標系轉換到『關鍵幀 pKFi』座標系
+            // // 對應的『相似轉換矩陣 g2oCorrectedSiw』）
+            // for (; mit != mend; mit++)
+            // {
+            //     KeyFrame *pKFi = mit->first;
 
-                // 『關鍵幀 mpCurrentKF』座標系轉換到『關鍵幀 pKFi』座標系
-                // 對應的『相似轉換矩陣 g2oCorrectedSiw』
-                g2o::Sim3 g2oCorrectedSiw = mit->second;
+            //     // 『關鍵幀 mpCurrentKF』座標系轉換到『關鍵幀 pKFi』座標系
+            //     // 對應的『相似轉換矩陣 g2oCorrectedSiw』
+            //     g2o::Sim3 g2oCorrectedSiw = mit->second;
 
-                // 『關鍵幀 pKFi』座標系轉換到座標系『關鍵幀 mpCurrentKF』
-                // 對應的『相似轉換矩陣 g2oCorrectedSiw』
-                g2o::Sim3 g2oCorrectedSwi = g2oCorrectedSiw.inverse();
+            //     // 『關鍵幀 pKFi』座標系轉換到座標系『關鍵幀 mpCurrentKF』
+            //     // 對應的『相似轉換矩陣 g2oCorrectedSiw』
+            //     g2o::Sim3 g2oCorrectedSwi = g2oCorrectedSiw.inverse();
 
-                // 『關鍵幀 pKFi』對應的『相似轉換矩陣 g2oSiw』
-                g2o::Sim3 g2oSiw = NonCorrectedSim3[pKFi];
+            //     // 『關鍵幀 pKFi』對應的『相似轉換矩陣 g2oSiw』
+            //     g2o::Sim3 g2oSiw = NonCorrectedSim3[pKFi];
                 
-                // 『關鍵幀 pKFi』觀察到的地圖點
-                vector<MapPoint *> vpMPsi = pKFi->GetMapPointMatches();
+            //     // 『關鍵幀 pKFi』觀察到的地圖點
+            //     vector<MapPoint *> vpMPsi = pKFi->GetMapPointMatches();
 
-                for (size_t iMP = 0, endMPi = vpMPsi.size(); iMP < endMPi; iMP++)
-                {
-                    MapPoint *pMPi = vpMPsi[iMP];
+            //     for (size_t iMP = 0, endMPi = vpMPsi.size(); iMP < endMPi; iMP++)
+            //     {
+            //         MapPoint *pMPi = vpMPsi[iMP];
 
-                    if (!pMPi){
-                        continue;
-                    }
+            //         if (!pMPi){
+            //             continue;
+            //         }
 
-                    if (pMPi->isBad()){
-                        continue;
-                    }
+            //         if (pMPi->isBad()){
+            //             continue;
+            //         }
 
-                    if (pMPi->mnCorrectedByKF == mpCurrentKF->mnId){
-                        continue;
-                    }
+            //         if (pMPi->mnCorrectedByKF == mpCurrentKF->mnId){
+            //             continue;
+            //         }
 
-                    // Project with non-corrected pose and project back with corrected pose
-                    // 取得『關鍵幀 pKFi』觀察到的『地圖點 pMPi』的世界座標
-                    cv::Mat P3Dw = pMPi->GetWorldPos();
+            //         // Project with non-corrected pose and project back with corrected pose
+            //         // 取得『關鍵幀 pKFi』觀察到的『地圖點 pMPi』的世界座標
+            //         cv::Mat P3Dw = pMPi->GetWorldPos();
 
-                    Eigen::Matrix<double, 3, 1> eigP3Dw = Converter::toVector3d(P3Dw);
+            //         Eigen::Matrix<double, 3, 1> eigP3Dw = Converter::toVector3d(P3Dw);
 
-                    // 將『空間點 eigP3Dw』從世界座標系轉換到座標系『關鍵幀 mpCurrentKF』
-                    // 轉換過程中，規模尺度也轉換為『關鍵幀 mpCurrentKF』的尺度
-                    /* 
-                    Vector3d map (const Vector3d &xyz) const {
-                        return s * (r * xyz) + t;
-                    }
-                    */
-                    Eigen::Matrix<double, 3, 1> eigCorrectedP3Dw = 
-                                                            g2oCorrectedSwi.map(g2oSiw.map(eigP3Dw));
+            //         // 將『空間點 eigP3Dw』從世界座標系轉換到座標系『關鍵幀 mpCurrentKF』
+            //         // 轉換過程中，規模尺度也轉換為『關鍵幀 mpCurrentKF』的尺度
+            //         /* 
+            //         Vector3d map (const Vector3d &xyz) const {
+            //             return s * (r * xyz) + t;
+            //         }
+            //         */
+            //         Eigen::Matrix<double, 3, 1> eigCorrectedP3Dw = 
+            //                                                 g2oCorrectedSwi.map(g2oSiw.map(eigP3Dw));
 
-                    // 轉換為『關鍵幀 mpCurrentKF』的尺度後，再重新轉換為世界座標
-                    cv::Mat cvCorrectedP3Dw = Converter::toCvMat(eigCorrectedP3Dw);
-                    pMPi->SetWorldPos(cvCorrectedP3Dw);
+            //         // 轉換為『關鍵幀 mpCurrentKF』的尺度後，再重新轉換為世界座標
+            //         cv::Mat cvCorrectedP3Dw = Converter::toCvMat(eigCorrectedP3Dw);
+            //         pMPi->SetWorldPos(cvCorrectedP3Dw);
 
-                    pMPi->mnCorrectedByKF = mpCurrentKF->mnId;
-                    pMPi->mnCorrectedReference = pKFi->mnId;
+            //         pMPi->mnCorrectedByKF = mpCurrentKF->mnId;
+            //         pMPi->mnCorrectedReference = pKFi->mnId;
 
-                    // 利用所有觀察到『地圖點 pMPi』的關鍵幀來估計關鍵幀們平均指向的方向，
-                    // 以及該地圖點可能的深度範圍(最近與最遠)
-                    pMPi->UpdateNormalAndDepth();
-                }
+            //         // 利用所有觀察到『地圖點 pMPi』的關鍵幀來估計關鍵幀們平均指向的方向，
+            //         // 以及該地圖點可能的深度範圍(最近與最遠)
+            //         pMPi->UpdateNormalAndDepth();
+            //     }
 
-                // Update keyframe pose with corrected Sim3. 
-                // First transform Sim3 to SE3 (scale translation)
-                // 『關鍵幀 mpCurrentKF』座標系轉換到『關鍵幀 pKFi』座標系
-                // 對應的『相似轉換矩陣 g2oCorrectedSiw』，拆分為旋轉、平移、規模
-                Eigen::Matrix3d eigR = g2oCorrectedSiw.rotation().toRotationMatrix();
-                Eigen::Vector3d eigt = g2oCorrectedSiw.translation();
-                double s = g2oCorrectedSiw.scale();
+            //     // Update keyframe pose with corrected Sim3. 
+            //     // First transform Sim3 to SE3 (scale translation)
+            //     // 『關鍵幀 mpCurrentKF』座標系轉換到『關鍵幀 pKFi』座標系
+            //     // 對應的『相似轉換矩陣 g2oCorrectedSiw』，拆分為旋轉、平移、規模
+            //     Eigen::Matrix3d eigR = g2oCorrectedSiw.rotation().toRotationMatrix();
+            //     Eigen::Vector3d eigt = g2oCorrectedSiw.translation();
+            //     double s = g2oCorrectedSiw.scale();
 
-                // [R t/s; 0 1] 縮放規模
-                eigt *= (1. / s); 
+            //     // [R t/s; 0 1] 縮放規模
+            //     eigt *= (1. / s); 
 
-                // 規模校正後的『轉換矩陣』
-                cv::Mat correctedTiw = Converter::toCvSE3(eigR, eigt);
+            //     // 規模校正後的『轉換矩陣』
+            //     cv::Mat correctedTiw = Converter::toCvSE3(eigR, eigt);
 
-                // 更新『關鍵幀 pKFi』的位姿
-                pKFi->SetPose(correctedTiw);
+            //     // 更新『關鍵幀 pKFi』的位姿
+            //     pKFi->SetPose(correctedTiw);
 
-                // Make sure connections are updated
-                // 其他關鍵幀和『關鍵幀 pKFi』觀察到相同的地圖點，且各自都觀察到足夠多的地圖點，則會和當前幀產生鏈結
-                pKFi->UpdateConnections();
-            }
+            //     // Make sure connections are updated
+            //     // 其他關鍵幀和『關鍵幀 pKFi』觀察到相同的地圖點，且各自都觀察到足夠多的地圖點，則會和當前幀產生鏈結
+            //     pKFi->UpdateConnections();
+            // }
+
+            // ================================================================================
+
+
+
+
+
+            // ================================================================================
+            // ================================================================================
+            updateMatchedMapPoints();
+
+            // // Start Loop Fusion
+            // // Update matched map points and replace if duplicated
+            // // mvpCurrentMatchedPoints：根據已配對的地圖點與關鍵幀，再次匹配成功後找到的『地圖點』
+            // for (size_t i = 0; i < mvpCurrentMatchedPoints.size(); i++)
+            // {
+            //     // mvpCurrentMatchedPoints[idx] = pMP -> 『關鍵幀 pKF』的第 idx 個特徵點對應『地圖點 pMP』
+            //     if (mvpCurrentMatchedPoints[i])
+            //     {
+            //         // 『關鍵幀 mpCurrentKF』的第 idx 個特徵點對應『地圖點 pLoopMP』
+            //         MapPoint *pLoopMP = mvpCurrentMatchedPoints[i];
+
+            //         // 『關鍵幀 mpCurrentKF』的第 idx 個特徵點對應『地圖點 pCurMP』
+            //         MapPoint *pCurMP = mpCurrentKF->GetMapPoint(i);
+
+            //         // 若『關鍵幀 mpCurrentKF』的第 idx 個特徵點對應的特徵點已存在
+            //         if (pCurMP){
+            //             // 『地圖點 pLoopMP』取代『地圖點 pCurMP』
+            //             // 將被『較多』關鍵幀觀察到的地圖點，取代被『較少』關鍵幀觀察到的地圖點
+            //             pCurMP->Replace(pLoopMP);
+            //         }
+            //         else
+            //         {
+            //             // 『關鍵幀 mpCurrentKF』的第 idx 個關鍵點觀察到了『地圖點 pLoopMP』
+            //             mpCurrentKF->AddMapPoint(pLoopMP, i);
+
+            //             // 『地圖點 pLoopMP』被『關鍵幀 mpCurrentKF』的第 idx 個關鍵點觀察到
+            //             pLoopMP->AddObservation(mpCurrentKF, i);
+
+            //             // 以『所有描述這個地圖點的描述子的集合』的中心描述子，作為地圖點的描述子
+            //             pLoopMP->ComputeDistinctiveDescriptors();
+            //         }
+            //     }
+            // }
 
             // ================================================================================
 
-
-
-
-
-            // ================================================================================
-            // ================================================================================
-            // updateMatchedMapPoints();
-
-            // Start Loop Fusion
-            // Update matched map points and replace if duplicated
-            // mvpCurrentMatchedPoints：根據已配對的地圖點與關鍵幀，再次匹配成功後找到的『地圖點』
-            for (size_t i = 0; i < mvpCurrentMatchedPoints.size(); i++)
-            {
-                // mvpCurrentMatchedPoints[idx] = pMP -> 『關鍵幀 pKF』的第 idx 個特徵點對應『地圖點 pMP』
-                if (mvpCurrentMatchedPoints[i])
-                {
-                    // 『關鍵幀 mpCurrentKF』的第 idx 個特徵點對應『地圖點 pLoopMP』
-                    MapPoint *pLoopMP = mvpCurrentMatchedPoints[i];
-
-                    // 『關鍵幀 mpCurrentKF』的第 idx 個特徵點對應『地圖點 pCurMP』
-                    MapPoint *pCurMP = mpCurrentKF->GetMapPoint(i);
-
-                    // 若『關鍵幀 mpCurrentKF』的第 idx 個特徵點對應的特徵點已存在
-                    if (pCurMP){
-                        // 『地圖點 pLoopMP』取代『地圖點 pCurMP』
-                        // 將被『較多』關鍵幀觀察到的地圖點，取代被『較少』關鍵幀觀察到的地圖點
-                        pCurMP->Replace(pLoopMP);
-                    }
-                    else
-                    {
-                        // 『關鍵幀 mpCurrentKF』的第 idx 個關鍵點觀察到了『地圖點 pLoopMP』
-                        mpCurrentKF->AddMapPoint(pLoopMP, i);
-
-                        // 『地圖點 pLoopMP』被『關鍵幀 mpCurrentKF』的第 idx 個關鍵點觀察到
-                        pLoopMP->AddObservation(mpCurrentKF, i);
-
-                        // 以『所有描述這個地圖點的描述子的集合』的中心描述子，作為地圖點的描述子
-                        pLoopMP->ComputeDistinctiveDescriptors();
-                    }
-                }
-            }
-
-            // ================================================================================
-            
         }
 
         // Project MapPoints observed in the neighborhood of the loop keyframe
@@ -940,31 +945,33 @@ namespace ORB_SLAM2
         // LoopConnections[pKFi]：『關鍵幀 pKFi』的『已連結關鍵幀』
         map<KeyFrame *, set<KeyFrame *>> LoopConnections;
 
-        // mvpCurrentConnectedKFs：『關鍵幀 mpCurrentKF』和其『共視關鍵幀』
-        for(KeyFrame *pKFi : mvpCurrentConnectedKFs){
+        updateLoopConnections(LoopConnections);
 
-            // 取得『關鍵幀 pKFi』的『共視關鍵幀』（根據觀察到的地圖點數量排序）
-            vector<KeyFrame *> vpPreviousNeighbors = pKFi->GetVectorCovisibleKeyFrames();
+        // // mvpCurrentConnectedKFs：『關鍵幀 mpCurrentKF』和其『共視關鍵幀』
+        // for(KeyFrame *pKFi : mvpCurrentConnectedKFs){
 
-            // Update connections. Detect new links.
-            // 其他關鍵幀和『關鍵幀 pKFi』觀察到相同的地圖點，且各自都觀察到足夠多的地圖點，則會和當前幀產生鏈結
-            pKFi->UpdateConnections();
+        //     // 取得『關鍵幀 pKFi』的『共視關鍵幀』（根據觀察到的地圖點數量排序）
+        //     vector<KeyFrame *> vpPreviousNeighbors = pKFi->GetVectorCovisibleKeyFrames();
 
-            // 取得『關鍵幀 pKFi』的『已連結關鍵幀』
-            LoopConnections[pKFi] = pKFi->GetConnectedKeyFrames();
+        //     // Update connections. Detect new links.
+        //     // 其他關鍵幀和『關鍵幀 pKFi』觀察到相同的地圖點，且各自都觀察到足夠多的地圖點，則會和當前幀產生鏈結
+        //     pKFi->UpdateConnections();
 
-            // 從『關鍵幀 pKFi』的『已連結關鍵幀』當中移除『關鍵幀 pKFi』的『共視關鍵幀』
-            for(KeyFrame * pre_kf : vpPreviousNeighbors)
-            {
-                LoopConnections[pKFi].erase(pre_kf);
-            }
+        //     // 取得『關鍵幀 pKFi』的『已連結關鍵幀』
+        //     LoopConnections[pKFi] = pKFi->GetConnectedKeyFrames();
 
-            // 從『關鍵幀 pKFi』的『已連結關鍵幀』當中移除『關鍵幀 mpCurrentKF』和其『共視關鍵幀』
-            for(KeyFrame * curr_conn_kf : mvpCurrentConnectedKFs)
-            {
-                LoopConnections[pKFi].erase(curr_conn_kf);
-            }
-        }
+        //     // 從『關鍵幀 pKFi』的『已連結關鍵幀』當中移除『關鍵幀 pKFi』的『共視關鍵幀』
+        //     for(KeyFrame * pre_kf : vpPreviousNeighbors)
+        //     {
+        //         LoopConnections[pKFi].erase(pre_kf);
+        //     }
+
+        //     // 從『關鍵幀 pKFi』的『已連結關鍵幀』當中移除『關鍵幀 mpCurrentKF』和其『共視關鍵幀』
+        //     for(KeyFrame * curr_conn_kf : mvpCurrentConnectedKFs)
+        //     {
+        //         LoopConnections[pKFi].erase(curr_conn_kf);
+        //     }
+        // }
 
         // Optimize graph
         // LoopConnections：『關鍵幀 pKFi』的『已連結關鍵幀』，移除『關鍵幀 pKFi』的『共視關鍵幀』和
@@ -1747,6 +1754,37 @@ namespace ORB_SLAM2
         }
     }
     
+    void LoopClosing::updateLoopConnections(map<KeyFrame *, set<KeyFrame *>> &LoopConnections)
+    {
+        vector<KeyFrame *> vpPreviousNeighbors;
+
+        // mvpCurrentConnectedKFs：『關鍵幀 mpCurrentKF』和其『共視關鍵幀』
+        for(KeyFrame *pKFi : mvpCurrentConnectedKFs){
+
+            // 取得『關鍵幀 pKFi』的『共視關鍵幀』（根據觀察到的地圖點數量排序）
+            vpPreviousNeighbors = pKFi->GetVectorCovisibleKeyFrames();
+
+            // Update connections. Detect new links.
+            // 其他關鍵幀和『關鍵幀 pKFi』觀察到相同的地圖點，且各自都觀察到足夠多的地圖點，則會和當前幀產生鏈結
+            pKFi->UpdateConnections();
+
+            // 取得『關鍵幀 pKFi』的『已連結關鍵幀』
+            LoopConnections[pKFi] = pKFi->GetConnectedKeyFrames();
+
+            // 從『關鍵幀 pKFi』的『已連結關鍵幀』當中移除『關鍵幀 pKFi』的『共視關鍵幀』
+            for(KeyFrame * pre_kf : vpPreviousNeighbors)
+            {
+                LoopConnections[pKFi].erase(pre_kf);
+            }
+
+            // 從『關鍵幀 pKFi』的『已連結關鍵幀』當中移除『關鍵幀 mpCurrentKF』和其『共視關鍵幀』
+            for(KeyFrame * curr_conn_kf : mvpCurrentConnectedKFs)
+            {
+                LoopConnections[pKFi].erase(curr_conn_kf);
+            }
+        }
+    }
+
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================

@@ -166,6 +166,7 @@ protected:
     inline void scaledCorrectedSim3(KeyFrameAndPose &CorrectedSim3, 
                                     KeyFrameAndPose &NonCorrectedSim3);
     inline void updateMatchedMapPoints();
+    inline void updateLoopConnections(map<KeyFrame *, set<KeyFrame *>> &LoopConnections);
 
     Map* mpMap;
     Tracking* mpTracker;
