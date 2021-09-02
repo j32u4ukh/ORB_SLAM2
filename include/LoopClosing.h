@@ -167,6 +167,8 @@ protected:
                                     KeyFrameAndPose &NonCorrectedSim3);
     inline void updateMatchedMapPoints();
     inline void updateLoopConnections(map<KeyFrame *, set<KeyFrame *>> &LoopConnections);
+    inline void updateChildPose(list<KeyFrame *> &lpKFtoCheck, const unsigned long nLoopKF);
+    inline void updateMapPointsPosition(const unsigned long nLoopKF);
 
     Map* mpMap;
     Tracking* mpTracker;
