@@ -190,9 +190,9 @@ namespace ORB_SLAM2
         }
     }
 
-    cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im, const double &timestamp)
+    cv::Mat Tracking::GrabImageMonocular(const cv::Mat &img, const double &timestamp)
     {
-        gray = im;
+        gray = img;
 
         // 根據輸入影像的類型，轉換所需的灰階影像
         if (gray.channels() == 3)
@@ -218,6 +218,7 @@ namespace ORB_SLAM2
             }
         }
 
+        /// TODO: 之後若要建構彩色地圖，要利用 img
         // mState 初始化時（第 1 幀）是 NO_IMAGES_YET
         // 建構當前幀 Frame 物件
         if (mState == NOT_INITIALIZED || mState == NO_IMAGES_YET)
@@ -333,6 +334,7 @@ namespace ORB_SLAM2
                     }
                 }
 
+                /// TODO: 能否丟失追蹤後仍持續建圖，直到觀測到迴路時，再校正之前的估計？
                 // 當系統狀態 mState 處於 OK 時，意味著當前的視覺里程計成功地跟上了相機的運動。
                 // 無法成功估計位姿，意味著我們跟丟了，需要進行重定位
                 else
@@ -744,6 +746,7 @@ namespace ORB_SLAM2
         mState = OK;
     }
 
+    /// NOTE: 若之後改為八叉樹，這裡是否會產生衝突？
     // 更新前一幀的地圖點，更換為被較多關鍵幀觀察到的地圖點
     void Tracking::CheckReplacedInLastFrame()
     {
@@ -782,6 +785,7 @@ namespace ORB_SLAM2
         int nmatches = matcher.SearchByBoW(mpReferenceKF, mCurrentFrame, vpMapPointMatches);
 
         // 如果匹配的點太少就認為跟丟了。
+        /// TODO: 調整認定跟丟的標準 或 放寬標準再匹配一次
         if (nmatches < 15)
         {
             return false;
@@ -814,7 +818,7 @@ namespace ORB_SLAM2
                     mCurrentFrame.mvbOutlier[i] = false;
                     pMP->mbTrackInView = false;
                     pMP->mnLastFrameSeen = mCurrentFrame.mnId;
-                    nmatches--;
+                    // nmatches--;
                 }
 
                 // 若地圖點被至少 1 個關鍵幀觀察到
@@ -938,6 +942,7 @@ namespace ORB_SLAM2
         if (mbOnlyTracking)
         {
             mbVO = nmatchesMap < 10;
+
             return nmatches > 20;
         }
 
@@ -1936,7 +1941,7 @@ namespace ORB_SLAM2
         }
     }
 
-    // bool: if_return 是否直接返回？
+    // bool: if_return 表示是否直接返回？
     bool Tracking::update(bool bOK)
     {
         /// TODO: 上下兩個 if (bOK) 應該可以合併，因為 mpFrameDrawer->Update 當中並未使用到 mState

@@ -91,12 +91,14 @@ int main(int argc, char **argv)
         std::chrono::monotonic_clock::time_point main_t1 = std::chrono::monotonic_clock::now();
 #endif
 
+    double tframe, ttrack, T;
+
     // Main loop
     for (int ni = 0; ni < nImages; ni++)
     {
         // Read image from file
         im = cv::imread(vstrImageFilenames[ni], cv::IMREAD_UNCHANGED);
-        double tframe = vTimestamps[ni];
+        tframe = vTimestamps[ni];
 
         if (im.empty())
         {
@@ -122,12 +124,12 @@ int main(int argc, char **argv)
         std::chrono::monotonic_clock::time_point t2 = std::chrono::monotonic_clock::now();
 #endif
 
-        double ttrack = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
+        ttrack = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
 
         vTimesTrack[ni] = ttrack;
 
         // Wait to load the next frame
-        double T = 0;
+        T = 0;
 
         if (ni < nImages - 1)
         {

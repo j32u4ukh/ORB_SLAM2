@@ -69,7 +69,8 @@ public:
     // Computes rotation, translation and camera center matrices from the camera pose.
     void UpdatePoseMatrices();
 
-    inline void resetMappoints(){
+    inline void resetMappoints()
+    {
         fill(mvpMapPoints.begin(), mvpMapPoints.end(), static_cast<MapPoint *>(NULL));
     }
 
