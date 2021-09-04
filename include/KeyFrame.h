@@ -225,7 +225,7 @@ namespace ORB_SLAM2
         cv::Mat Cw; 
 
         // MapPoints associated to keypoints
-        // 關鍵點觀察到的地圖點
+        // 關鍵點觀察到的地圖點（世界座標系下）
         std::vector<MapPoint *> mvpMapPoints;
 
         // BoW
