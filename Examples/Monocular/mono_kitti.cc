@@ -152,6 +152,8 @@ int main(int argc, char **argv)
         std::chrono::monotonic_clock::time_point main_t2 = std::chrono::monotonic_clock::now();
 #endif
 
+    SLAM.buildOctomap();
+
     // Stop all threads
     SLAM.Shutdown();
 

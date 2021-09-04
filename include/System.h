@@ -36,6 +36,8 @@
 #include "ORBVocabulary.h"
 #include "Viewer.h"
 
+#include <octomap/octomap.h>
+
 namespace ORB_SLAM2
 {
 
@@ -210,6 +212,8 @@ public:
     int GetTrackingState();
     std::vector<MapPoint*> GetTrackedMapPoints();
     std::vector<cv::KeyPoint> GetTrackedKeyPointsUn();
+
+    void buildOctomap();
 };
 
 }// namespace ORB_SLAM

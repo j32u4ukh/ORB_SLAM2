@@ -42,6 +42,17 @@ endif()
 find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Pangolin REQUIRED)
 
+# ===== Add by myself =====
+# octomap 
+find_package(octomap REQUIRED)
+include_directories(${OCTOMAP_INCLUDE_DIRS})
+
+# # pcl 
+# find_package(PCL REQUIRED)
+# include_directories(${PCL_INCLUDE_DIRS})
+# add_definitions(${PCL_DEFINITIONS})
+# =========================
+
 include_directories(
    ${PROJECT_SOURCE_DIR}
    ${PROJECT_SOURCE_DIR}/include
@@ -73,10 +84,12 @@ add_library(${PROJECT_NAME} SHARED
    src/Viewer.cc
 )
 
+# 自行添加 ${OCTOMAP_LIBRARIES}（${PCL_LIBRARIES} 暫緩添加）
 target_link_libraries(${PROJECT_NAME}
    ${OpenCV_LIBS}
    ${EIGEN3_LIBS}
    ${Pangolin_LIBRARIES}
+   ${OCTOMAP_LIBRARIES}
    ${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
    ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
    -lboost_system

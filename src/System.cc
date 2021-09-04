@@ -25,6 +25,8 @@
 #include <iomanip>
 #include <unistd.h>
 
+#include <numeric>
+
 namespace ORB_SLAM2
 {
     // ==================================================
@@ -236,6 +238,101 @@ namespace ORB_SLAM2
         mTrackedKeyPointsUn = mpTracker->mCurrentFrame.mvKeysUn;
 
         return Tcw;
+    }
+
+    // 建構八叉樹地圖
+    void System::buildOctomap()
+    {
+        /// TODO: 取出地圖點
+        // 從『地圖 mpMap』中取出所有地圖點
+        const vector<MapPoint *> &vpMPs = mpMap->GetAllMapPoints();
+
+        if (vpMPs.empty()){
+            return;
+        }
+
+        std::vector<float> depth;
+        cv::Mat pos;
+
+        for(MapPoint * mp : vpMPs)
+        {
+            if (mp->isBad()){
+                continue;
+            }
+
+            pos = mp->GetWorldPos();
+            depth.push_back(pos.at<float>(2));
+        }
+
+        float sum = std::accumulate(depth.begin(), depth.end(), 0.0f);
+        float mean = sum / depth.size();
+
+        std::vector<float> diff(depth.size());
+        std::transform(depth.begin(), depth.end(), diff.begin(), 
+                       std::bind2nd(std::minus<float>(), mean));
+
+        float sq_sum = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
+        float stdev = std::sqrt(sq_sum / depth.size());
+
+        std::cout << "Depth ～ N(" << mean << ", " << stdev << ")" << std::endl;
+
+        // // 控制模型規模
+        // double depthScale = 5000.0;
+
+        // cout << "正在將圖像轉換為 Octomap ..." << endl;
+
+        // // octomap tree 
+        // // 參數為分辨率
+        // octomap::OcTree tree(0.01); 
+
+        // /// TODO: Loop each frame
+        // for (int i = 0; i < 5; i++) {
+        //     cout << "轉換圖像中: " << i + 1 << endl;
+        //     cv::Mat color = colorImgs[i];
+        //     cv::Mat depth = depthImgs[i];
+
+        //     // 從數據集讀取相機位姿
+        //     Eigen::Isometry3d T = poses[i];
+
+        //     // the point cloud in octomap 
+        //     octomap::Pointcloud cloud;  
+
+        //     for (int v = 0; v < color.rows; v++){
+        //         for (int u = 0; u < color.cols; u++) {
+
+        //             // 深度值
+        //             unsigned int d = depth.ptr<unsigned short>(v)[u]; 
+
+        //             // 為 0 表示沒有測量到
+        //             if (d == 0) {
+        //                 continue; 
+        //             }
+
+        //             /// TODO: 地圖點的相機座標
+        //             Eigen::Vector3d point;
+        //             point[2] = double(d) / depthScale;
+        //             point[0] = (u - cx) * point[2] / fx;
+        //             point[1] = (v - cy) * point[2] / fy;
+
+        //             /// TODO: 地圖點的世界座標（相機位姿 * 相機座標）
+        //             // 同一張圖像內的所有點都共用同一個相機位姿 T
+        //             Eigen::Vector3d pointWorld = T * point;
+
+        //             // 將世界坐標系的點放入點雲
+        //             cloud.push_back(pointWorld[0], pointWorld[1], pointWorld[2]);
+        //         }
+        //     }
+            
+        //     // 將點雲存入八叉樹地圖，給定原點，這樣可以計算投射線
+        //     tree.insertPointCloud(cloud, octomap::point3d(T(0, 3), T(1, 3), T(2, 3)));
+        // }
+
+        // // 更新中間節點的占據信息並寫入磁盤
+        // tree.updateInnerOccupancy();
+
+        // // 儲存八叉樹
+        // cout << "saving octomap ... " << endl;
+        // tree.writeBinary("octomap.bt");
     }
 
     // 關閉系統
