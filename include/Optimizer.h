@@ -72,10 +72,10 @@ public:
 
     // **********
     static inline void addKeyFramePoses(const vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op,
-                                        long unsigned int &maxKFid);
+                                        unsigned long &maxKFid);
 
     static inline void addMapPoints(const vector<MapPoint *> &vpMP, g2o::SparseOptimizer &op,
-                                    const long unsigned int maxKFid,
+                                    const unsigned long maxKFid,
                                     const bool bRobust, vector<bool> &vbNotIncludedMP);
 
     static inline void updateKeyFramePoses(const vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op,

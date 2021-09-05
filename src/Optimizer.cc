@@ -84,8 +84,7 @@ namespace ORB_SLAM2
             optimizer.setForceStopFlag(pbStopFlag);
         }
 
-        long unsigned int maxKFid = 0;
-        unsigned long id;
+        unsigned long maxKFid = 0;
 
         // Set KeyFrame vertices
         // 將『關鍵幀』的位姿，作為『頂點』加入優化，Id 由 0 到 maxKFid 編號
@@ -739,7 +738,7 @@ namespace ORB_SLAM2
     // ***** Optimizer::BundleAdjustment *****
     // 提取出 KeyFrame 的 Pose，加入優化 SparseOptimizer
     void Optimizer::addKeyFramePoses(const vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op, 
-                                     long unsigned int &maxKFid)
+                                     unsigned long &maxKFid)
     {
         // Set KeyFrame vertices
         // 將『關鍵幀』的位姿，作為『頂點』加入優化，Id 由 0 到 maxKFid 編號
@@ -768,15 +767,24 @@ namespace ORB_SLAM2
     }
 
     void Optimizer::addMapPoints(const vector<MapPoint *> &vpMP, g2o::SparseOptimizer &op,
-                                 const long unsigned int maxKFid,
+                                 const unsigned long maxKFid,
                                  const bool bRobust, vector<bool> &vbNotIncludedMP)
     {
+        /* 會造成 0 vertices to optimize 的原因
+        1. pMP->isBad()
+        2. pKF->isBad()
+        3. pKF->mnId > maxKFid
+        */
         g2o::VertexSBAPointXYZ *vPoint;
         MapPoint *pMP;
         KeyFrame *pKF;
         size_t kp_idx;
         unsigned long id;
-        int nEdges;
+        // int nEdges;
+
+        // map<KeyFrame *, size_t> observations;
+        cv::KeyPoint kpUn;
+        bool has_edge;
 
         // Set MapPoint vertices
         // 『地圖點』的座標作為『頂點』加入優化
@@ -786,6 +794,7 @@ namespace ORB_SLAM2
 
             if (pMP->isBad())
             {
+                std::cout << "pMP->isBad():" << pMP->isBad() << std::endl;
                 continue;
             }
 
@@ -798,8 +807,10 @@ namespace ORB_SLAM2
 
             // 觀察到『地圖點 pMP』的『關鍵幀』，以及其『關鍵點』的索引值
             const map<KeyFrame *, size_t> observations = pMP->GetObservations();
+            // observations = pMP->GetObservations();
 
-            nEdges = 0;
+            // nEdges = 0;
+            has_edge = false;
 
             // SET EDGES
             for (pair<KeyFrame *, size_t> obs : observations)
@@ -809,13 +820,19 @@ namespace ORB_SLAM2
 
                 if (pKF->isBad() || pKF->mnId > maxKFid)
                 {
+                    std::cout << "pMP->isBad():" << pMP->isBad()
+                              << ", pKF->mnId: " << pKF->mnId 
+                              << ", maxKFid: " << maxKFid
+                              << std::endl;
                     continue;
                 }
 
-                nEdges++;
+                // nEdges++;
+                has_edge = true;
 
                 // 『關鍵幀 pKF』的第 kp_idx 個『關鍵點 kpUn』觀察到『地圖點 pMP』
-                const cv::KeyPoint &kpUn = pKF->mvKeysUn[kp_idx];
+                // const cv::KeyPoint &kpUn = pKF->mvKeysUn[kp_idx];
+                kpUn = pKF->mvKeysUn[kp_idx];
 
                 // 單目的 mvuRight 會是負的
                 if (pKF->mvuRight[kp_idx] < 0)
@@ -830,15 +847,25 @@ namespace ORB_SLAM2
                 }
             }
 
-            if (nEdges == 0)
-            {
-                op.removeVertex(vPoint);
-                vbNotIncludedMP[i] = true;
-            }
-            else
+            if (has_edge)
             {
                 vbNotIncludedMP[i] = false;
             }
+            else
+            {
+                op.removeVertex(vPoint);
+                vbNotIncludedMP[i] = true;                
+            }
+            
+            // if (nEdges == 0)
+            // {
+            //     op.removeVertex(vPoint);
+            //     vbNotIncludedMP[i] = true;
+            // }
+            // else
+            // {
+            //     vbNotIncludedMP[i] = false;
+            // }
         }
     }
 
@@ -2076,8 +2103,8 @@ namespace ORB_SLAM2
         if (bRobust)
         {
             g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
-            e->setRobustKernel(rk);
             rk->setDelta(thHuber2D);
+            e->setRobustKernel(rk);
         }
 
         e->fx = pKF->fx;
