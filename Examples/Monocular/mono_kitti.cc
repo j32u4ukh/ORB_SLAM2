@@ -36,7 +36,8 @@ using namespace std;
 // 以上為管理執行續相關函式
 // ==================================================
 
-void loadImages(const string &path, vector<string> &files, vector<double> &time_stamps);
+void loadImages(const string &path, vector<string> &files, vector<double> &time_stamps,
+                const size_t start = 0, const size_t end = 1000000);
 
 // ==================================================
 // 以下為非單目相關函式
@@ -62,7 +63,7 @@ int main(int argc, char **argv)
 
     // 以 KITTI Dataset 為例
     // argc[3] PATH_TO_DATASET_FOLDER/dataset/sequences/SEQUENCE_NUMBER
-    loadImages(string(argv[3]), vstrImageFilenames, vTimestamps);
+    loadImages(string(argv[3]), vstrImageFilenames, vTimestamps, 0, 1000000);
 
     int nImages = vstrImageFilenames.size();
 
@@ -117,6 +118,8 @@ int main(int argc, char **argv)
 
         // Pass the image to the SLAM system
         SLAM.TrackMonocular(im, tframe);
+
+        // cout << "Current index: " << ni << endl;
 
 #ifdef COMPILEDWITHC11
         std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
@@ -180,11 +183,13 @@ int main(int argc, char **argv)
     return 0;
 }
 
-void loadImages(const string &path, vector<string> &files, vector<double> &time_stamps)
+void loadImages(const string &path, vector<string> &files, vector<double> &time_stamps,
+                const size_t start, const size_t end)
 {
     ifstream fTimes;
     string strPathTimeFile = path + "/times.txt";
     fTimes.open(strPathTimeFile.c_str());
+    vector<double> temp_stamps;
 
     while (!fTimes.eof())
     {
@@ -197,7 +202,8 @@ void loadImages(const string &path, vector<string> &files, vector<double> &time_
             ss << s;
             double t;
             ss >> t;
-            time_stamps.push_back(t);
+            // time_stamps.push_back(t);
+            temp_stamps.push_back(t);
         }
     }
 
@@ -205,13 +211,17 @@ void loadImages(const string &path, vector<string> &files, vector<double> &time_
     // 由於此專案為單目相機，因此只使用其中一邊的圖像
     string strPrefixLeft = path + "/image_0/";
 
-    const int nTimes = time_stamps.size();
-    files.resize(nTimes);
+    const size_t nTimes = temp_stamps.size();
+    size_t i, len = min(end, nTimes);
+    // files.resize(nTimes);
 
-    for (int i = 0; i < nTimes; i++)
+    for (i = start; i < len; i++)
     {
+        time_stamps.push_back(temp_stamps[i]);
+
         stringstream ss;
         ss << setfill('0') << setw(6) << i;
-        files[i] = strPrefixLeft + ss.str() + ".png";
+        // files[i] = strPrefixLeft + ss.str() + ".png";
+        files.push_back(strPrefixLeft + ss.str() + ".png");
     }
 }
