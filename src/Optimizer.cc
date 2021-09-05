@@ -743,10 +743,14 @@ namespace ORB_SLAM2
     {
         // Set KeyFrame vertices
         // 將『關鍵幀』的位姿，作為『頂點』加入優化，Id 由 0 到 maxKFid 編號
-        int id;
+        vector<KeyFrame *>::const_iterator i_start, i_end = vpKFs.end();
+        unsigned long id;
+        KeyFrame *pKF;
 
-        for (KeyFrame *pKF : vpKFs)
+        for(i_start = vpKFs.begin(); i_start != i_end; i_start++)
         {
+            pKF = *i_start;
+
             if (pKF->isBad())
             {
                 continue;
