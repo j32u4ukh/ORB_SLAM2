@@ -794,7 +794,7 @@ namespace ORB_SLAM2
 
             if (pMP->isBad())
             {
-                std::cout << "pMP->isBad():" << pMP->isBad() << std::endl;
+                // std::cout << "pMP->isBad():" << pMP->isBad() << std::endl;
                 continue;
             }
 
@@ -898,23 +898,27 @@ namespace ORB_SLAM2
         // Keyframes
         // 更新為優化後的位姿
         g2o::VertexSE3Expmap *vSE3;
-        g2o::SE3Quat SE3quat;
+        // g2o::SE3Quat SE3quat;
+        cv::Mat mat;
 
         for(KeyFrame *kf : vpKFs)
         {
-            if (kf->isBad()){
+            if (kf->isBad())
+            {
                 continue;
             }
 
             vSE3 = static_cast<g2o::VertexSE3Expmap *>(op.vertex(kf->mnId));
             
             // 估計優化後的位姿
-            SE3quat = vSE3->estimate();
+            // SE3quat = vSE3->estimate();
+            mat = Converter::toCvMat(vSE3->estimate());
 
             // nLoopKF：關鍵幀 Id，也就是只有第一次才會直接存在『關鍵幀 pKF』的位姿中
             if (nLoopKF == 0)
             {
-                kf->SetPose(Converter::toCvMat(SE3quat));
+                // kf->SetPose(Converter::toCvMat(SE3quat));
+                kf->SetPose(mat);                
             }
 
             // 第二次開始會先存在 mTcwGBA 當中，之後才會在 LoopClosing::RunGlobalBundleAdjustment 用來更新位姿
@@ -923,7 +927,8 @@ namespace ORB_SLAM2
                 kf->mTcwGBA.create(4, 4, CV_32F);
 
                 // 優化後的位姿估計存在 pKF->mTcwGBA，而非直接存在『關鍵幀 pKF』的位姿中
-                Converter::toCvMat(SE3quat).copyTo(kf->mTcwGBA);
+                // Converter::toCvMat(SE3quat).copyTo(kf->mTcwGBA);
+                mat.copyTo(kf->mTcwGBA);
 
                 kf->mnBAGlobalForKF = nLoopKF;
             }
