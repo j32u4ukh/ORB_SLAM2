@@ -49,12 +49,25 @@ Total time: 9:11.8239
 Median tracking time: 0.0673193
 Mean tracking time: 0.0710586
 
->>> 有 1 ～ 2 處的丟失追蹤
-#KeyFrame: 672
-#MapPoint: 67090
-Total time: 10:20.8665
-Median tracking time: 0.0676628
-Mean tracking time: 0.0734964
+>>> 階段 1 (   0, 1600)
+
+
+>>> 階段 2 (1600, 2300)
+
+
+>>> 階段 3 (2300, 3400)
+#KeyFrame: 234
+#MapPoint: 24923
+Total time: 2:26.9358
+Median tracking time: 0.0629361
+Mean tracking time: 0.0648951
+
+>>> 階段 4 (3400, 3600)
+
+
+>>> 階段 5 (3600, 5000)
+
+
 
 
 
