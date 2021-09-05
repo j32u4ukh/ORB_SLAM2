@@ -85,7 +85,7 @@ namespace ORB_SLAM2
         }
 
         unsigned long maxKFid = 0;
-
+        
         // Set KeyFrame vertices
         // 將『關鍵幀』的位姿，作為『頂點』加入優化，Id 由 0 到 maxKFid 編號
         addKeyFramePoses(vpKFs, optimizer, maxKFid);
@@ -784,7 +784,7 @@ namespace ORB_SLAM2
 
         // map<KeyFrame *, size_t> observations;
         cv::KeyPoint kpUn;
-        bool has_edge;
+        // bool without_edge;
 
         // Set MapPoint vertices
         // 『地圖點』的座標作為『頂點』加入優化
@@ -798,6 +798,38 @@ namespace ORB_SLAM2
                 continue;
             }
 
+            // 觀察到『地圖點 pMP』的『關鍵幀』，以及其『關鍵點』的索引值
+            const map<KeyFrame *, size_t> observations = pMP->GetObservations();
+            // observations = pMP->GetObservations();
+
+            // nEdges = 0;
+            // without_edge = true;
+            vbNotIncludedMP[i] = true;
+
+            // 將是否將有 Edge 被添加的判斷，移到 Vertex 建構之前，避免建構後又要移除
+            for (pair<KeyFrame *, size_t> obs : observations)
+            {
+                pKF = obs.first;
+
+                if (pKF->isBad() || pKF->mnId > maxKFid)
+                {
+                    continue;
+                }
+
+                // nEdges++;
+                // without_edge = false;
+
+                // 只要有 Edge 將被添加，就不是 vbNotIncludedMP，就可以正式建構 Vertex 並添加 Edge
+                vbNotIncludedMP[i] = false;
+                break;
+            }
+
+            // 若沒有地圖點被加入，則跳過此次迴圈
+            if(vbNotIncludedMP[i]){
+                continue;
+            }
+            
+            // 建構 Vertex
             id = pMP->mnId + maxKFid + 1;
             vPoint = newVertexSBAPointXYZ(pMP->GetWorldPos(), id);
             vPoint->setMarginalized(true);
@@ -805,30 +837,21 @@ namespace ORB_SLAM2
             // 『地圖點 pMP』的座標作為『頂點』加入優化
             op.addVertex(vPoint);
 
-            // 觀察到『地圖點 pMP』的『關鍵幀』，以及其『關鍵點』的索引值
-            const map<KeyFrame *, size_t> observations = pMP->GetObservations();
-            // observations = pMP->GetObservations();
-
-            // nEdges = 0;
-            has_edge = false;
-
             // SET EDGES
             for (pair<KeyFrame *, size_t> obs : observations)
             {
                 pKF = obs.first;
-                kp_idx = obs.second;
-
+                
                 if (pKF->isBad() || pKF->mnId > maxKFid)
                 {
-                    std::cout << "pMP->isBad():" << pMP->isBad()
-                              << ", pKF->mnId: " << pKF->mnId 
-                              << ", maxKFid: " << maxKFid
-                              << std::endl;
+                    // std::cout << "pMP->isBad():" << pMP->isBad()
+                    //           << ", pKF->mnId: " << pKF->mnId 
+                    //           << ", maxKFid: " << maxKFid
+                    //           << std::endl;
                     continue;
                 }
 
-                // nEdges++;
-                has_edge = true;
+                kp_idx = obs.second;
 
                 // 『關鍵幀 pKF』的第 kp_idx 個『關鍵點 kpUn』觀察到『地圖點 pMP』
                 // const cv::KeyPoint &kpUn = pKF->mvKeysUn[kp_idx];
@@ -847,15 +870,15 @@ namespace ORB_SLAM2
                 }
             }
 
-            if (has_edge)
-            {
-                vbNotIncludedMP[i] = false;
-            }
-            else
-            {
-                op.removeVertex(vPoint);
-                vbNotIncludedMP[i] = true;                
-            }
+            // if (without_edge)
+            // {
+            //     op.removeVertex(vPoint);
+            //     vbNotIncludedMP[i] = true; 
+            // }
+            // else
+            // {
+            //     vbNotIncludedMP[i] = false;
+            // }
             
             // if (nEdges == 0)
             // {

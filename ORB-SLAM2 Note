@@ -56,11 +56,13 @@ Mean tracking time: 0.0710586
 
 
 >>> 階段 3 (2300, 3400)
-#KeyFrame: 234
-#MapPoint: 24923
-Total time: 2:26.9358
-Median tracking time: 0.0629361
-Mean tracking time: 0.0648951
+#KeyFrame: 233
+#MapPoint: 24211
+Total time: 2:32.8972
+Median tracking time: 0.0658356
+Mean tracking time: 0.0697828
+
+
 
 >>> 階段 4 (3400, 3600)
 
