@@ -9,13 +9,8 @@ $ /home/j32u4ukh/Documents/ORB_SLAM2>
 ./Examples/Monocular/mono_kitti Vocabulary/ORBvoc.txt Examples/Monocular/KITTI00-02.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/00"
 ./Examples/Monocular/mono_kitti Vocabulary/ORBvoc.txt Examples/Monocular/KITTI00-02.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/01"
 ./Examples/Monocular/mono_kitti Vocabulary/ORBvoc.txt Examples/Monocular/KITTI00-02.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/02"
-
 ./Examples/Monocular/mono_kitti Vocabulary/ORBvoc.txt Examples/Monocular/KITTI03.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/03"
-
 ./Examples/Monocular/mono_kitti Vocabulary/ORBvoc.txt Examples/Monocular/KITTI04-12.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/04"
-.
-.
-.
 ./Examples/Monocular/mono_kitti Vocabulary/ORBvoc.txt Examples/Monocular/KITTI04-12.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/12"
 
 
@@ -35,29 +30,26 @@ median tracking time: 0.0712685
 mean tracking time: 0.0836848
 建圖 10:16.31
 
-[函式封裝]
+[函式封裝](有 1 ～ 2 處的丟失追蹤)
 New Map created with 508 points
-median tracking time: 0.0859725
-mean tracking time: 0.0943997
-#KeyFrame: 642
-#MapPoint: 76626
-
 Vocabulary loaded! Cost 9.44923 s.
-#KeyFrame: 628
-#MapPoint: 61765
-Total time: 9:11.8239
-Median tracking time: 0.0673193
-Mean tracking time: 0.0710586
-
->>> 有 1 ～ 2 處的丟失追蹤
-Depth ～ N(13.7239, 9.01453)
-Writing 40936796 nodes to output stream... done.
-
 #KeyFrame: 639
 #MapPoint: 63019
 Total time: 9:6.69826
 Median tracking time: 0.0664803
 Mean tracking time: 0.0710441
+
+[Octomap]
+Depth ～ N(13.7239, 9.01453)
+單純建圖，記憶體耗費 2.5 G
+
+>> 2 處丟失
+建構 Octomap，記憶體耗費 2.2 G，產出檔案 19.2 MB
+建構 Octomap 花費：518.471 秒
+saving octomap ... 
+Writing 35169937 nodes to output stream... done.
+Octomap 數據寫出花費：7.72189 秒
+
 
 
 
@@ -97,231 +89,6 @@ for (auto feature_vector : boost::combine(kf_feature_vector, f_feature_vector)) 
         f_feature = F.mFeatVec.lower_bound(kf_node_id);
     }   
 }
-
-[Optimizer]
-g2o::SparseOptimizer optimizer;
-g2o::BlockSolver_6_3::LinearSolverType *linearSolver = new g2o::LinearSolverEigen<g2o::BlockSolver_6_3::PoseMatrixType>();
-g2o::BlockSolver_6_3 *solver_ptr = new g2o::BlockSolver_6_3(linearSolver);
-g2o::OptimizationAlgorithmLevenberg *solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
-optimizer.setAlgorithm(solver);
-
-
-g2o::SparseOptimizer optimizer;
-optimizer.setVerbose(false);
-g2o::BlockSolver_7_3::LinearSolverType *linearSolver = new g2o::LinearSolverEigen<g2o::BlockSolver_7_3::PoseMatrixType>();
-g2o::BlockSolver_7_3 *solver_ptr = new g2o::BlockSolver_7_3(linearSolver);
-g2o::OptimizationAlgorithmLevenberg *solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
-solver->setUserLambdaInit(1e-16);
-optimizer.setAlgorithm(solver);
-
-
-g2o::SparseOptimizer optimizer;
-g2o::BlockSolverX::LinearSolverType *linearSolver = new g2o::LinearSolverDense<g2o::BlockSolverX::PoseMatrixType>();
-g2o::BlockSolverX *solver_ptr = new g2o::BlockSolverX(linearSolver);
-g2o::OptimizationAlgorithmLevenberg *solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
-optimizer.setAlgorithm(solver);
-
-
-[Vertex]
-g2o::EdgeSim3ProjectXYZ *e12 = new g2o::EdgeSim3ProjectXYZ();
-e12->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(id2)));
-e12->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(0)));
-e12->setMeasurement(obs1);
-
-
-
-==========================================================================================================================================================
-
-上層 selectFuseTarget 將根據『一般單目/立體視覺/單目 Sim3』化分成多個階段
-1. 獨立到函式之外
-
-// 『地圖點 pMP』的世界座標
-cv::Mat p3Dw = pMP->GetWorldPos();
-
-// 『地圖點 pMP』由世紀座標系 轉換到 相機座標系
-cv::Mat p3Dc = Rcw * p3Dw + t1w;
-
-cv::Mat sp3Dc = sim3 * p3Dc + t21;
-
-
-2. 取得像素座標 getPixelCoordinates / getPixelCoordinatesStereo /
-
-// Depth must be positive
-if (sp3Dc.at<float>(2) < 0.0f)
-{
-    return std::tuple<bool, int, int>{true, -1, -1};
-}
-
-const float invz = 1 / sp3Dc.at<float>(2);
-
-// 重投影之歸一化平面座標
-const float x = sp3Dc.at<float>(0) * invz;
-const float y = sp3Dc.at<float>(1) * invz;
-
-// 重投影之像素座標
-const float u = fx * x + cx;
-const float v = fy * y + cy;
-
-// ＝＝＝＝＝ For stero ＝＝＝＝＝
-const float ur = u - bf * invz;
-// ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-
-// Point must be inside the image
-// 傳入座標點是否超出關鍵幀的成像範圍
-if (!pKF->IsInImage(u, v))
-{
-    return std::tuple<bool, int, int>{true, -1, -1};
-}
-
-
-3. 評估地圖點的深度估計，是否在有效的區間內 isValidDistance / isValidDistanceSim3
-
-// 考慮金字塔層級的『地圖點 pMP』最大可能深度
-const float maxDistance = pMP->GetMaxDistanceInvariance();
-
-// 考慮金字塔層級的『地圖點 pMP』最小可能深度
-const float minDistance = pMP->GetMinDistanceInvariance();
-
-float dist3D;
-
-if(consider_included_angle)
-{
-    // 『相機中心 Ow』指向『地圖點 pMP』之向量
-    cv::Mat PO = p3Dw - Ow;
-
-    // 『地圖點 pMP』深度（『相機中心 Ow』到『地圖點 pMP』之距離）
-    dist3D = cv::norm(PO);
-
-    // Depth must be inside the scale pyramid of the image
-    // 『相機中心 Ow』到『地圖點 pMP』之距離應在可能深度的區間內
-    if (dist3D < minDistance || dist3D > maxDistance)
-    {
-        return std::tuple<bool, int, int>{true, -1, -1};
-    }
-    
-    // Viewing angle must be less than 60 deg
-    // 地圖點之法向量
-    // SerachBySim3 沒有這段
-    cv::Mat Pn = pMP->GetNormal();
-
-    // SerachBySim3 沒有這段
-    // 計算 PO 和 Pn 的夾角是否超過 60 度（餘弦值超過 0.5）
-    if (PO.dot(Pn) < 0.5 * dist3D)
-    {
-        return std::tuple<bool, int, int>{true, -1, -1};
-    }
-}
-else
-{
-    // 『地圖點 pMP』深度（『相機中心 Ow』到『地圖點 pMP』之距離）
-    dist3D = cv::norm(sp3Dc);
-
-    // Depth must be inside the scale pyramid of the image
-    // 『相機中心 Ow』到『地圖點 pMP』之距離應在可能深度的區間內
-    if (dist3D < minDistance || dist3D > maxDistance)
-    {
-        return std::tuple<bool, int, int>{true, -1, -1};
-    }
-}   
-
-
-4. 共同參數準備
-
-// 『關鍵幀 pKF』根據當前『地圖點 pMP』的深度，估計場景規模
-int nPredictedLevel = pMP->PredictScale(dist3D, pKF);
-
-// Search in a radius
-const float radius = th * pKF->mvScaleFactors[nPredictedLevel];
-
-// 指定區域內的候選關鍵點的索引值
-const vector<size_t> vIndices = pKF->GetFeaturesInArea(u, v, radius);
-
-if (vIndices.empty()){
-continue;
-}
-
-// Match to the most similar keypoint in the radius
-// 取得『地圖點 pMP』描述子
-const cv::Mat dMP = pMP->GetDescriptor();
-
-bestDist = INT_MAX;
-bestIdx = -1;
-
-5. for(const size_t idx : vIndices) 當中
-
-continue_kp_level = checkFuseTarget(pKF, idx, nPredictedLevel);
-
-///// 不同需求客製化 /////
-
-updateFuseTarget(pKF, idx, dMP, bestDist, bestIdx);
-
-
-}
-
-
-==========================================================================================================================================================
-[Bundle Adjustment]
-
-/////// Optimizer::LocalBundleAdjustment ///////
-
-g2o::EdgeSE3ProjectXYZ *e = new g2o::EdgeSE3ProjectXYZ();
-e->setVertex(0,
-    dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(id)));
-e->setVertex(1, 
-    dynamic_cast<g2o::OptimizableGraph::Vertex *>(
-                                                optimizer.vertex(pKFi->mnId)));
-e->setMeasurement(obs);
-
-e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
-g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
-e->setRobustKernel(rk);
-rk->setDelta(thHuberMono);
-
-e->fx = pKFi->fx;
-e->fy = pKFi->fy;
-e->cx = pKFi->cx;
-e->cy = pKFi->cy;
-
-optimizer.addEdge(e);
-
-vpEdgesMono.push_back(e);
-vpEdgeKFMono.push_back(pKFi);
-vpMapPointEdgeMono.push_back(pMP);
-
-
-
-
-
-/////// Optimizer::BundleAdjustment ///////
-g2o::EdgeSE3ProjectXYZ *e = new g2o::EdgeSE3ProjectXYZ();
-
-// 『邊』連接第 mnId 個關鍵幀和第 mnId 個地圖點
-// （地圖點接續關鍵幀的 id 編號，因此是由 maxKFid + 1 開始編號）
-e->setVertex(0, 
-         dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(id)));
-e->setVertex(1, 
-         dynamic_cast<g2o::OptimizableGraph::Vertex *>(
-                                                optimizer.vertex(pKF->mnId)));
-e->setMeasurement(obs);
-const float &invSigma2 = pKF->mvInvLevelSigma2[kpUn.octave];
-e->setInformation(Eigen::Matrix2d::Identity() * invSigma2);
-
-if (bRobust)
-{
-g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
-e->setRobustKernel(rk);
-rk->setDelta(thHuber2D);
-}
-
-e->fx = pKF->fx;
-e->fy = pKF->fy;
-e->cx = pKF->cx;
-e->cy = pKF->cy;
-
-// 『關鍵點 kpUn』作為『邊』加入優化
-optimizer.addEdge(e);
-
-
 
 
 

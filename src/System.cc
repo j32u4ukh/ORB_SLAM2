@@ -254,7 +254,7 @@ namespace ORB_SLAM2
         // list<double>::iterator lT = mpTracker->mlFrameTimes.begin();
 
         list<bool>::iterator l_istart = mpTracker->mlbLost.begin();
-        // list<bool>::iterator l_iend = mpTracker->mlbLost.end();
+        list<bool>::iterator l_iend = mpTracker->mlbLost.end();
 
         list<cv::Mat>::iterator lit = mpTracker->mlRelativeFramePoses.begin();
         list<cv::Mat>::iterator lend = mpTracker->mlRelativeFramePoses.end();
@@ -262,16 +262,23 @@ namespace ORB_SLAM2
         KeyFrame *pKF;
         std::vector<MapPoint *> mvpMapPoints;
         cv::Mat pos, camera;   
-        int count;         
+        int count;   
 
-        for (; lit != lend; lit++, lRit++, l_istart++)
+#ifdef COMPILEDWITHC11
+        std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+#else
+        // 此問題為 C++ 版本兼容問題，可利用上方 COMPILEDWITHC11 根據 C++ 版本不同使用不同程式碼
+        // COMPILEDWITHC11 則在 CMakeLists.txt 當中作定義
+        std::chrono::monotonic_clock::time_point t1 = std::chrono::monotonic_clock::now();
+#endif      
+
+        for (; l_istart != l_iend; lRit++, l_istart++)
         {
             if (*l_istart){
                 continue;
             }
 
             pKF = *lRit;
-            std::cout << "KeyFrame(" << pKF->mnId << ")" << std::endl;
 
             // If the reference keyframe was culled（剔除）, traverse the spanning tree 
             // to get a suitable keyframe.
@@ -279,15 +286,11 @@ namespace ORB_SLAM2
             {
                 pKF = pKF->GetParent();
             }
-
-            mvpMapPoints = pKF->GetMapPointMatches();
-            std::cout << "KeyFrame(" << pKF->mnId << ")"
-                      << " #MapPoint: " << mvpMapPoints.size() 
-                      << std::endl;
                       
             // the point cloud in octomap 
             octomap::Pointcloud cloud; 
             count = 0; 
+            mvpMapPoints = pKF->GetMapPointMatches();
 
             for(MapPoint* mp : mvpMapPoints)
             {
@@ -302,10 +305,6 @@ namespace ORB_SLAM2
                 }                
             }
 
-            std::cout << "KeyFrame(" << pKF->mnId << ")"
-                      << ", add " << count << " MapPoint." 
-                      << std::endl;
-
             camera = pKF->GetCameraCenter();
 
             // 將點雲存入八叉樹地圖，給定原點，這樣可以計算投射線
@@ -318,9 +317,32 @@ namespace ORB_SLAM2
         // 更新中間節點的占據信息並寫入磁盤
         tree.updateInnerOccupancy();
 
+#ifdef COMPILEDWITHC11
+        std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+#else
+        std::chrono::monotonic_clock::time_point t2 = std::chrono::monotonic_clock::now();
+#endif
+
+        cout << "建構 Octomap 花費：" 
+             << std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count()
+             << " 秒"
+             << endl;
+
         // 儲存八叉樹
         cout << "saving octomap ... " << endl;
         tree.writeBinary("octomap.bt");
+
+#ifdef COMPILEDWITHC11
+        std::chrono::steady_clock::time_point t3 = std::chrono::steady_clock::now();
+#else
+        std::chrono::monotonic_clock::time_point t3 = std::chrono::monotonic_clock::now();
+#endif
+
+        cout << "Octomap 數據寫出花費：" 
+             << std::chrono::duration_cast<std::chrono::duration<double>>(t3 - t2).count()
+             << " 秒"
+             << endl;
+
     }
 
     // 關閉系統
