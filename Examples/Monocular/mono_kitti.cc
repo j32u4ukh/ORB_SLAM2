@@ -64,7 +64,7 @@ int main(int argc, char **argv)
     // 以 KITTI Dataset 為例
     // argc[3] PATH_TO_DATASET_FOLDER/dataset/sequences/SEQUENCE_NUMBER
     // loadImages(string(argv[3]), vstrImageFilenames, vTimestamps, 0, 5000);
-    loadImages(string(argv[3]), vstrImageFilenames, vTimestamps, 0, 1700);
+    loadImages(string(argv[3]), vstrImageFilenames, vTimestamps, 0, 1650);
     
     int nImages = vstrImageFilenames.size();
 

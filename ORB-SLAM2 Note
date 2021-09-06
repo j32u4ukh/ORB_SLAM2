@@ -49,7 +49,7 @@ Total time: 9:11.8239
 Median tracking time: 0.0673193
 Mean tracking time: 0.0710586
 
->>> 階段 1 (   0, 1700) 會發生 virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()
+>>> 階段 1 (   0, 1650) 會發生 virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()
 #KeyFrame: 334
 #MapPoint: 35882
 Total time: 3:18.311
@@ -57,7 +57,7 @@ Median tracking time: 0.0625188
 Mean tracking time: 0.0637455
 
 
->>> 階段 2 (1700, 2300)
+>>> 階段 2 (1650, 2300)
 
 
 >>> 階段 3 (2300, 3400)
