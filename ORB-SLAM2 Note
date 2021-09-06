@@ -49,18 +49,24 @@ Total time: 9:11.8239
 Median tracking time: 0.0673193
 Mean tracking time: 0.0710586
 
->>> 階段 1 (   0, 1600)
+>>> 階段 1 (   0, 1700) 會發生 virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()
+#KeyFrame: 334
+#MapPoint: 35882
+Total time: 3:18.311
+Median tracking time: 0.0625188
+Mean tracking time: 0.0637455
 
 
->>> 階段 2 (1600, 2300)
+>>> 階段 2 (1700, 2300)
 
 
 >>> 階段 3 (2300, 3400)
-#KeyFrame: 233
-#MapPoint: 24211
-Total time: 2:32.8972
-Median tracking time: 0.0658356
-Mean tracking time: 0.0697828
+#KeyFrame: 244
+#MapPoint: 28643
+Total time: 2:39.8066
+Median tracking time: 0.0633098
+Mean tracking time: 0.0653234
+
 
 
 

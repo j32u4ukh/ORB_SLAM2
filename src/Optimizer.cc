@@ -110,7 +110,7 @@ namespace ORB_SLAM2
         updateMapPoints(vpMP, vbNotIncludedMP, optimizer, maxKFid, nLoopKF);
     }
 
-    /// NOTE: 20210830
+    /// NOTE: 20210906
     // 根據區域的共視關係，取出關鍵幀與地圖點來進行多次優化，優化後的誤差若仍過大的估計會被移除，並更新估計結果
     // 『共視關鍵幀』、『共視關鍵幀的共視關鍵幀』、『共視地圖點』作為『頂點』
     // 『觀察到共視地圖點的特徵點的位置』作為『邊』
@@ -736,6 +736,8 @@ namespace ORB_SLAM2
     // ==================================================
 
     // ***** Optimizer::BundleAdjustment *****
+
+    /// NOTE: 20210906
     // 提取出 KeyFrame 的 Pose，加入優化 SparseOptimizer
     void Optimizer::addKeyFramePoses(const vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op, 
                                      unsigned long &maxKFid)
@@ -766,6 +768,7 @@ namespace ORB_SLAM2
         }
     }
 
+    /// NOTE: 20210906
     void Optimizer::addMapPoints(const vector<MapPoint *> &vpMP, g2o::SparseOptimizer &op,
                                  const unsigned long maxKFid,
                                  const bool bRobust, vector<bool> &vbNotIncludedMP)
@@ -892,6 +895,7 @@ namespace ORB_SLAM2
         }
     }
 
+    /// NOTE: 20210906
     void Optimizer::updateKeyFramePoses(const vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op,
                                         const unsigned long nLoopKF)
     {
@@ -935,6 +939,7 @@ namespace ORB_SLAM2
         }
     }
 
+    /// NOTE: 20210906
     void Optimizer::updateMapPoints(const vector<MapPoint *> &vpMP, vector<bool> &vbNotIncludedMP, 
                                     g2o::SparseOptimizer &op, long unsigned int &maxKFid, 
                                     const unsigned long nLoopKF)
@@ -942,28 +947,34 @@ namespace ORB_SLAM2
         MapPoint *pMP;
         unsigned long id;
         g2o::VertexSBAPointXYZ *vPoint;
+        size_t i, len = vpMP.size();
+        cv::Mat mat;
 
         // Points
         // 更新為優化後的估計點位置
-        for (size_t i = 0; i < vpMP.size(); i++)
+        for (i = 0; i < len; i++)
         {
-            if (vbNotIncludedMP[i]){
+            if (vbNotIncludedMP[i])
+            {
                 continue;
             }
 
             pMP = vpMP[i];
 
-            if (pMP->isBad()){
+            if (pMP->isBad())
+            {
                 continue;
             }
 
             id = pMP->mnId + maxKFid + 1;
             vPoint = static_cast<g2o::VertexSBAPointXYZ *>(op.vertex(id));
 
+            mat = Converter::toCvMat(vPoint->estimate());
+
             if (nLoopKF == 0)
             {
                 // 更新『地圖點 pMP』的位置估計
-                pMP->SetWorldPos(Converter::toCvMat(vPoint->estimate()));
+                pMP->SetWorldPos(mat);
 
                 // 利用所有觀察到這個地圖點的關鍵幀來估計關鍵幀們平均指向的方向，以及該地圖點可能的深度範圍(最近與最遠)
                 pMP->UpdateNormalAndDepth();
@@ -971,7 +982,8 @@ namespace ORB_SLAM2
             else
             {
                 pMP->mPosGBA.create(3, 1, CV_32F);
-                Converter::toCvMat(vPoint->estimate()).copyTo(pMP->mPosGBA);
+                // Converter::toCvMat(vPoint->estimate()).copyTo(pMP->mPosGBA);
+                mat.copyTo(pMP->mPosGBA);
                 pMP->mnBAGlobalForKF = nLoopKF;
             }
         }
@@ -979,6 +991,7 @@ namespace ORB_SLAM2
 
 
     // ***** Optimizer::LocalBundleAdjustment *****
+    /// NOTE: 20210906
     void Optimizer::extractLocalKeyFrames(list<KeyFrame *> &lLocalKeyFrames, KeyFrame *pKF)
     {
         lLocalKeyFrames.push_back(pKF);
@@ -993,15 +1006,18 @@ namespace ORB_SLAM2
 
         for(KeyFrame *pKFi : vNeighKFs)
         {
+            if (!pKFi || pKFi->isBad())
+            {
+                continue;
+            }
+
             // 標注『關鍵幀 pKFi』已參與『關鍵幀 pKF』的 LocalBundleAdjustment，避免重複添加到 lLocalKeyFrames
             pKFi->mnBALocalForKF = pKF->mnId;
-
-            if (!pKFi->isBad()){
-                lLocalKeyFrames.push_back(pKFi);
-            }
+            lLocalKeyFrames.push_back(pKFi);
         }
     }
 
+    /// NOTE: 20210906
     void Optimizer::extractLocalMapPoints(list<MapPoint *> &lLocalMapPoints,
                                           const list<KeyFrame *> &lLocalKeyFrames, const KeyFrame *pKF)
     {
@@ -1012,26 +1028,27 @@ namespace ORB_SLAM2
             // 『關鍵幀 (*lit)』的關鍵點觀察到的地圖點
             vpMPs = local_kf->GetMapPointMatches();
 
+            // 將巢式 if 判斷式改為多次判斷，效果相同但更於閱讀
             for(MapPoint *pMP : vpMPs)
             {
-                if (pMP)
+                if (!pMP || pMP->isBad())
                 {
-                    if (!pMP->isBad())
-                    {
-                        if (pMP->mnBALocalForKF != pKF->mnId)
-                        {
-                            lLocalMapPoints.push_back(pMP);
+                    continue;
+                }
 
-                            // 標注『地圖點 pMP』已參與『關鍵幀 pKF』的 LocalBundleAdjustment
-                            // 避免重複添加到 lLocalMapPoints
-                            pMP->mnBALocalForKF = pKF->mnId;
-                        }
-                    }
+                if (pMP->mnBALocalForKF != pKF->mnId)
+                {
+                    lLocalMapPoints.push_back(pMP);
+
+                    // 標注『地圖點 pMP』已參與『關鍵幀 pKF』的 LocalBundleAdjustment
+                    // 避免重複添加到 lLocalMapPoints
+                    pMP->mnBALocalForKF = pKF->mnId;
                 }
             }
         }
     }
 
+    /// NOTE: 20210906
     void Optimizer::extractFixedCameras(list<KeyFrame *> &lFixedCameras, 
                                         const list<MapPoint *> &lLocalMapPoints, const KeyFrame *pKF)
     {
@@ -1047,16 +1064,23 @@ namespace ORB_SLAM2
             {
                 pKFi = obs.first;
 
+                if (!pKFi || pKFi->isBad())
+                {
+                    continue;
+                }
+
                 // Local && Fixed
                 // 檢查『關鍵幀 pKFi』是否已參與『關鍵幀 pKF』的 LocalBundleAdjustment
                 if (pKFi->mnBALocalForKF != pKF->mnId && pKFi->mnBAFixedForKF != pKF->mnId)
                 {
                     pKFi->mnBAFixedForKF = pKF->mnId;
 
-                    if (!pKFi->isBad())
-                    {
-                        lFixedCameras.push_back(pKFi);
-                    }
+                    lFixedCameras.push_back(pKFi);
+
+                    // if (!pKFi->isBad())
+                    // {
+                    //     lFixedCameras.push_back(pKFi);
+                    // }
                 }
             }
         }

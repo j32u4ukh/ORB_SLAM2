@@ -304,7 +304,7 @@ namespace ORB_SLAM2
                     // 更新前一幀的地圖點，更換為被較多關鍵幀觀察到的地圖點
                     CheckReplacedInLastFrame();
 
-                    // 速度估計丟失了，幀 ID 也可能因為重定位而向前发生了跳轉
+                    // 速度估計丟失了，幀 ID 也可能因為重定位而向前發生了跳轉
                     if (mVelocity.empty() || mCurrentFrame.mnId < mnLastRelocFrameId + 2)
                     {
                         // 利用詞袋模型，快速將『當前幀』與『參考關鍵幀』進行特徵點匹配，更新『當前幀』匹配的地圖點，
@@ -455,6 +455,7 @@ namespace ORB_SLAM2
                 }
             }
             
+            /// TODO: 找出在 Bundle Adjustment 時高機率發生 bOK -> false 原因
             bool if_return = update(bOK);
 
             if(if_return)
