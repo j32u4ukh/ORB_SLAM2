@@ -751,22 +751,6 @@ namespace ORB_SLAM2
     // 更新前一幀的地圖點，更換為被較多關鍵幀觀察到的地圖點
     void Tracking::CheckReplacedInLastFrame()
     {
-        // MapPoint *pRep;
-
-        // for(MapPoint *pMP : mLastFrame.mvpMapPoints){
-
-        //     if (pMP)
-        //     {
-        //         // 更換為被較多關鍵幀觀察到的地圖點
-        //         pRep = pMP->GetReplaced();
-
-        //         if (pRep)
-        //         {
-        //             pMP = pRep;
-        //         }
-        //     }
-        // }
-
         MapPoint *pMP, *pRep;
 
         for (int i = 0; i < mLastFrame.N; i++)
