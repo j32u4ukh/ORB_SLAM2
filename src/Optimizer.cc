@@ -1647,6 +1647,7 @@ namespace ORB_SLAM2
 
     // ***** Optimizer::PoseOptimization *****
 
+    /// NOTE: 20210907
     void Optimizer::addPoseOptimization(Frame *pFrame, int &nInitialCorrespondences,
                                         g2o::SparseOptimizer &op, vector<size_t> &vnIndexEdgeMono,
                                         vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono,
@@ -1659,6 +1660,7 @@ namespace ORB_SLAM2
         MapPoint *pMP;
 
         const int N = pFrame->N;
+        float kp_ur;
 
         for (int i = 0; i < N; i++)
         {
@@ -1668,7 +1670,7 @@ namespace ORB_SLAM2
             if (pMP)
             {
                 // 單目的這個值，會是負的
-                const float &kp_ur = pFrame->mvuRight[i];
+                kp_ur = pFrame->mvuRight[i];
                     
                 // 地圖點可被觀察到，因此不是 Outlier
                 pFrame->mvbOutlier[i] = false;
@@ -1714,6 +1716,7 @@ namespace ORB_SLAM2
         }
     }
 
+    /// NOTE: 20210907
     int Optimizer::addPoseOptimizationEdges(g2o::VertexSE3Expmap *vSE3, Frame *pFrame,
                                             g2o::SparseOptimizer &op,
                                             vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono,
@@ -1728,17 +1731,18 @@ namespace ORB_SLAM2
         const float chi2Mono[4] = {5.991, 5.991, 5.991, 5.991};
         const float chi2Stereo[4] = {7.815, 7.815, 7.815, 7.815};
 
-        // 定義每輪優化要優化幾次（每輪優化後會『將足夠好的邊設為無須再優化』，才再次進行優化）
+        // 定義每輪優化要優化幾次（每輪優化後會『將足夠好的 Edge 設為無須再優化』，才再次進行優化）
         const int its[4] = {10, 10, 10, 10};
 
         int nBad = 0;
+        const g2o::SE3Quat mSE3Tcw = Converter::toSE3Quat(pFrame->mTcw);
 
         // 優化『pFrame 觀察到的地圖點』的位置
         for (size_t it = 0; it < 4; it++)
         {
             // 將 pFrame 位姿轉型成『轉換矩陣』，作為 vSE3 的初始估計值
             /// NOTE: 似乎沒有在每次優化後更新 pFrame 的位姿，只在此函式結束前的最後更新而已
-            vSE3->setEstimate(Converter::toSE3Quat(pFrame->mTcw));
+            vSE3->setEstimate(mSE3Tcw);
             op.initializeOptimization(0);
 
             // 優化 its[it] 次
@@ -1767,13 +1771,15 @@ namespace ORB_SLAM2
                                                  const float chi2Mono[], const size_t it, int &nBad)
     {
         g2o::EdgeSE3ProjectXYZOnlyPose *e;
+        size_t idx;
+        float chi2;
 
         for (size_t i = 0, iend = vpEdgesMono.size(); i < iend; i++)
         {
             // 取出 optimizer 的第 i 個『邊』
             e = vpEdgesMono[i];
 
-            const size_t idx = vnIndexEdgeMono[i];
+            idx = vnIndexEdgeMono[i];
 
             // 若為第 idx 個特徵點為 Outlier
             if (pFrame->mvbOutlier[idx])
@@ -1783,7 +1789,7 @@ namespace ORB_SLAM2
             }
 
             // chi2() 基於 computeError() 所計算的誤差，取得 chi2 值
-            const float chi2 = e->chi2();
+            chi2 = e->chi2();
 
             // 若 chi2 值比預設門檻高
             if (chi2 > chi2Mono[it])

@@ -43,18 +43,19 @@ mean tracking time: 0.0943997
 #MapPoint: 76626
 
 Vocabulary loaded! Cost 9.44923 s.
-#KeyFrame: 628
-#MapPoint: 61765
-Total time: 9:11.8239
-Median tracking time: 0.0673193
-Mean tracking time: 0.0710586
+#KeyFrame: 652
+#MapPoint: 63337
+Total time: 9:32.3181
+Median tracking time: 0.0663267
+Mean tracking time: 0.0702852
+
 
 >>> 階段 1 (   0, 1650) 會發生 virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()
-#KeyFrame: 334
-#MapPoint: 35882
-Total time: 3:18.311
-Median tracking time: 0.0625188
-Mean tracking time: 0.0637455
+#KeyFrame: 321
+#MapPoint: 32598
+Total time: 3:5.65088
+Median tracking time: 0.0631529
+Mean tracking time: 0.0653407
 
 
 >>> 階段 2 (1650, 2300)
