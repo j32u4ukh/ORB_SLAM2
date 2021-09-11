@@ -307,6 +307,7 @@ namespace ORB_SLAM2
                     // 速度估計丟失了，幀 ID 也可能因為重定位而向前發生了跳轉
                     // 1. mVelocity.empty()：mLastFrame.mTcw.empty()
                     // 2. mCurrentFrame.mnId < mnLastRelocFrameId + 2：重定位造成
+                    /// NOTE: 第 1, 3 次發生 LOST 的發生源
                     if (mVelocity.empty() || mCurrentFrame.mnId < mnLastRelocFrameId + 2)
                     {
                         std::cout << "mVelocity is empty? " << mVelocity.empty()
@@ -318,7 +319,7 @@ namespace ORB_SLAM2
                         // 並返回數量是否足夠多
                         bOK = TrackReferenceKeyFrame();
 
-                        /// NOTE: 第 1 次發生 LOST
+                        /// NOTE: 第 1 次發生 LOST 的發生源
                         std::cout << "TrackReferenceKeyFrame success? " << bOK << std::endl;
                     }
                     else
@@ -335,6 +336,7 @@ namespace ORB_SLAM2
                         bOK = TrackWithMotionModel();
 
                         // 若未能匹配到特徵點，則利用參考關鍵幀重新進行估計位姿
+                        /// NOTE: 第 2 次發生 LOST 的發生源
                         if (!bOK)
                         {
                             std::cout << "TrackWithMotionModel failed." << std::endl;
@@ -355,11 +357,9 @@ namespace ORB_SLAM2
                 // 無法成功估計位姿，意味著我們跟丟了，需要進行重定位
                 else
                 {
-                    if(!bOK && mState != LOST)
+                    if(mState != LOST)
                     {
-                        std::cout << "mCurrentFrame.mnId: " << mCurrentFrame.mnId
-                                  << ", mnLastRelocFrameId: " << mnLastRelocFrameId
-                                  << std::endl;
+                        std::cout << "Start Relocalization." << std::endl;
                     }
 
                     // 將有相同『重定位詞』的關鍵幀篩選出來後，選取有足夠多內點的作為重定位的參考關鍵幀，
@@ -368,7 +368,11 @@ namespace ORB_SLAM2
 
                     if(!bOK && mState != LOST)
                     {
-                        std::cout << "Relocalization success? " << bOK << std::endl;
+                        std::cout << "Relocalization failed." << std::endl;
+                    }
+                    else if(bOK && mState == LOST)
+                    {
+                        std::cout << "Tracking lost, but relocalization success." << std::endl;
                     }
                 }
 
@@ -398,7 +402,7 @@ namespace ORB_SLAM2
 
                     if(!bOK && mState != LOST)
                     {
-                        /// NOTE: 第 2, 3 次發生 LOST 的時間點
+                        /// NOTE: 第 2, 3 次發生 LOST 的發生源
                         std::cout << "TrackLocalMap failed." << std::endl;
                     }
                 }
@@ -406,7 +410,7 @@ namespace ORB_SLAM2
                 {
                     if(mState != LOST)
                     {
-                        /// NOTE: 第 1 次發生 LOST 的時間點
+                        /// NOTE: 第 1 次發生 LOST 的發生源
                         std::cout << "Failed before update." << std::endl;
                     }
                 }
@@ -1074,6 +1078,8 @@ namespace ORB_SLAM2
         Optimizer::PoseOptimization(&mCurrentFrame);
         mnMatchesInliers = 0;
 
+        int n_mp = 0, n_inlier = 0;
+
         // Update MapPoints Statistics
         // 在進一步位姿優化之後，統計仍然匹配的地圖點數量
         for (int i = 0; i < mCurrentFrame.N; i++)
@@ -1081,9 +1087,13 @@ namespace ORB_SLAM2
             // 如果位姿優化之後仍然能夠匹配到地圖點，就認為在該幀中找到了地圖點
             if (mCurrentFrame.mvpMapPoints[i])
             {
+                n_mp++;
+
                 // 不是外點
                 if (!mCurrentFrame.mvbOutlier[i])
                 {
+                    n_inlier++;
+
                     // 相應的調用地圖點接口 increaseFoundNumber 增加 mnFound 計數
                     // （實際能觀察到該地圖點的特徵點數）。
                     mCurrentFrame.mvpMapPoints[i]->increaseFoundNumber();
@@ -1119,11 +1129,38 @@ namespace ORB_SLAM2
         // 而本來只要求位姿估計優化前至少 20 點，優化後至少 10 點。
         if (mCurrentFrame.mnId < mnLastRelocFrameId + mMaxFrames && mnMatchesInliers < 50)
         {
+            if(mState != LOST)
+            {
+                std::cout << "[TrackLocalMap] " 
+                          << mCurrentFrame.mnId << " < "
+                          << mnLastRelocFrameId << " + " << mMaxFrames
+                          << ", mnMatchesInliers: " << mnMatchesInliers 
+                          << ", n_inlier: " << n_inlier 
+                          << ", n_mp: " << n_mp << std::endl;
+            }
+
             return false;
         }
 
         // 內點至少 30 點，才算重定位成功
-        return mnMatchesInliers >= 30;
+        if(mnMatchesInliers >= 30)
+        {
+            return true;
+        }
+        else
+        {
+            if(mState != LOST)
+            {
+                std::cout << "[TrackLocalMap] mnMatchesInliers: " << mnMatchesInliers 
+                          << ", n_inlier: " << n_inlier 
+                          << ", n_mp: " << n_mp << std::endl;
+            }
+
+            return false;
+        }
+
+        // 內點至少 30 點，才算重定位成功
+        // return mnMatchesInliers >= 30;
     }
 
     // 設置參考用地圖點，更新當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』，以及其『已配對地圖點』
