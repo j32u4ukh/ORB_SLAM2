@@ -50,12 +50,22 @@ Median tracking time: 0.0663267
 Mean tracking time: 0.0702852
 
 
->>> 階段 1 (   0, 1650) 會發生 virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()
-#KeyFrame: 321
-#MapPoint: 32598
-Total time: 3:5.65088
-Median tracking time: 0.0631529
-Mean tracking time: 0.0653407
+>>> 階段 1 (   0, 1650) 
+Loop detected!
+Local Mapping STOP
+virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()
+virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()
+virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()
+TrackWithMotionModel failed. TrackReferenceKeyFrame success? 0
+Relocalization success? 1
+mVelocity is empty? 0, mCurrentFrame.mnId: 1589, mnLastRelocFrameId: 1588
+
+
+#KeyFrame: 322
+#MapPoint: 34071
+Total time: 3:18.8563
+Median tracking time: 0.064987
+Mean tracking time: 0.0692198
 
 
 >>> 階段 2 (1650, 2300)

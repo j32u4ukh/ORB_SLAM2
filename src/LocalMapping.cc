@@ -1077,43 +1077,6 @@ namespace ORB_SLAM2
                             // 根據『關鍵點索引值 i』取得關鍵點，再取得其所在的金字塔層級
                             demeritsCullingKeyFrames(pKF, pMP, pKF->mvKeysUn[i].octave, 
                                                      thObs, nRedundantObservations);
-
-                            // const int &scaleLevel = pKF->mvKeysUn[i].octave;
-
-                            // // 觀察到『共視地圖點 pMP』的『關鍵幀』，以及其『關鍵點』的索引值
-                            // const map<KeyFrame *, size_t> observations = pMP->GetObservations();
-                            
-                            // // 『地圖點 pMP』在相對小關鍵幀（相同、高 1 階或更精細的比例）中看到，
-                            // // 則該關鍵幀被認為是冗餘的
-                            // int nObs = 0;
-
-                            // for(pair<KeyFrame *, size_t> obs : observations){
-
-                            //     KeyFrame *pKFi = obs.first;
-                            //     size_t kp_idx = obs.second;
-
-                            //     if (pKFi == pKF){
-                            //         continue;
-                            //     }
-
-                            //     // 根據『關鍵點索引值 kp_idx』取得關鍵點，再取得其所在的金字塔層級
-                            //     const int &scaleLeveli = pKFi->mvKeysUn[kp_idx].octave;
-
-                            //     // 相對小關鍵幀（相同、高 1 階或更精細的比例）中看到
-                            //     if (scaleLeveli <= scaleLevel + 1)
-                            //     {
-                            //         nObs++;
-
-                            //         if (nObs >= thObs){
-                            //             break;
-                            //         }
-                            //     }
-                            // }
-
-                            // if (nObs >= thObs)
-                            // {
-                            //     nRedundantObservations++;
-                            // }
                         }
                     }
                 }
@@ -2030,7 +1993,7 @@ namespace ORB_SLAM2
         
         // 『地圖點 pMP』在相對小關鍵幀（相同、高 1 階或更精細的比例）中看到，
         // 則該關鍵幀被認為是冗餘的
-        int nObs = 0;
+        int nObs = 0, scaleLeveli;
         KeyFrame *pKFi;
         size_t kp_idx;
 
@@ -2044,7 +2007,7 @@ namespace ORB_SLAM2
             }
 
             // 根據『關鍵點索引值 kp_idx』取得關鍵點，再取得其所在的金字塔層級
-            const int &scaleLeveli = pKFi->mvKeysUn[kp_idx].octave;
+            scaleLeveli = pKFi->mvKeysUn[kp_idx].octave;
 
             // 相對小關鍵幀（相同、高 1 階或更精細的比例）中看到
             if (scaleLeveli <= scaleLevel + 1)
@@ -2052,14 +2015,12 @@ namespace ORB_SLAM2
                 nObs++;
 
                 if (nObs >= thObs){
+                    // 關鍵點在影像金字塔的其他層也能被觀察到，不需要著麼多關鍵幀
+                    nRedundantObservations++;
+
                     break;
                 }
             }
-        }
-
-        if (nObs >= thObs)
-        {
-            nRedundantObservations++;
         }
     }
 

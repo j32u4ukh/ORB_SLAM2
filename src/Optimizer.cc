@@ -69,6 +69,8 @@ namespace ORB_SLAM2
                                      int nIterations, bool *pbStopFlag, const unsigned long nLoopKF, 
                                      const bool bRobust)
     {
+        // std::cout << "Start Optimizer::BundleAdjustment" << std::endl;
+
         vector<bool> vbNotIncludedMP;
         vbNotIncludedMP.resize(vpMP.size());
 
@@ -96,6 +98,13 @@ namespace ORB_SLAM2
         optimizer.initializeOptimization();
 
         // 優化 nIterations 次
+        if(optimizer.vertices().size() == 0 || optimizer.edges().size() == 0)
+        {
+            std::cout << "[BundleAdjustment] #vertices: " 
+                    << optimizer.vertices().size() 
+                    << ", #edges: " << optimizer.edges().size() << std::endl;
+        }
+                  
         optimizer.optimize(nIterations);
 
         // Recover optimized data
@@ -116,6 +125,8 @@ namespace ORB_SLAM2
     // 『觀察到共視地圖點的特徵點的位置』作為『邊』
     void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool *pbStopFlag, Map *pMap)
     {
+        // std::cout << "Start Optimizer::LocalBundleAdjustment" << std::endl;
+
         // Local KeyFrames: First Breath Search from Current Keyframe
         list<KeyFrame *> lLocalKeyFrames;
 
@@ -153,10 +164,13 @@ namespace ORB_SLAM2
         // Set Local KeyFrame vertices
         unsigned long id;
 
+        /// NOTE: [addLocalKeyFrames] Added vertices / All vertices: 7/7
         addLocalKeyFrames(lLocalKeyFrames, optimizer, maxKFid);
 
         // Set Fixed KeyFrame vertices
         // Fixed 共視關鍵幀作為頂點加入優化
+        /// NOTE: [addFixedCameras] Added vertices / All vertices: 11/11
+        /// 極少數其況發生 addFixedCameras 沒有頂點，但同時的 addLocalKeyFrames 都不為 0
         addFixedCameras(lFixedCameras, optimizer, maxKFid);
         
         // Set MapPoint vertices
@@ -182,6 +196,7 @@ namespace ORB_SLAM2
         vector<MapPoint *> vpMapPointEdgeStereo;
         vpMapPointEdgeStereo.reserve(nExpectedSize);
         
+        /// NOTE: [addLocalMapPoints] Added edges / All edges: 5050/5050
         addLocalMapPoints(lLocalMapPoints, optimizer, maxKFid, pKF, 
                           vpEdgesMono, vpEdgeKFMono, vpMapPointEdgeMono,
                           vpEdgesStereo, vpEdgeKFStereo, vpMapPointEdgeStereo); 
@@ -197,6 +212,13 @@ namespace ORB_SLAM2
         optimizer.initializeOptimization();
 
         // 優化 5 次
+        if(optimizer.vertices().size() == 0 || optimizer.edges().size() == 0)
+        {
+            std::cout << "[LocalBundleAdjustment - 1] #vertices: " 
+                    << optimizer.vertices().size() 
+                    << ", #edges: " << optimizer.edges().size() << std::endl;
+        }
+
         optimizer.optimize(5);
 
         bool bDoMore = true;
@@ -220,6 +242,13 @@ namespace ORB_SLAM2
             optimizer.initializeOptimization(0);
 
             // 再優化 10 次
+            if(optimizer.vertices().size() == 0 || optimizer.edges().size() == 0)
+            {
+                std::cout << "[LocalBundleAdjustment - 2] #vertices: " 
+                        << optimizer.vertices().size() 
+                        << ", #edges: " << optimizer.edges().size() << std::endl;
+            }
+
             optimizer.optimize(10);
         }
 
@@ -256,6 +285,8 @@ namespace ORB_SLAM2
     int Optimizer::OptimizeSim3(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &vpMatches1, 
                                 g2o::Sim3 &g2oS12, const float th2, const bool bFixScale)
     {
+        // std::cout << "Start Optimizer::OptimizeSim3" << std::endl;
+
         g2o::SparseOptimizer optimizer;
         g2o::BlockSolverX::LinearSolverType *linearSolver;
         linearSolver = new g2o::LinearSolverDense<g2o::BlockSolverX::PoseMatrixType>();
@@ -266,6 +297,9 @@ namespace ORB_SLAM2
 
         // Set MapPoint vertices
         const int N = vpMatches1.size();
+
+        /// NOTE: [OptimizeSim3] vpMatches1.size: 3641
+        // std::cout << "[OptimizeSim3] vpMatches1.size: " << N << std::endl;
         
         vector<g2o::EdgeSim3ProjectXYZ *> vpEdges12;
         vector<g2o::EdgeInverseSim3ProjectXYZ *> vpEdges21;
@@ -282,6 +316,14 @@ namespace ORB_SLAM2
 
         // Optimize!
         optimizer.initializeOptimization();
+        
+        if(optimizer.vertices().size() == 0 || optimizer.edges().size() == 0)
+        {
+            std::cout << "[OptimizeSim3 - 1] #vertices: " 
+                    << optimizer.vertices().size() 
+                    << ", #edges: " << optimizer.edges().size() << std::endl;
+        }
+
         optimizer.optimize(5);
 
         // Check inliers
@@ -303,9 +345,18 @@ namespace ORB_SLAM2
         // Optimize again only with inliers
         // 再次優化
         optimizer.initializeOptimization();
+
+        if(optimizer.vertices().size() == 0 || optimizer.edges().size() == 0)
+        {
+            std::cout << "[OptimizeSim3 - 2] #vertices: " 
+                    << optimizer.vertices().size() 
+                    << ", #edges: " << optimizer.edges().size() << std::endl;
+        }
+
         optimizer.optimize(nMoreIterations);
 
         int nIn = filterSim3Inlier(optimizer, th2, vpMatches1, vpEdges12, vpEdges21, vnIndexEdge);
+        // std::cout << "[OptimizeSim3] nIn: " << nIn << std::endl;
 
         g2o::VertexSim3Expmap *vSim3_recov = static_cast<g2o::VertexSim3Expmap *>(optimizer.vertex(0));
 
@@ -323,6 +374,8 @@ namespace ORB_SLAM2
                                            const map<KeyFrame *, set<KeyFrame *>> &LoopConnections, 
                                            const bool &bFixScale)
     {
+        // std::cout << "Start Optimizer::OptimizeEssentialGraph" << std::endl;
+
         // Setup optimizer
         g2o::SparseOptimizer optimizer;
         optimizer.setVerbose(false);
@@ -344,21 +397,31 @@ namespace ORB_SLAM2
 
         vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> vScw(nMaxKFid + 1);
         vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> vCorrectedSwc(nMaxKFid + 1);
-        
 
         const int minFeat = 100;
 
+        /// NOTE: [addEssentialSim3] Added vertices / All vertices: 315/315
         addEssentialSim3(optimizer, pLoopKF, vpKFs, CorrectedSim3, vScw, nMaxKFid, bFixScale);
 
-        
         set<pair<long unsigned int, long unsigned int>> sInsertedEdges;
+
+        /// NOTE: [addEssentialLoopConnections] Added edges / All edges: 51/165
         addEssentialLoopConnections(optimizer, sInsertedEdges, LoopConnections, vScw, minFeat, 
                                     pLoopKF, pCurKF);
-                                    
+        
+        /// NOTE: addEssentialEdges當中：addEdgeSim3/addCovisibilityEdges 皆不為 0; addLoopEdges 全部為 0
         addEssentialEdges(vpKFs, optimizer, NonCorrectedSim3, vScw, minFeat, sInsertedEdges);
         
         // Optimize!
         optimizer.initializeOptimization();
+
+        if(optimizer.vertices().size() == 0 || optimizer.edges().size() == 0)
+        {
+            std::cout << "[OptimizeEssentialGraph] #vertices: " 
+                    << optimizer.vertices().size() 
+                    << ", #edges: " << optimizer.edges().size() << std::endl;
+        }
+
         optimizer.optimize(20);
 
         unique_lock<mutex> lock(pMap->mMutexMapUpdate);
@@ -479,11 +542,7 @@ namespace ORB_SLAM2
         KeyFrame *pKF;
         size_t kp_idx;
         unsigned long id;
-        // int nEdges;
-
-        // map<KeyFrame *, size_t> observations;
         cv::KeyPoint kpUn;
-        // bool without_edge;
 
         // Set MapPoint vertices
         // 『地圖點』的座標作為『頂點』加入優化
@@ -499,10 +558,7 @@ namespace ORB_SLAM2
 
             // 觀察到『地圖點 pMP』的『關鍵幀』，以及其『關鍵點』的索引值
             const map<KeyFrame *, size_t> observations = pMP->GetObservations();
-            // observations = pMP->GetObservations();
 
-            // nEdges = 0;
-            // without_edge = true;
             vbNotIncludedMP[i] = true;
 
             // 將是否將有 Edge 被添加的判斷，移到 Vertex 建構之前，避免建構後又要移除
@@ -514,9 +570,6 @@ namespace ORB_SLAM2
                 {
                     continue;
                 }
-
-                // nEdges++;
-                // without_edge = false;
 
                 // 只要有 Edge 將被添加，就不是 vbNotIncludedMP，就可以正式建構 Vertex 並添加 Edge
                 vbNotIncludedMP[i] = false;
@@ -568,26 +621,6 @@ namespace ORB_SLAM2
                     addEdgeStereoSE3ProjectXYZ(op, kpUn, pKF, kp_idx, id, pKF->mnId, bRobust);
                 }
             }
-
-            // if (without_edge)
-            // {
-            //     op.removeVertex(vPoint);
-            //     vbNotIncludedMP[i] = true; 
-            // }
-            // else
-            // {
-            //     vbNotIncludedMP[i] = false;
-            // }
-            
-            // if (nEdges == 0)
-            // {
-            //     op.removeVertex(vPoint);
-            //     vbNotIncludedMP[i] = true;
-            // }
-            // else
-            // {
-            //     vbNotIncludedMP[i] = false;
-            // }
         }
     }
 
@@ -781,13 +814,14 @@ namespace ORB_SLAM2
     void Optimizer::addLocalKeyFrames(list<KeyFrame *> &lLocalKeyFrames, g2o::SparseOptimizer &op,
                                       long unsigned int &maxKFid)
     {
-        int id;
+        int id, n_vertex = 0;
 
         for(KeyFrame *kf : lLocalKeyFrames)
         {
             id = kf->mnId;
 
             addVertexSE3Expmap(op, kf->GetPose(), id, id == 0);
+            n_vertex++;
 
             if (id > maxKFid)
             {
@@ -800,13 +834,14 @@ namespace ORB_SLAM2
     void Optimizer::addFixedCameras(list<KeyFrame *> &lFixedCameras, g2o::SparseOptimizer &op,
                                     long unsigned int &maxKFid)
     {
-        int id;
+        int id, n_vertex = 0;
 
         for (KeyFrame *kf : lFixedCameras)
         {
             id = kf->mnId;
 
             addVertexSE3Expmap(op, kf->GetPose(), id, true);
+            n_vertex++;
 
             if (id > maxKFid)
             {
@@ -830,7 +865,7 @@ namespace ORB_SLAM2
         g2o::EdgeSE3ProjectXYZ *e;
         KeyFrame *kf;
         size_t kp_idx;
-        int id;
+        int id, n_edge = 0, all_edge = 0;
 
         for(MapPoint *mp : lLocalMapPoints)
         {
@@ -843,6 +878,7 @@ namespace ORB_SLAM2
 
             // 和 list<KeyFrame *> lFixedCameras 區塊很相似，但前面區塊只取出關鍵幀而已
             const map<KeyFrame *, size_t> observations = mp->GetObservations();
+            all_edge += observations.size();
 
             // Set edges
             for(pair<KeyFrame *, size_t> obs : observations)
@@ -868,6 +904,7 @@ namespace ORB_SLAM2
                 if (kp_ur < 0)
                 {
                     e = addEdgeSE3ProjectXYZ(op, kpUn, kf, id, kf->mnId, false);
+                    n_edge++;
 
                     vpEdgesMono.push_back(e);
                     vpEdgeKFMono.push_back(kf);
@@ -894,9 +931,11 @@ namespace ORB_SLAM2
     {
         g2o::EdgeSE3ProjectXYZ *e;
         MapPoint *pMP;
+        int n_edge = 0;
+        size_t i, iend = vpEdgesMono.size();
 
         // Check inlier observations
-        for (size_t i = 0, iend = vpEdgesMono.size(); i < iend; i++)
+        for (i = 0; i < iend; i++)
         {
             pMP = vpMapPointEdgeMono[i];
 
@@ -911,6 +950,7 @@ namespace ORB_SLAM2
             {
                 // 再次納入優化
                 e->setLevel(1);
+                n_edge++;
             }
 
             // 不使用 RobustKernel
@@ -1021,7 +1061,7 @@ namespace ORB_SLAM2
                                                  vector<g2o::EdgeInverseSim3ProjectXYZ *> &vpEdges21,
                                                  vector<size_t> &vnIndexEdge,
                                                  vector<MapPoint *> &vpMatches1)
-    {
+    {        
         // Calibration 相機內參
         const cv::Mat &K1 = pKF1->K;
         const cv::Mat &K2 = pKF2->K;
@@ -1090,6 +1130,7 @@ namespace ORB_SLAM2
             // 『關鍵幀 pKF2』的第 i2 個特徵點觀察到『地圖點 pMP2』
             const int i2 = pMP2->GetIndexInKeyFrame(pKF2);
 
+
             // 將『地圖點 pMP1、pMP2』的位置轉換到相機座標系下，作為『頂點』（id1, id2）加入優化
             if (pMP1 && pMP2)
             {
@@ -1134,6 +1175,13 @@ namespace ORB_SLAM2
             addSim3KeyPoints(i, i2, id1, id2, deltaHuber, pKF1, pKF2, op,
                              vpEdges12, vpEdges21, vnIndexEdge);
         }
+
+        if(op.vertices().size() == 0 || op.edges().size() == 0)
+        {
+            std::cout << "[addSim3MapPointsAndKeyPoints] #vertices: " 
+                      << op.vertices().size() 
+                      << ", #edges: " << op.edges().size() << std::endl;
+        }
     }
 
     /// NOTE: 20210907
@@ -1144,6 +1192,8 @@ namespace ORB_SLAM2
                                      vector<g2o::EdgeInverseSim3ProjectXYZ *> &vpEdges21,
                                      vector<size_t> &vnIndexEdge)
     {
+        // std::cout << "Start Optimizer::addSim3KeyPoints" << std::endl;
+
         // Set edge x1 = S12*X2
         // 『關鍵幀 pKF1』的第 i 個特徵點位置作為『邊』加入優化 
         Eigen::Matrix<double, 2, 1> obs1;
@@ -1198,6 +1248,8 @@ namespace ORB_SLAM2
                                      vector<g2o::EdgeInverseSim3ProjectXYZ *> &vpEdges21,
                                      vector<size_t> &vnIndexEdge)
     {
+        // std::cout << "Start Optimizer::filterSim3Outlier" << std::endl;
+
         g2o::EdgeSim3ProjectXYZ *e12;
         g2o::EdgeInverseSim3ProjectXYZ *e21;
         size_t idx;
@@ -1231,6 +1283,8 @@ namespace ORB_SLAM2
                 nBad++;
             }
         }
+
+        // std::cout << "[filterSim3Outlier] Removed " << 2 * nBad << " edges." << std::endl;
 
         return nBad;
     }
@@ -1290,6 +1344,7 @@ namespace ORB_SLAM2
         unsigned long nIDi;
 
         vector<g2o::VertexSim3Expmap *> vpVertices(nMaxKFid + 1);
+        int n_vertex = 0;
         
         for(KeyFrame *pKF : vpKFs)
         {
@@ -1335,8 +1390,16 @@ namespace ORB_SLAM2
 
             // 關鍵幀的『相似轉換矩陣』作為『頂點』加入優化
             op.addVertex(VSim3);
+            n_vertex++;
 
             vpVertices[nIDi] = VSim3;
+        }
+
+        if(op.vertices().size() == 0 || op.edges().size() == 0)
+        {
+            std::cout << "[addEssentialSim3] #vertices: " 
+                    << op.vertices().size() 
+                    << ", #edges: " << op.edges().size() << std::endl;
         }
     }
 
@@ -1350,6 +1413,7 @@ namespace ORB_SLAM2
         KeyFrame *pKF;
         unsigned long nIDi, nIDj;
         g2o::Sim3 Siw, Swi, Sjw, Sji;
+        int n_loop_edge = 0, n_connecttion = 0;
 
         // Set Loop edges
         // LoopConnections[pKFi]：『關鍵幀 pKFi』的『已連結關鍵幀』，移除『關鍵幀 pKFi』的『共視關鍵幀』和
@@ -1361,6 +1425,7 @@ namespace ORB_SLAM2
             // 『關鍵幀 pKFi』的『已連結關鍵幀』，移除『關鍵幀 pKFi』的『共視關鍵幀』和
             // 『關鍵幀 mpCurrentKF』和其『共視關鍵幀』
             const set<KeyFrame *> &spConnections = loop_onnection.second;
+            n_connecttion += spConnections.size();
 
             nIDi = pKF->mnId;
 
@@ -1387,9 +1452,17 @@ namespace ORB_SLAM2
                 Sji = Sjw * Swi;
 
                 addEdgeSim3(op, Sji, nIDi, nIDj);
+                n_loop_edge++;
 
                 sInsertedEdges.insert(make_pair(min(nIDi, nIDj), max(nIDi, nIDj)));
             }
+        }
+
+        if(op.vertices().size() == 0 || op.edges().size() == 0)
+        {
+            std::cout << "[addEssentialLoopConnections] #vertices: " 
+                    << op.vertices().size() 
+                    << ", #edges: " << op.edges().size() << std::endl;
         }
     }
 
@@ -1405,10 +1478,10 @@ namespace ORB_SLAM2
         KeyFrame *pParentKF;
         int nIDj;
         bool need_continue;
-
         int nIDi;
             
         // Set normal edges
+        /// NOTE: addEdgeSim3/addCovisibilityEdges 皆不為 0; addLoopEdges 全部為 0
         for(KeyFrame *pKF : vpKFs)
         {            
             nIDi = pKF->mnId;
@@ -1463,12 +1536,8 @@ namespace ORB_SLAM2
             // 取得至多 minFeat 個『共視關鍵幀』
             // 取得『關鍵幀 pKF』的『已連結關鍵幀（根據觀察到的地圖點數量由大到小排序，
             // 且觀察到的地圖點數量「大於」 minFeat）』
-            need_continue = addCovisibilityEdges(pKF, pParentKF, minFeat, sInsertedEdges, 
-                                                 NonCorrectedSim3, Swi, op, nIDi, vScw);
-
-            if(need_continue){
-                continue;
-            }
+            addCovisibilityEdges(pKF, pParentKF, minFeat, sInsertedEdges, 
+                                 NonCorrectedSim3, Swi, op, nIDi, vScw);
         }
     }
 
@@ -1482,6 +1551,8 @@ namespace ORB_SLAM2
                 
         // Loop edges
         const set<KeyFrame *> sLoopEdges = pKF->GetLoopEdges();
+
+        /// NOTE: sLoopEdges 全部為 0，導致 n_edge 也一直為 0
 
         for(KeyFrame * pLKF : sLoopEdges)
         {
@@ -1505,7 +1576,7 @@ namespace ORB_SLAM2
     }
     
     /// NOTE: 20210907
-    bool Optimizer::addCovisibilityEdges(KeyFrame *pKF, KeyFrame *pParentKF, const int minFeat, 
+    void Optimizer::addCovisibilityEdges(KeyFrame *pKF, KeyFrame *pParentKF, const int minFeat, 
                                          set<pair<long unsigned int, long unsigned int>> sInsertedEdges,
                                          const LoopClosing::KeyFrameAndPose &NonCorrectedSim3, 
                                          const g2o::Sim3 Swi, g2o::SparseOptimizer &op, const int nIDi, 
@@ -1532,7 +1603,7 @@ namespace ORB_SLAM2
                     if (sInsertedEdges.count(make_pair(min(pKF->mnId, pKFn->mnId), 
                                                        max(pKF->mnId, pKFn->mnId))))
                     {
-                        return true;
+                        break;
                     }
                     
                     itn = NonCorrectedSim3.find(pKFn);
@@ -1552,8 +1623,6 @@ namespace ORB_SLAM2
                 }
             }
         }
-
-        return false;
     }
 
     /// NOTE: 20210907
@@ -1597,6 +1666,8 @@ namespace ORB_SLAM2
 
             pKFi->SetPose(Tiw);
         }
+
+        // std::cout << "[updateEssentialPoses] Update " << vpKFs.size() << " KeyFrame." << std::endl;
     }
 
     /// NOTE: 20210907
@@ -1608,7 +1679,7 @@ namespace ORB_SLAM2
         cv::Mat P3Dw, cvCorrectedP3Dw;        
         g2o::Sim3 Srw, correctedSwr;
         KeyFrame *pRefKF;
-        int nIDr;
+        int nIDr, n_mp = 0;
 
         // Correct points. Transform to "non-optimized" reference keyframe pose and transform back 
         // with optimized pose
@@ -1617,6 +1688,8 @@ namespace ORB_SLAM2
             if (pMP->isBad()){
                 continue;
             }
+
+            n_mp++;
 
             if (pMP->mnCorrectedByKF == pCurKF->mnId)
             {
@@ -1643,6 +1716,8 @@ namespace ORB_SLAM2
             pMP->SetWorldPos(cvCorrectedP3Dw);
             pMP->UpdateNormalAndDepth();
         }
+
+        // std::cout << "[updateEssentialMapPoints] Update " << n_mp << " MapPoint." << std::endl;
     }
 
     // ***** Optimizer::PoseOptimization *****
@@ -1714,6 +1789,12 @@ namespace ORB_SLAM2
                 }
             }
         }
+
+        if(op.edges().size() == 0)
+        {
+            std::cout << "[addPoseOptimization] #vertices: " << op.vertices().size()  
+                      << ", #edges: " << op.edges().size() << std::endl;
+        }
     }
 
     /// NOTE: 20210907
@@ -1745,7 +1826,14 @@ namespace ORB_SLAM2
             vSE3->setEstimate(mSE3Tcw);
             op.initializeOptimization(0);
 
-            // 優化 its[it] 次
+            if(op.vertices().size() == 0 || op.edges().size() == 0)
+            {
+                std::cout << "[addPoseOptimizationEdges] #vertices: " 
+                        << op.vertices().size() 
+                        << ", #edges: " << op.edges().size() << std::endl;
+            }
+
+            // 優化 its[it] 次         
             op.optimize(its[it]);
 
             //

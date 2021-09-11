@@ -177,7 +177,7 @@ public:
                                     const LoopClosing::KeyFrameAndPose &NonCorrectedSim3, const int nIDi,
                                     vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> vScw);
 
-    static inline bool addCovisibilityEdges(KeyFrame *pKF, KeyFrame *pParentKF, const int minFeat,
+    static inline void addCovisibilityEdges(KeyFrame *pKF, KeyFrame *pParentKF, const int minFeat,
                                             set<pair<long unsigned int, long unsigned int>> sInsertedEdges,
                                             const LoopClosing::KeyFrameAndPose &NonCorrectedSim3,
                                             const g2o::Sim3 Swi, g2o::SparseOptimizer &op, const int nIDi,

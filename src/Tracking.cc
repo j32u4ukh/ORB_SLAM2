@@ -305,11 +305,21 @@ namespace ORB_SLAM2
                     CheckReplacedInLastFrame();
 
                     // 速度估計丟失了，幀 ID 也可能因為重定位而向前發生了跳轉
+                    // 1. mVelocity.empty()：mLastFrame.mTcw.empty()
+                    // 2. mCurrentFrame.mnId < mnLastRelocFrameId + 2：重定位造成
                     if (mVelocity.empty() || mCurrentFrame.mnId < mnLastRelocFrameId + 2)
                     {
+                        std::cout << "mVelocity is empty? " << mVelocity.empty()
+                                  << ", mCurrentFrame.mnId: " << mCurrentFrame.mnId
+                                  << ", mnLastRelocFrameId: " << mnLastRelocFrameId
+                                  << std::endl;
+
                         // 利用詞袋模型，快速將『當前幀』與『參考關鍵幀』進行特徵點匹配，更新『當前幀』匹配的地圖點，
                         // 並返回數量是否足夠多
                         bOK = TrackReferenceKeyFrame();
+
+                        /// NOTE: 第 1 次發生 LOST
+                        std::cout << "TrackReferenceKeyFrame success? " << bOK << std::endl;
                     }
                     else
                     {
@@ -327,9 +337,15 @@ namespace ORB_SLAM2
                         // 若未能匹配到特徵點，則利用參考關鍵幀重新進行估計位姿
                         if (!bOK)
                         {
+                            std::cout << "TrackWithMotionModel failed." << std::endl;
+
                             // 利用詞袋模型，快速將『當前幀』與『參考關鍵幀』進行特徵點匹配，
                             // 更新『當前幀』匹配的地圖點，並返回數量是否足夠多
                             bOK = TrackReferenceKeyFrame();
+
+                            /// NOTE: TrackWithMotionModel failed. TrackReferenceKeyFrame success? 0
+
+                            std::cout << "TrackReferenceKeyFrame success? " << bOK << std::endl;
                         }
                     }
                 }
@@ -339,9 +355,21 @@ namespace ORB_SLAM2
                 // 無法成功估計位姿，意味著我們跟丟了，需要進行重定位
                 else
                 {
+                    if(!bOK && mState != LOST)
+                    {
+                        std::cout << "mCurrentFrame.mnId: " << mCurrentFrame.mnId
+                                  << ", mnLastRelocFrameId: " << mnLastRelocFrameId
+                                  << std::endl;
+                    }
+
                     // 將有相同『重定位詞』的關鍵幀篩選出來後，選取有足夠多內點的作為重定位的參考關鍵幀，
                     // 並返回是否成功重定位
                     bOK = Relocalization();
+
+                    if(!bOK && mState != LOST)
+                    {
+                        std::cout << "Relocalization success? " << bOK << std::endl;
+                    }
                 }
 
                 mCurrentFrame.mpReferenceKF = mpReferenceKF;
@@ -367,6 +395,20 @@ namespace ORB_SLAM2
                     且重投影後的內點足夠多
                     */                    
                     bOK = TrackLocalMap();
+
+                    if(!bOK && mState != LOST)
+                    {
+                        /// NOTE: 第 2, 3 次發生 LOST 的時間點
+                        std::cout << "TrackLocalMap failed." << std::endl;
+                    }
+                }
+                else
+                {
+                    if(mState != LOST)
+                    {
+                        /// NOTE: 第 1 次發生 LOST 的時間點
+                        std::cout << "Failed before update." << std::endl;
+                    }
                 }
             }
 
@@ -992,222 +1034,12 @@ namespace ORB_SLAM2
         vbDiscarded.resize(nKFs);
 
         int nCandidates = 0;
-        
-        // ================================================================================
-        // ================================================================================
         createRelocatePnPsolver(vpCandidateKFs, nCandidates, vbDiscarded, matcher, 
                                 vvpMapPointMatches, vpPnPsolvers);
-        // int nmatches;
-        // KeyFrame *pKF;
-        // PnPsolver *pSolver;
-
-        // /* 用 ORB 匹配器遍歷一下所有的候選關鍵幀，容器 vpPnPsolvers 就是用來記錄各個候選幀的求解器的，
-        // vvpMapPointMatches 則用於保存各個候選幀與當前幀的匹配關鍵點，vbDiscarded 標記了對應候選幀
-        // 是否因為匹配點數量不足而被拋棄。*/
-        // for (int i = 0; i < nKFs; i++)
-        // {
-        //     // 取出第 i 個共視關鍵幀
-        //     pKF = vpCandidateKFs[i];
-
-        //     if (pKF->isBad())
-        //     {
-        //         vbDiscarded[i] = true;
-        //     }
-        //     else
-        //     {
-        //         // 利用詞袋模型，快速匹配兩幀同時觀察到的地圖點 vector<MapPoint *> vvpMapPointMatches[i]
-        //         nmatches = matcher.SearchByBoW(pKF, mCurrentFrame, vvpMapPointMatches[i]);
-
-        //         // 配對數量不足（少於 15 點），標記該關鍵幀為要丟棄
-        //         if (nmatches < 15)
-        //         {
-        //             vbDiscarded[i] = true;
-        //             continue;
-        //         }
-
-        //         // 當有足夠多的匹配點時為之創建一個 PnP 求解器
-        //         else
-        //         {
-        //             // vvpMapPointMatches[i]：當前幀與『第 i 個共視關鍵幀』共同觀察到的地圖點
-        //             // 利用 PnP 求解當前幀與『第 i 個共視關鍵幀』之間的位姿轉換
-        //             pSolver = new PnPsolver(mCurrentFrame, vvpMapPointMatches[i]);
-        //             pSolver->SetRansacParameters(0.99, 10, 300, 4, 0.5, 5.991);
-        //             vpPnPsolvers[i] = pSolver;
-        //             nCandidates++;
-        //         }
-        //     }
-        // }
-        // ================================================================================
-        
-
-
-
-
-
-        // ================================================================================
-        // ================================================================================
+                                
         bool bMatch = relocate(nCandidates, vbDiscarded, vpCandidateKFs, vpPnPsolvers, 
                                vvpMapPointMatches);
-
-        // // Alternatively perform some iterations of P4P RANSAC
-        // // Until we found a camera pose supported by enough inliers
-        // // 在進行新的篩選之前，先創建了一個標識重定位是否成功的布爾變量 bMatch，
-        // // 和一個用於對候選幀的關鍵點進行投影匹配的 ORB 匹配器 matcher2。
-        // bool bMatch = false;
-        // ORBmatcher matcher2(0.9, true);
-        // cv::Mat Tcw;
-        // int i, io, ip, j, nGood, nadditional;
-        // string check;
-
-        // // while 循環用於推進位姿估計的優化叠代，for 循環用於遍歷候選關鍵幀。
-        // while (nCandidates > 0 && !bMatch)
-        // {
-        //     for (i = 0; i < nKFs; i++)
-        //     {
-        //         if (vbDiscarded[i])
-        //         {
-        //             continue;
-        //         }
-
-        //         // 記錄了候選幀中成功匹配上的地圖點
-        //         vector<bool> vbInliers;
-
-        //         // 記錄了匹配點的數量
-        //         int nInliers;
-
-        //         // 用於標記 PnP 求解是否達到了最大叠代次數
-        //         bool bNoMore;
-
-        //         // Perform 5 Ransac Iterations
-        //         // 針對每個關鍵幀先通過 PnP 求解器估計相機的位姿，結果保存在局部變量 Tcw 中。
-        //         pSolver = vpPnPsolvers[i];
-        //         Tcw = pSolver->iterate(5, bNoMore, vbInliers, nInliers);
-
-        //         // If Ransac reachs max. iterations discard keyframe
-        //         // 如果達到了最大叠代次數，那麽意味著通過 PnP 算法無法得到一個比較合理的位姿估計，
-        //         // 所以才會叠代了那麽多次。因此需要拋棄該候選幀。
-        //         if (bNoMore)
-        //         {
-        //             vbDiscarded[i] = true;
-        //             nCandidates--;
-        //         }
-
-        //         // If a Camera Pose is computed, optimize
-        //         // 如果成功的求解了 PnP 問題，並得到了相機的位姿估計，那麽就進一步的對該估計進行優化
-        //         if (!Tcw.empty())
-        //         {
-        //             check = checkRelocalization(Tcw, vbInliers, nGood, i, vvpMapPointMatches, 
-        //                                         vpCandidateKFs, bMatch);
-
-        //             if(check == "break"){
-        //                 break;
-        //             }
-        //             else if(check == "continue")
-        //             {
-        //                 continue;
-        //             }
-
-        //             // // 用剛剛計算得到的位姿估計（Tcw）來更新當前幀的位姿
-        //             // Tcw.copyTo(mCurrentFrame.mTcw);
-
-        //             // set<MapPoint *> sFound;
-        //             // const int np = vbInliers.size();
-
-        //             // for (j = 0; j < np; j++)
-        //             // {
-        //             //     // 若為內點，則加入當前幀進行管理
-        //             //     if (vbInliers[j])
-        //             //     {
-        //             //         mCurrentFrame.mvpMapPoints[j] = vvpMapPointMatches[i][j];
-        //             //         sFound.insert(vvpMapPointMatches[i][j]);
-        //             //     }
-        //             //     else{
-        //             //         mCurrentFrame.mvpMapPoints[j] = NULL;
-        //             //     }
-        //             // }
-                    
-        //             // // 優化『pFrame 觀察到的地圖點』的位置，以及 pFrame 的位姿估計，並返回優化後的內點個數
-        //             // nGood = Optimizer::PoseOptimization(&mCurrentFrame);
-
-        //             // // 局部變量 nGood 評價了匹配程度，如果太低就結束當此叠代。
-        //             // if (nGood < 10)
-        //             // {
-        //             //     continue;
-        //             // }
-
-        //             // for (io = 0; io < mCurrentFrame.N; io++)
-        //             // {
-        //             //     if (mCurrentFrame.mvbOutlier[io])
-        //             //     {
-        //             //         mCurrentFrame.mvpMapPoints[io] = static_cast<MapPoint *>(NULL);
-        //             //     }
-        //             // }
-
-        //             // // If few inliers, search by projection in a coarse window and optimize again
-        //             // // 如果內點數量比較少，就以一個較大的窗口將候選幀的地圖點投影到當前幀上獲取更多的可能匹配點，
-        //             // // 並重新進行優化。
-        //             // if (nGood < 50)
-        //             // {
-        //             //     // 利用較大的搜索半徑 10 進行再次配對
-        //             //     // 尋找 CurrentFrame 當中和『關鍵幀 vpCandidateKFs[i]』的特徵點對應的位置，
-        //             //     // 形成 CurrentFrame 的地圖點，並返回匹配成功的個數
-        //             //     nadditional = matcher2.SearchByProjection(mCurrentFrame, vpCandidateKFs[i],
-        //             //                                                   sFound, 10, 100);
-
-        //             //     if (nadditional + nGood >= 50)
-        //             //     {
-        //             //         nGood = Optimizer::PoseOptimization(&mCurrentFrame);
-
-        //             //         // If many inliers but still not enough, search by projection again in
-        //             //         // a narrower window the camera has been already optimized with many points
-        //             //         // 如果內點數量得到了增加但仍然不夠多，就。。
-        //             //         if (nGood > 30 && nGood < 50)
-        //             //         {
-        //             //             sFound.clear();
-
-        //             //             for (ip = 0; ip < mCurrentFrame.N; ip++)
-        //             //             {
-        //             //                 if (mCurrentFrame.mvpMapPoints[ip])
-        //             //                 {
-        //             //                     sFound.insert(mCurrentFrame.mvpMapPoints[ip]);
-        //             //                 }
-        //             //             }
-
-        //             //             // 再次將候選幀的地圖點投影到當前幀上搜索匹配點，只是這次投影的窗口（64）比較小
-        //             //             // 窗口小，形成的候選網格則會增加，也就是搜索細緻度增加了
-        //             //             nadditional = matcher2.SearchByProjection(mCurrentFrame, 
-        //             //                                                       vpCandidateKFs[i], 
-        //             //                                                       sFound, 3, 64);
-
-        //             //             // Final optimization
-        //             //             // 產生足夠的配對點
-        //             //             if (nGood + nadditional >= 50)
-        //             //             {
-        //             //                 // 再進行一次優化
-        //             //                 nGood = Optimizer::PoseOptimization(&mCurrentFrame);
-
-        //             //                 for (io = 0; io < mCurrentFrame.N; io++)
-        //             //                 {
-        //             //                     if (mCurrentFrame.mvbOutlier[io])
-        //             //                     {
-        //             //                         mCurrentFrame.mvpMapPoints[io] = NULL;
-        //             //                     }
-        //             //                 }
-        //             //             }
-        //             //         }
-        //             //     }
-        //             // }
-
-        //             // // If the pose is supported by enough inliers stop ransacs and continue
-        //             // // 如果找到一個候選幀經過一次次的優化之後，具有足夠多的匹配點，就認為重定位成功，退出循環叠代。
-        //             // if (nGood >= 50)
-        //             // {
-        //             //     bMatch = true;
-        //             //     break;
-        //             // }
-        //         }
-        //     }
-        // }
+                               
 
         // 最後根據是否成功找到匹配關鍵幀返回重定位是否成功。
         if (bMatch)
@@ -1216,7 +1048,7 @@ namespace ORB_SLAM2
         }
 
         return bMatch;
-        // ================================================================================
+        
     }
 
     // 找出當前幀的『共視關鍵幀』以及其『已配對地圖點』，確保這些地圖點至少被 1 個關鍵幀觀察到，且重投影後的內點足夠多
@@ -2041,8 +1873,13 @@ namespace ORB_SLAM2
         // 如果跟丟了，而且當前系統還沒有足夠多的關鍵幀，將重置系統，重新初始化
         else
         {
-            mState = LOST;
+            if(mState != LOST)
+            {
+                cout << "!!!!!!!!!! Tracking lost !!!!!!!!!!" << endl;
+            }
 
+            mState = LOST;
+            
             // 地圖中的關鍵幀數量不足 6 個
             if (mpMap->getInMapKeyFrameNumber() <= 5)
             {
@@ -2108,7 +1945,7 @@ namespace ORB_SLAM2
                             vector<KeyFrame *> &vpCandidateKFs, const vector<PnPsolver *> &vpPnPsolvers, 
                             vector<vector<MapPoint *>> &vvpMapPointMatches)
     {
-        int i, nInliers, nadditional, nGood;
+        int i, nInliers, nGood;
         bool bMatch = false, bNoMore= false;
         ORBmatcher matcher2(0.9, true);
         vector<bool> vbInliers;
