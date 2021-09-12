@@ -37,6 +37,8 @@ namespace ORB_SLAM2
     const int ORBmatcher::TH_HIGH = 100;
     const int ORBmatcher::TH_LOW = 50;
     const int ORBmatcher::HISTO_LENGTH = 30;
+    const int ORBmatcher::start_idx = 1570;
+    const int ORBmatcher::end_idx = 1600;
 
     // ==================================================
 
@@ -1394,7 +1396,7 @@ namespace ORB_SLAM2
 
     // 尋找 CurrentFrame 當中和『LastFrame』特徵點對應的位置，形成 CurrentFrame 的地圖點，並返回匹配成功的個數
     int ORBmatcher::SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, const float th, 
-                                       const bool bMono)
+                                       const bool bMono, const int idx)
     {
         int nmatches = 0;
 
@@ -1409,7 +1411,7 @@ namespace ORB_SLAM2
 
         const cv::Mat Rcw = CurrentFrame.mTcw.rowRange(0, 3).colRange(0, 3);
         const cv::Mat tcw = CurrentFrame.mTcw.rowRange(0, 3).col(3);
-
+        
         /// NOTE: 旋轉矩陣為正交矩陣，因此轉置和逆相同，但加負號是什麼意思？
         const cv::Mat twc = -Rcw.t() * tcw;
 
@@ -1423,161 +1425,252 @@ namespace ORB_SLAM2
         const bool bBackward = -tlc.at<float>(2) > CurrentFrame.mb && !bMono;
 
         std::tuple<float, float, float> u_v_invz;
-        int nLastOctave, bestDist, bestIdx;
         vector<size_t> vIndices2;
         float radius, u, v, invz;
         MapPoint *pMP;
-        
-        for (int i = 0; i < LastFrame.N; i++)
+        cv::Mat x3Dw, x3Dc;
+
+        int nLastOctave, bestDist, bestIdx, i, n_positive = 0, n_inlier = 0, n_in_boundary = 0,
+            n_indices2 = 0;
+
+        if(bMono)
         {
-            // 依序取出前一幀觀察到的地圖點
-            // LastFrame 的第 i 個地圖點
-            pMP = LastFrame.mvpMapPoints[i];
-
-            if (pMP)
+            for (i = 0; i < LastFrame.N; i++)
             {
-                // 若該地圖點不是 Outlier
-                if (!LastFrame.mvbOutlier[i])
+                // 依序取出前一幀觀察到的地圖點
+                // LastFrame 的第 i 個地圖點
+                pMP = LastFrame.mvpMapPoints[i];
+
+                if (pMP)
                 {
-                    // Project
-                    // 取出地圖點的世界座標
-                    cv::Mat x3Dw = pMP->GetWorldPos();
-
-                    // 將地圖點轉換到相機座標下
-                    cv::Mat x3Dc = Rcw * x3Dw + tcw;
-
-                    // const float xc = x3Dc.at<float>(0);
-                    // const float yc = x3Dc.at<float>(1);
-
-                    // // 取得逆深度
-                    // const float invzc = 1.0 / x3Dc.at<float>(2);
-
-                    // // 深度必定為正，不會有負數
-                    // if (invzc < 0){
-                    //     continue;
-                    // }
-
-                    // // 相機座標 轉換到 像素座標
-                    // float u = CurrentFrame.fx * xc * invzc + CurrentFrame.cx;
-                    // float v = CurrentFrame.fy * yc * invzc + CurrentFrame.cy;
-
-                    // Depth must be positive
-                    if (x3Dc.at<float>(2) < 0.0f)
+                    // 若該地圖點不是 Outlier
+                    if (!LastFrame.mvbOutlier[i])
                     {
-                        continue;
-                    }
-            
-                    u_v_invz = getPixelCoordinates(x3Dc,
-                                                   CurrentFrame.fx, CurrentFrame.fy, 
-                                                   CurrentFrame.cx, CurrentFrame.cy);
+                        n_inlier++;
 
-                    u = std::get<0>(u_v_invz);
-                    v = std::get<1>(u_v_invz);
-                    invz = std::get<2>(u_v_invz);
+                        // Project
+                        // 取出地圖點的世界座標
+                        x3Dw = pMP->GetWorldPos();
 
-                    // 檢查像素點位置是否超出成像範圍
-                    if (u < CurrentFrame.mnMinX || u > CurrentFrame.mnMaxX){
-                        continue;
-                    }
+                        // 將地圖點轉換到相機座標下
+                        x3Dc = Rcw * x3Dw + tcw;
 
-                    if (v < CurrentFrame.mnMinY || v > CurrentFrame.mnMaxY){
-                        continue;
-                    }
+                        // Depth must be positive
+                        if (x3Dc.at<float>(2) < 0.0f)
+                        {
+                            continue;
+                        }
 
-                    // 取得前一幀影像金字塔的層級
-                    nLastOctave = LastFrame.mvKeys[i].octave;
+                        n_positive++;
+                
+                        u_v_invz = getPixelCoordinates(x3Dc, 
+                                                       CurrentFrame.fx, CurrentFrame.fy, 
+                                                       CurrentFrame.cx, CurrentFrame.cy);
 
-                    // Search in a window. Size depends on scale
-                    // 計算金字塔層級對應的搜索半徑
-                    radius = th * CurrentFrame.mvScaleFactors[nLastOctave];
+                        u = std::get<0>(u_v_invz);
+                        v = std::get<1>(u_v_invz);
+                        invz = std::get<2>(u_v_invz);
 
-                    if (bForward){
-                        vIndices2 = CurrentFrame.GetFeaturesInArea(u, v, radius, nLastOctave);
-                    }
-                    else if (bBackward){
-                        vIndices2 = CurrentFrame.GetFeaturesInArea(u, v, radius, 0, nLastOctave);
-                    }
+                        // 檢查像素點位置是否超出成像範圍
+                        if (u < CurrentFrame.mnMinX || u > CurrentFrame.mnMaxX)
+                        {                            
+                            continue;
+                        }
 
-                    // Mono 模式下，前兩項都是 false，直接進入此區塊
-                    else{
+                        if (v < CurrentFrame.mnMinY || v > CurrentFrame.mnMaxY)
+                        {
+                            continue;
+                        }
+
+                        n_in_boundary++;
+
+                        // 取得前一幀影像金字塔的層級
+                        nLastOctave = LastFrame.mvKeys[i].octave;
+
+                        // Search in a window. Size depends on scale
+                        // 計算金字塔層級對應的搜索半徑
+                        radius = th * CurrentFrame.mvScaleFactors[nLastOctave];
+
                         // 返回以 (u, v) 為圓心，在搜索半徑內，在指定金字塔層級找到的關鍵點的索引值
                         vIndices2 = CurrentFrame.GetFeaturesInArea(u, v, radius, 
                                                                    nLastOctave - 1, nLastOctave + 1);
-                    }
 
-                    // 搜索半徑內沒有找到特徵點
-                    if (vIndices2.empty()){
-                        continue;
-                    }
+                        // 搜索半徑內沒有找到特徵點
+                        if (vIndices2.empty()){
+                            continue;
+                        }
 
-                    // 『LastFrame 的第 i 個地圖點』的描述子
-                    const cv::Mat dMP = pMP->GetDescriptor();
+                        n_indices2++;
 
-                    bestDist = INT_MAX;
-                    bestIdx = -1;
+                        // 『LastFrame 的第 i 個地圖點』的描述子
+                        const cv::Mat dMP = pMP->GetDescriptor();
 
-                    // 遍歷搜索半徑內找到的特徵點的索引值
-                    for(const size_t i2 : vIndices2)
-                    {
-                        // 取得特徵點相對應的地圖點
-                        // LastFrame 的特徵點反覆在 CurrentFrame 上尋找對應的點
-                        // 因此前面的流程中已形成 CurrentFrame.mvpMapPoints[i2] 是有可能的
-                        if (CurrentFrame.mvpMapPoints[i2]){
+                        bestDist = INT_MAX;
+                        bestIdx = -1;
 
-                            // 若該地圖點被至少 1 個關鍵幀觀察到，則無須再進行後續匹配（因為已經匹配成功）
-                            if (CurrentFrame.mvpMapPoints[i2]->beObservedNumber() > 0){
-                                continue;
+                        // 遍歷搜索半徑內找到的特徵點的索引值
+                        for(const size_t i2 : vIndices2)
+                        {
+                            // 取得特徵點相對應的地圖點
+                            // LastFrame 的特徵點反覆在 CurrentFrame 上尋找對應的點
+                            // 因此前面的流程中已形成 CurrentFrame.mvpMapPoints[i2] 是有可能的
+                            if (CurrentFrame.mvpMapPoints[i2]){
+
+                                // 若該地圖點被至少 1 個關鍵幀觀察到，則無須再進行後續匹配（因為已經匹配成功）
+                                if (CurrentFrame.mvpMapPoints[i2]->beObservedNumber() > 0){
+                                    continue;
+                                }
+                            }
+
+                            updateFuseTarget(&CurrentFrame, i2, dMP, bestDist, bestIdx);
+                        }
+
+                        // 若描述子之間的最小距離足夠小
+                        if (bestDist <= TH_HIGH)
+                        {
+                            // 將 CurrentFrame 第 bestIdx2 個地圖點替換成 pMP
+                            CurrentFrame.mvpMapPoints[bestIdx] = pMP;
+
+                            // 配對數 +1
+                            nmatches++;
+
+                            if (mbCheckOrientation)
+                            {
+                                updateRotHist(LastFrame.mvKeysUn[i], CurrentFrame.mvKeysUn[bestIdx], 
+                                            factor, bestIdx, rotHist);
                             }
                         }
-
-                        // 單目的 mvuRight 會是負值，因此暫時跳過
-                        if (CurrentFrame.mvuRight[i2] > 0)
-                        {
-                            const float ur = u - CurrentFrame.mbf * invz;
-                            const float er = fabs(ur - CurrentFrame.mvuRight[i2]);
-
-                            if (er > radius){
-                                continue;
-                            }
-                        }
-
-                        updateFuseTarget(&CurrentFrame, i2, dMP, bestDist, bestIdx);
-
-                        // // 取得 CurrentFrame 的第 i2 個特徵點的描述子
-                        // const cv::Mat &d = CurrentFrame.mDescriptors.row(i2);
-
-                        // // 計算『LastFrame 的第 i 個地圖點的描述子』和『CurrentFrame 的第 i2 個特徵點的描述子』
-                        // // 之間的距離，距離足夠小則表示匹配成功
-                        // const int dist = DescriptorDistance(dMP, d);
-
-                        // // 過濾兩者距離最小的距離和索引值
-                        // if (dist < bestDist)
-                        // {
-                        //     bestDist = dist;
-                        //     bestIdx = i2;
-                        // }
-                    }
-
-                    // 若描述子之間的最小距離足夠小
-                    if (bestDist <= TH_HIGH)
-                    {
-                        // 將 CurrentFrame 第 bestIdx2 個地圖點替換成 pMP
-                        CurrentFrame.mvpMapPoints[bestIdx] = pMP;
-
-                        // 配對數 +1
-                        nmatches++;
-
-                        if (mbCheckOrientation)
-                        {
-                            updateRotHist(LastFrame.mvKeysUn[i], CurrentFrame.mvKeysUn[bestIdx], 
-                                          factor, bestIdx, rotHist);
-                        }
+                    
                     }
                 }
             }
         }
+        else
+        {
+            for (i = 0; i < LastFrame.N; i++)
+            {
+                // 依序取出前一幀觀察到的地圖點
+                // LastFrame 的第 i 個地圖點
+                pMP = LastFrame.mvpMapPoints[i];
 
-        //Apply rotation consistency
+                if (pMP)
+                {
+                    // 若該地圖點不是 Outlier
+                    if (!LastFrame.mvbOutlier[i])
+                    {
+                        // Project
+                        // 取出地圖點的世界座標
+                        x3Dw = pMP->GetWorldPos();
+
+                        // 將地圖點轉換到相機座標下
+                        x3Dc = Rcw * x3Dw + tcw;
+
+                        // Depth must be positive
+                        if (x3Dc.at<float>(2) < 0.0f)
+                        {
+                            continue;
+                        }
+                
+                        u_v_invz = getPixelCoordinates(x3Dc,
+                                                    CurrentFrame.fx, CurrentFrame.fy, 
+                                                    CurrentFrame.cx, CurrentFrame.cy);
+
+                        u = std::get<0>(u_v_invz);
+                        v = std::get<1>(u_v_invz);
+                        invz = std::get<2>(u_v_invz);
+
+                        // 檢查像素點位置是否超出成像範圍
+                        if (u < CurrentFrame.mnMinX || u > CurrentFrame.mnMaxX){
+                            continue;
+                        }
+
+                        if (v < CurrentFrame.mnMinY || v > CurrentFrame.mnMaxY){
+                            continue;
+                        }
+
+                        // 取得前一幀影像金字塔的層級
+                        nLastOctave = LastFrame.mvKeys[i].octave;
+
+                        // Search in a window. Size depends on scale
+                        // 計算金字塔層級對應的搜索半徑
+                        radius = th * CurrentFrame.mvScaleFactors[nLastOctave];
+
+                        if (bForward){
+                            vIndices2 = CurrentFrame.GetFeaturesInArea(u, v, radius, nLastOctave);
+                        }
+                        else if (bBackward){
+                            vIndices2 = CurrentFrame.GetFeaturesInArea(u, v, radius, 0, nLastOctave);
+                        }
+
+                        // Mono 模式下，前兩項都是 false，直接進入此區塊
+                        else{
+                            // 返回以 (u, v) 為圓心，在搜索半徑內，在指定金字塔層級找到的關鍵點的索引值
+                            vIndices2 = CurrentFrame.GetFeaturesInArea(u, v, radius, 
+                                                                    nLastOctave - 1, nLastOctave + 1);
+                        }
+
+                        // 搜索半徑內沒有找到特徵點
+                        if (vIndices2.empty()){
+                            continue;
+                        }
+
+                        // 『LastFrame 的第 i 個地圖點』的描述子
+                        const cv::Mat dMP = pMP->GetDescriptor();
+
+                        bestDist = INT_MAX;
+                        bestIdx = -1;
+
+                        // 遍歷搜索半徑內找到的特徵點的索引值
+                        for(const size_t i2 : vIndices2)
+                        {
+                            // 取得特徵點相對應的地圖點
+                            // LastFrame 的特徵點反覆在 CurrentFrame 上尋找對應的點
+                            // 因此前面的流程中已形成 CurrentFrame.mvpMapPoints[i2] 是有可能的
+                            if (CurrentFrame.mvpMapPoints[i2]){
+
+                                // 若該地圖點被至少 1 個關鍵幀觀察到，則無須再進行後續匹配（因為已經匹配成功）
+                                if (CurrentFrame.mvpMapPoints[i2]->beObservedNumber() > 0){
+                                    continue;
+                                }
+                            }
+
+                            // 單目的 mvuRight 會是負值，因此暫時跳過
+                            if (CurrentFrame.mvuRight[i2] > 0)
+                            {
+                                const float ur = u - CurrentFrame.mbf * invz;
+                                const float er = fabs(ur - CurrentFrame.mvuRight[i2]);
+
+                                if (er > radius){
+                                    continue;
+                                }
+                            }
+
+                            updateFuseTarget(&CurrentFrame, i2, dMP, bestDist, bestIdx);
+                        }
+
+                        // 若描述子之間的最小距離足夠小
+                        if (bestDist <= TH_HIGH)
+                        {
+                            // 將 CurrentFrame 第 bestIdx2 個地圖點替換成 pMP
+                            CurrentFrame.mvpMapPoints[bestIdx] = pMP;
+
+                            // 配對數 +1
+                            nmatches++;
+
+                            if (mbCheckOrientation)
+                            {
+                                updateRotHist(LastFrame.mvKeysUn[i], CurrentFrame.mvKeysUn[bestIdx], 
+                                            factor, bestIdx, rotHist);
+                            }
+                        }
+                    }
+                }
+            }
+
+            
+        }
+        
+        // Apply rotation consistency
         if (mbCheckOrientation)
         {
             nmatches = convergenceMatched(nmatches, rotHist, 
@@ -1819,7 +1912,7 @@ namespace ORB_SLAM2
     }
 
     int ORBmatcher::SearchForInitialization(Frame &F1, Frame &F2, vector<cv::Point2f> &vbPrevMatched, 
-                                            vector<int> &vnMatches12, int windowSize)
+                                            vector<int> &vnMatches12, int windowSize, const int idx)
     {
         int nmatches = 0;
         vnMatches12 = vector<int>(F1.mvKeysUn.size(), -1);
@@ -1981,7 +2074,8 @@ namespace ORB_SLAM2
     // default_value: -1 / static_cast<MapPoint *>(NULL)
     template<class T, class D>
     int ORBmatcher::convergenceMatched(int n_match, vector<int> *rot_hist, 
-                                       vector<T> &v_matched, D default_value){
+                                       vector<T> &v_matched, D default_value)
+    {
         int i, ind1 = -1, ind2 = -1, ind3 = -1;
         size_t j, jend;
 

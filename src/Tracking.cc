@@ -40,6 +40,9 @@ using namespace std;
 
 namespace ORB_SLAM2
 {
+    const int Tracking::start_idx = 1570;
+    const int Tracking::end_idx = 1600;
+
     // ==================================================
 
     // ==================================================
@@ -190,7 +193,7 @@ namespace ORB_SLAM2
         }
     }
 
-    cv::Mat Tracking::GrabImageMonocular(const cv::Mat &img, const double &timestamp)
+    cv::Mat Tracking::GrabImageMonocular(const cv::Mat &img, const double &timestamp, const int idx)
     {
         gray = img;
 
@@ -232,13 +235,12 @@ namespace ORB_SLAM2
                                   mpORBextractorLeft, mpORBVocabulary, K, mDistCoef, mbf, mThDepth);
         }
 
-        /// TODO: 根據 mState 進行 初始化、估計相機位姿 或 重定位; 區分定位模式或建圖模式
-        Track();
+        Track(idx);
 
         return mCurrentFrame.mTcw.clone();
     }
 
-    void Tracking::Track()
+    void Tracking::Track(const int idx)
     {
         /* ORB-SLAM 使用了三種方式來估計相機的位姿。
         1. 勻速模型：如果一切正常就使用勻速運動模型來粗略的估計相機位姿，在通過優化提高定位精度。
@@ -269,7 +271,7 @@ namespace ORB_SLAM2
             else
             {
                 // 第二幀時會進入 CreateInitialMapMonocular 將 mState 改為 OK
-                MonocularInitialization();
+                MonocularInitialization(idx);
             }
 
             mpFrameDrawer->Update(this);
@@ -302,7 +304,7 @@ namespace ORB_SLAM2
                 {
                     // Local Mapping might have changed some MapPoints tracked in last frame
                     // 更新前一幀的地圖點，更換為被較多關鍵幀觀察到的地圖點
-                    CheckReplacedInLastFrame();
+                    CheckReplacedInLastFrame(idx);
 
                     // 速度估計丟失了，幀 ID 也可能因為重定位而向前發生了跳轉
                     // 1. mVelocity.empty()：mLastFrame.mTcw.empty()
@@ -317,7 +319,7 @@ namespace ORB_SLAM2
 
                         // 利用詞袋模型，快速將『當前幀』與『參考關鍵幀』進行特徵點匹配，更新『當前幀』匹配的地圖點，
                         // 並返回數量是否足夠多
-                        bOK = TrackReferenceKeyFrame();
+                        bOK = TrackReferenceKeyFrame(idx);
 
                         /// NOTE: 第 1 次發生 LOST 的發生源
                         if(bOK)
@@ -340,7 +342,7 @@ namespace ORB_SLAM2
                         實現了基於勻速運動模型的跟蹤定位方法，假設當前幀的特徵點和前一幀位於差不多的位置，
                         進行兩幀之間特徵點的匹配，將匹配到的地圖點設置給當前幀，並返回是否匹配到足夠的點數。
                         */                        
-                        bOK = TrackWithMotionModel();
+                        bOK = TrackWithMotionModel(idx);
 
                         // 若未能匹配到特徵點，則利用參考關鍵幀重新進行估計位姿
                         /// NOTE: 第 2 次發生 LOST 的發生源
@@ -350,7 +352,7 @@ namespace ORB_SLAM2
 
                             // 利用詞袋模型，快速將『當前幀』與『參考關鍵幀』進行特徵點匹配，
                             // 更新『當前幀』匹配的地圖點，並返回數量是否足夠多
-                            bOK = TrackReferenceKeyFrame();
+                            bOK = TrackReferenceKeyFrame(idx);
 
                             if(bOK)
                             {
@@ -376,7 +378,7 @@ namespace ORB_SLAM2
 
                     // 將有相同『重定位詞』的關鍵幀篩選出來後，選取有足夠多內點的作為重定位的參考關鍵幀，
                     // 並返回是否成功重定位
-                    bOK = Relocalization();
+                    bOK = Relocalization(idx);
 
                     if(!bOK && mState != LOST)
                     {
@@ -410,7 +412,7 @@ namespace ORB_SLAM2
                     找出當前幀的『共視關鍵幀』以及其『已配對地圖點』，確保這些地圖點至少被 1 個關鍵幀觀察到，
                     且重投影後的內點足夠多
                     */                    
-                    bOK = TrackLocalMap();
+                    bOK = TrackLocalMap(idx);
 
                     if(!bOK && mState != LOST)
                     {
@@ -514,7 +516,7 @@ namespace ORB_SLAM2
             }
             
             /// TODO: 找出在 Bundle Adjustment 時高機率發生 bOK -> false 原因
-            bool if_return = update(bOK);
+            bool if_return = update(bOK, idx);
 
             if(if_return)
             {
@@ -534,7 +536,7 @@ namespace ORB_SLAM2
         recordTrackingResult();
     }
 
-    void Tracking::MonocularInitialization()
+    void Tracking::MonocularInitialization(const int idx)
     {
         /* 單目相機整個初始化過程可以總結為六個步驟：
         1. 計算兩幀圖像的 ORB 特征點，並進行匹配；
@@ -603,7 +605,7 @@ namespace ORB_SLAM2
             // 通過接口 SearchForInitialization 針對初始化進行特征匹配
             // 初始化時，將 Frame 中的已校正關鍵點加入 mvbPrevMatched
             int nmatches = matcher.SearchForInitialization(mInitialFrame, mCurrentFrame,
-                                                           mvbPrevMatched, mvIniMatches, 100);
+                                                           mvbPrevMatched, mvIniMatches, 100, idx);
 
             // Check if there are enough correspondences
             // 如果匹配點數量少於 100 個， 認為匹配的特征點數量太少，不適合初始化。
@@ -629,7 +631,7 @@ namespace ORB_SLAM2
             // 並確保『兩相機間有足夠的夾角，且分別相機上的重投影誤差都足夠小』，返回是否順利估計
             // 估計 旋轉 Rcw, 平移 tcw, 空間點位置 mvIniP3D
             if (mpInitializer->Initialize(mCurrentFrame, mvIniMatches, Rcw, tcw, 
-                                          mvIniP3D, vbTriangulated))
+                                          mvIniP3D, vbTriangulated, idx))
             {
                 // 完成了初始化，但並不是所有匹配的特征點都能夠成功進行三角化的。
                 // 所以還需要根據 vbTriangulated 進一步的篩除未成功三角化的點。
@@ -656,12 +658,12 @@ namespace ORB_SLAM2
                 mCurrentFrame.SetPose(Tcw);
 
                 // 調用函數 CreateInitialMapMonocular 來完成地圖的初始化工作。
-                CreateInitialMapMonocular();
+                CreateInitialMapMonocular(idx);
             }
         }
     }
 
-    void Tracking::CreateInitialMapMonocular()
+    void Tracking::CreateInitialMapMonocular(const int idx)
     {
         // Create KeyFrames
         // 先根據參考幀和當前幀創建兩個關鍵幀(KeyFrame)
@@ -807,7 +809,7 @@ namespace ORB_SLAM2
 
     /// NOTE: 若之後改為八叉樹，這裡是否會產生衝突？
     // 更新前一幀的地圖點，更換為被較多關鍵幀觀察到的地圖點
-    void Tracking::CheckReplacedInLastFrame()
+    void Tracking::CheckReplacedInLastFrame(const int idx)
     {
         MapPoint *pMP, *pRep;
 
@@ -829,7 +831,7 @@ namespace ORB_SLAM2
     }
 
     // 利用詞袋模型，快速將『當前幀』與『參考關鍵幀』進行特徵點匹配，更新『當前幀』匹配的地圖點，並返回數量是否足夠多
-    bool Tracking::TrackReferenceKeyFrame()
+    bool Tracking::TrackReferenceKeyFrame(const int idx)
     {
         // Compute Bag of Words vector
         mCurrentFrame.ComputeBoW();
@@ -859,15 +861,45 @@ namespace ORB_SLAM2
         // 使用上一幀的位姿變換作為當前幀的優化初值
         mCurrentFrame.SetPose(mLastFrame.mTcw);
 
-        // 優化『mCurrentFrame 觀察到的地圖點』的位置，以及 mCurrentFrame 的位姿估計，並返回優化後的內點個數
-        Optimizer::PoseOptimization(&mCurrentFrame);
-
         // Discard outliers
-        int nmatchesMap = 0, n_mp = 0, n_outlier = 0, n_zero_observed = 0;
+        int nmatchesMap = 0, i, n_mp, n_outlier, n_zero_observed;
         MapPoint *pMP;
+        
+        // 優化『mCurrentFrame 觀察到的地圖點』的位置，以及 mCurrentFrame 的位姿估計，並返回優化後的內點個數
+        if(start_idx <= idx && idx <= end_idx)
+        {
+            n_mp = 0, n_outlier = 0;
+
+            for (i = 0; i < mCurrentFrame.N; i++)
+            {
+                if (mCurrentFrame.mvpMapPoints[i])
+                {
+                    n_mp++;
+
+                    // 若地圖點為 Outlier
+                    if (mCurrentFrame.mvbOutlier[i])
+                    {
+                        n_outlier++;
+                    }
+                }
+            }
+
+            std::cout << "[TrackReferenceKeyFrame] Before PoseOptimization, idx: " << idx 
+                      << ", n_mp: " << n_mp
+                      << ", n_outlier: " << n_outlier
+                      << ", nmatches: " << nmatches
+                      << std::endl;
+        }
+
+        /// NOTE: 20210912 推測 0 vertices 發生源於此，PoseOptimization 當中會優化位姿估計多次，
+        /// 但仍不足阻止 LOST 的發生
+        /// TODO: 印出初始位姿、優化過程、最終位姿
+        Optimizer::PoseOptimization(&mCurrentFrame, idx);
+
+        n_mp = 0, n_outlier = 0, n_zero_observed = 0;
 
         // 對野點(Outlier)進行篩選
-        for (int i = 0; i < mCurrentFrame.N; i++)
+        for (i = 0; i < mCurrentFrame.N; i++)
         {
             if (mCurrentFrame.mvpMapPoints[i])
             {
@@ -908,6 +940,8 @@ namespace ORB_SLAM2
         else
         {
             /// NOTE: 目前觀察後，發現被認定為丟失幾乎都是因為 outlier 的點過多
+            /// NOTE: nmatchesMap: 0, n_mp: 106, mCurrentFrame.N: 3226, 
+            /// n_outlier: 106, n_zero_observed: 0
             std::cout << "[TrackReferenceKeyFrame] nmatchesMap: " << nmatchesMap 
                       << ", n_mp: " << n_mp << ", mCurrentFrame.N: " << mCurrentFrame.N 
                       << ", n_outlier: " << n_outlier 
@@ -919,7 +953,7 @@ namespace ORB_SLAM2
 
     // 實現了基於勻速運動模型的跟蹤定位方法，假設當前幀的特徵點和前一幀位於差不多的位置，進行兩幀之間特徵點的匹配，
     // 將匹配到的地圖點設置給當前幀，並返回是否匹配到足夠的點數
-    bool Tracking::TrackWithMotionModel()
+    bool Tracking::TrackWithMotionModel(const int idx)
     {
         bool is_mono = mSensor == System::MONOCULAR;
 
@@ -949,6 +983,15 @@ namespace ORB_SLAM2
         直接通過速度和時間間隔估計前後兩幀的相對位姿變換，再將之直接左乘到上一幀的位姿上，從而得到當前幀的位姿估計。*/
         mCurrentFrame.SetPose(mVelocity * mLastFrame.mTcw);
 
+        // if(start_idx <= idx && idx <= end_idx)
+        // {
+        //     std::cout << "[TrackWithMotionModel] mCurrentFrame.SetPose idx: " << idx
+        //               << "\nmVelocity:\n" << mVelocity 
+        //               << "\nmLastFrame.mTcw:\n" << mLastFrame.mTcw 
+        //               << "\nCurrentFrame:\n" << mCurrentFrame.mTcw 
+        //               << std::endl;
+        // }
+
         // 將當前幀的地圖點設置為 NULL
         // fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(),
         //      static_cast<MapPoint *>(NULL));
@@ -962,7 +1005,7 @@ namespace ORB_SLAM2
         // 這個接口有四個參數，前兩個分別是當前幀和上一幀。
         // 第三個參數 th 是一個控制搜索半徑的參數，最後一個參數用於判定是否為單目相機。
         // 尋找 CurrentFrame 當中和 LastFrame 特徵點對應的位置，形成 CurrentFrame 的地圖點，並返回匹配成功的個數
-        int nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, th, is_mono);
+        int nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, th, is_mono, idx);
 
         // If few matches, uses a wider window search
         // 如果找不到足夠多的匹配特征點，就適當的放大搜索半徑(th -> 2 * th)。
@@ -971,7 +1014,7 @@ namespace ORB_SLAM2
             // fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(),
             //      static_cast<MapPoint *>(NULL));
             mCurrentFrame.resetMappoints();
-            nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2 * th, is_mono);
+            nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2 * th, is_mono, idx);
 
             // 若擴大搜索半徑後，仍找不到足夠多的匹配特征點，則返回 false，
             // 表示『基於勻速運動模型的跟蹤定位方法』失敗了
@@ -981,13 +1024,28 @@ namespace ORB_SLAM2
             }
         }
 
-       // Optimize frame pose with all matches
+        // Optimize frame pose with all matches
         // 找到了足夠多的匹配特征點後，就進行一次優化提高相機位姿估計的精度。
         // 優化『pFrame 觀察到的地圖點』的位置，以及 pFrame 的位姿估計，並返回優化後的內點個數
-        Optimizer::PoseOptimization(&mCurrentFrame);
+
+        // if(start_idx <= idx && idx <= end_idx)
+        // {
+        //     std::cout << "[TrackWithMotionModel] idx: " << idx << ", PoseOptimization" << std::endl;
+        // }
+
+        Optimizer::PoseOptimization(&mCurrentFrame, idx);
+
+        // if(start_idx <= idx && idx <= end_idx)
+        // {
+        //     std::cout << "[TrackWithMotionModel] Afetr PoseOptimization idx: " << idx
+        //               << "\nmVelocity:\n" << mVelocity 
+        //               << "\nmLastFrame.mTcw:\n" << mLastFrame.mTcw 
+        //               << "\nCurrentFrame:\n" << mCurrentFrame.mTcw 
+        //               << std::endl;
+        // }
 
         // Discard outliers
-        int nmatchesMap = 0;
+        int nmatchesMap = 0, n_mp = 0, n_outlier = 0;
         MapPoint *pMP;
 
         // 進一步的檢查了當前幀看到的各個地圖點，拋棄了那些外點(outlier)。
@@ -996,11 +1054,15 @@ namespace ORB_SLAM2
         {
             if (mCurrentFrame.mvpMapPoints[i])
             {
+                n_mp++;
+
                 /* 當前幀對象的容器 mvpMapPoints 和 mvbOutlier 與特征點是一一對應的， 
                 mvpMapPoints 記錄了各個特征點所對應的地圖點指針，如果沒有對應地圖點則為 NULL。
                 mvbOutlier 記錄了各個特征點是否為外點(在優化的時候會更新這個狀態)，若是野點則直接拋棄之。*/
                 if (mCurrentFrame.mvbOutlier[i])
                 {
+                    n_outlier++;
+
                     pMP = mCurrentFrame.mvpMapPoints[i];
 
                     // 將被認定為外點（第 i 個特徵點）對應的地圖點拋棄
@@ -1031,11 +1093,25 @@ namespace ORB_SLAM2
         }
 
         // 檢查 mCurrentFrame 匹配到的特徵點（其對應的地圖點被至少 1 個關鍵幀觀察到）是否足夠多（至少 10 個）
-        return nmatchesMap >= 10;
+        if(nmatchesMap >= 10)
+        {
+            return true;
+        }
+        else
+        {
+            std::cout << "[TrackWithMotionModel] idx: " << idx 
+                      << ", nmatchesMap: " << nmatchesMap
+                      << ", mCurrentFrame.N: " << mCurrentFrame.N
+                      << ", n_mp: " << n_mp
+                      << ", n_outlier: " << n_outlier  
+                      << std::endl;
+
+            return false;
+        }
     }
 
     // 將有相同『重定位詞』的關鍵幀篩選出來後，選取有足夠多內點的作為重定位的參考關鍵幀，並返回是否成功重定位
-    bool Tracking::Relocalization()
+    bool Tracking::Relocalization(const int idx)
     {
         // Compute Bag of Words Vector
         // 將當前幀轉換成詞袋
@@ -1091,7 +1167,7 @@ namespace ORB_SLAM2
     }
 
     // 找出當前幀的『共視關鍵幀』以及其『已配對地圖點』，確保這些地圖點至少被 1 個關鍵幀觀察到，且重投影後的內點足夠多
-    bool Tracking::TrackLocalMap()
+    bool Tracking::TrackLocalMap(const int idx)
     {
         // We have an estimation of the camera pose and some map points tracked in the frame.
         // We retrieve the local map and try to find matches to points in the local map.
@@ -1110,7 +1186,13 @@ namespace ORB_SLAM2
         SearchLocalPoints();
 
         // 優化『pFrame 觀察到的地圖點』的位置，以及 pFrame 的位姿估計，並返回優化後的內點個數
-        Optimizer::PoseOptimization(&mCurrentFrame);
+        // if(start_idx <= idx && idx <= end_idx)
+        // {
+        //     std::cout << "[TrackLocalMap] idx: " << idx << ", PoseOptimization" << std::endl;
+        // }
+
+        Optimizer::PoseOptimization(&mCurrentFrame, idx);
+
         mnMatchesInliers = 0;
 
         int n_mp = 0, n_inlier = 0;
@@ -1849,7 +1931,7 @@ namespace ORB_SLAM2
     }
 
     // bool: if_return 表示是否直接返回？
-    bool Tracking::update(bool bOK)
+    bool Tracking::update(bool bOK, const int idx)
     {
         /// TODO: 上下兩個 if (bOK) 應該可以合併，因為 mpFrameDrawer->Update 當中並未使用到 mState
         /// 但會使用到 mLastProcessedState
@@ -2103,6 +2185,11 @@ namespace ORB_SLAM2
         }
         
         // 優化『pFrame 觀察到的地圖點』的位置，以及 pFrame 的位姿估計，並返回優化後的內點個數
+        // if(start_idx <= idx && idx <= end_idx)
+        // {
+        //     std::cout << "[checkRelocalization] idx: " << idx << ", PoseOptimization" << std::endl;
+        // }
+
         nGood = Optimizer::PoseOptimization(&mCurrentFrame);
 
         // 局部變量 nGood 評價了匹配程度，如果太低就結束當此叠代。

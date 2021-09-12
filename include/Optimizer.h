@@ -46,6 +46,8 @@ public:
     static const float deltaMono;
     static const float deltaStereo;
     static const Eigen::Matrix<double, 7, 7> matLambda;
+    static const int start_idx;
+    static const int end_idx;
 
     void static BundleAdjustment(const std::vector<KeyFrame*> &vpKF, const std::vector<MapPoint*> &vpMP,
                                  int nIterations = 5, bool *pbStopFlag=NULL, const unsigned long nLoopKF=0,
@@ -53,7 +55,7 @@ public:
     void static GlobalBundleAdjustemnt(Map* pMap, int nIterations=5, bool *pbStopFlag=NULL,
                                        const unsigned long nLoopKF=0, const bool bRobust = true);
     void static LocalBundleAdjustment(KeyFrame* pKF, bool *pbStopFlag, Map *pMap);
-    int static PoseOptimization(Frame* pFrame);
+    int static PoseOptimization(Frame* pFrame, const int idx=0);
 
     // if bFixScale is true, 6DoF optimization (stereo,rgbd), 7DoF otherwise (mono)
     void static OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* pCurKF,
@@ -200,7 +202,8 @@ public:
 
     static inline void addPoseOptimizationMonoEdges(vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono,
                                                     vector<size_t> &vnIndexEdgeMono, Frame *pFrame,
-                                                    const float chi2Mono[], const size_t it, int &nBad);
+                                                    const float chi2Mono[], const size_t it, int &nBad, 
+                                                    const int idx=0);
 
     static inline void addPoseOptimizationStereoEdges(Frame *pFrame,
                                                       vector<g2o::EdgeStereoSE3ProjectXYZOnlyPose *> &vpEdgesStereo,
@@ -212,7 +215,8 @@ public:
                                                vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono,
                                                vector<size_t> &vnIndexEdgeMono,
                                                vector<g2o::EdgeStereoSE3ProjectXYZOnlyPose *> &vpEdgesStereo,
-                                               vector<size_t> &vnIndexEdgeStereo);
+                                               vector<size_t> &vnIndexEdgeStereo,
+                                               const int idx=0);
 
     // ********************************************************************************
     static inline g2o::EdgeSE3ProjectXYZ *addEdgeSE3ProjectXYZ(g2o::SparseOptimizer &op,

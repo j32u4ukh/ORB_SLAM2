@@ -106,13 +106,14 @@ namespace ORB_SLAM2
     // ==================================================
 
     LoopClosing::LoopClosing(Map *pMap, KeyFrameDatabase *pDB, ORBVocabulary *pVoc, 
-                             const bool bFixScale) :
+                             const bool bFixScale, const int &idx) :
                              mpMap(pMap), mpKeyFrameDB(pDB), mpORBVocabulary(pVoc), 
                              mbFixScale(bFixScale), mbResetRequested(false), mbFinishRequested(false), 
                              mbFinished(true), mpMatchedKF(NULL), mLastLoopKFid(0), mbRunningGBA(false), 
                              mbFinishedGBA(true), mbStopGBA(false), mpThreadGBA(NULL), mnFullBAIdx(0)
     {
         mnCovisibilityConsistencyTh = 3;
+        index = &idx;
     }
 
     void LoopClosing::Run()
@@ -339,7 +340,7 @@ namespace ORB_SLAM2
     // 優化後，重新估計各個『相似轉換矩陣』以及地圖點的位置
     void LoopClosing::CorrectLoop()
     {
-        cout << "Loop detected!" << endl;
+        cout << "Loop detected! index: " << (*index) << endl;
 
         // Send a stop signal to Local Mapping
         // Avoid new keyframes are inserted while correcting the loop
@@ -361,6 +362,7 @@ namespace ORB_SLAM2
             if (mpThreadGBA)
             {
                 // detach 不等待 thread 執行結束
+                std::cout << "[CorrectLoop] mpThreadGBA->detach();" << std::endl;
                 mpThreadGBA->detach();
                 delete mpThreadGBA;
             }
@@ -368,6 +370,7 @@ namespace ORB_SLAM2
 
         // Wait until Local Mapping has effectively stopped
         // 『執行續 LocalMapping』中止前持續等待
+        std::cout << "[CorrectLoop] while (!mpLocalMapper->isStopped())" << std::endl;
         while (!mpLocalMapper->isStopped())
         {
             usleep(1000);
@@ -375,6 +378,7 @@ namespace ORB_SLAM2
 
         // Ensure current keyframe is updated
         // 其他關鍵幀和『關鍵幀 mpCurrentKF』觀察到相同的地圖點，且各自都觀察到足夠多的地圖點，則會和當前幀產生鏈結
+        std::cout << "[CorrectLoop] mpCurrentKF->UpdateConnections();" << std::endl;
         mpCurrentKF->UpdateConnections();
 
         // Retrive keyframes connected to the current keyframe and compute corrected 
@@ -382,9 +386,11 @@ namespace ORB_SLAM2
         // 檢索連接到當前關鍵幀的關鍵幀並通過傳播計算校正後的 Sim3 位姿
 
         // 取得『共視關鍵幀』（根據觀察到的地圖點數量排序）
+        std::cout << "[CorrectLoop] mvpCurrentConnectedKFs = mpCurrentKF->GetVectorCovisibleKeyFrames();" << std::endl;
         mvpCurrentConnectedKFs = mpCurrentKF->GetVectorCovisibleKeyFrames();
 
         // 『關鍵幀 mpCurrentKF』和其『共視關鍵幀』
+        std::cout << "[CorrectLoop] mvpCurrentConnectedKFs.push_back(mpCurrentKF);" << std::endl;
         mvpCurrentConnectedKFs.push_back(mpCurrentKF);
 
         /*
@@ -405,10 +411,13 @@ namespace ORB_SLAM2
             // Get Map Mutex
             unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
             
+            std::cout << "[CorrectLoop] whetherCorrectedSim3" << std::endl;
             whetherCorrectedSim3(Twc, CorrectedSim3, NonCorrectedSim3);
             
+            std::cout << "[CorrectLoop] scaledCorrectedSim3" << std::endl;
             scaledCorrectedSim3(CorrectedSim3, NonCorrectedSim3);
 
+            std::cout << "[CorrectLoop] updateMatchedMapPoints" << std::endl;
             updateMatchedMapPoints();
         }
 
@@ -419,13 +428,14 @@ namespace ORB_SLAM2
         // 對應的『相似轉換矩陣 g2oCorrectedSiw』
         // 原有地圖點投影到『關鍵幀 pKF』進行匹配，匹配成功則加入，
         // 若認定和原有地圖點為同一點，將被『較多』關鍵幀觀察到的地圖點，取代被『較少』關鍵幀觀察到的地圖點
+        std::cout << "[CorrectLoop] SearchAndFuse" << std::endl;
         SearchAndFuse(CorrectedSim3);
 
         // After the MapPoint fusion, new links in the covisibility graph will appear attaching 
         // both sides of the loop
         // LoopConnections[pKFi]：『關鍵幀 pKFi』的『已連結關鍵幀』
         map<KeyFrame *, set<KeyFrame *>> LoopConnections;
-        
+        std::cout << "[CorrectLoop] updateLoopConnections" << std::endl;
         updateLoopConnections(LoopConnections);
 
         // // Add loop edge

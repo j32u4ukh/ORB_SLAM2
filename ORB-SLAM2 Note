@@ -55,14 +55,24 @@ Mean tracking time: 0.0705246
 
 
 >>> 階段 1 (   0, 1650) 
-Loop detected!
-Local Mapping STOP
+Loop detected! index: 1587
+
+TrackWithMotionModel failed.
+[addPoseOptimizationEdges] Before optimize #vertices: 1, #edges: 202, n_mp: 202, n_outlier: 0
+<<<
+[addPoseOptimizationMonoEdges] idx: 1590, n_outlier: 0, n_outlier_increment: 202, n_edge0: 0, n_edge1: 202
 virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()
+[addPoseOptimizationMonoEdges] idx: 1590, n_outlier: 202, n_outlier_increment: 202, n_edge0: 0, n_edge1: 202
 virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()
+[addPoseOptimizationMonoEdges] idx: 1590, n_outlier: 202, n_outlier_increment: 202, n_edge0: 0, n_edge1: 202
 virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()
-TrackWithMotionModel failed. TrackReferenceKeyFrame success? 0
-Relocalization success? 1
-mVelocity is empty? 0, mCurrentFrame.mnId: 1589, mnLastRelocFrameId: 1588
+[addPoseOptimizationMonoEdges] idx: 1590, n_outlier: 202, n_outlier_increment: 202, n_edge0: 0, n_edge1: 202
+[addPoseOptimizationEdges] After optimize #vertices: 1, #edges: 202, n_mp: 202, n_outlier: 202
+[TrackReferenceKeyFrame] nmatchesMap: 0, n_mp: 202, mCurrentFrame.N: 3105, n_outlier: 202, n_zero_observed: 0
+第 2-2 類丟失，TrackReferenceKeyFrame
+第 2 類丟失，Failed before update.
+!!!!!!!!!! Tracking lost !!!!!!!!!!
+
 
 
 #KeyFrame: 322

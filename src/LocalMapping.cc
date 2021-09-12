@@ -1124,10 +1124,10 @@ namespace ORB_SLAM2
 
         mbStopped = false;
         mbStopRequested = false;
-        list<KeyFrame *>::iterator lit = mlNewKeyFrames.begin();
-        list<KeyFrame *>::iterator lend = mlNewKeyFrames.end();
+        
+        list<KeyFrame *>::iterator lit, lend = mlNewKeyFrames.end();
 
-        for (; lit != lend; lit++){
+        for (lit = mlNewKeyFrames.begin(); lit != lend; lit++){
             delete *lit;
         }
             

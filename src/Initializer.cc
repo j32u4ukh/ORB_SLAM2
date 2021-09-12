@@ -53,7 +53,8 @@ namespace ORB_SLAM2
     // 並確保『兩相機間有足夠的夾角，且分別相機上的重投影誤差都足夠小』，返回是否順利估計
     // 估計 旋轉 Rcw, 平移 tcw, 空間點位置 mvIniP3D
     bool Initializer::Initialize(const Frame &CurrentFrame, const vector<int> &vMatches12, cv::Mat &R21,
-                                 cv::Mat &t21, vector<cv::Point3f> &vP3D, vector<bool> &vbTriangulated)
+                                 cv::Mat &t21, vector<cv::Point3f> &vP3D, vector<bool> &vbTriangulated, 
+                                 const int idx)
     {
         // Fill structures with current keypoints and matches with reference frame
         // Reference Frame: 1, Current Frame: 2
@@ -100,7 +101,7 @@ namespace ORB_SLAM2
         mvSets = vector<vector<size_t>>(mMaxIterations, vector<size_t>(8, 0));
 
         DUtils::Random::SeedRandOnce(0);
-        int randi, idx;
+        int randi, available_idx;
         size_t j;
 
         for (int it = 0; it < mMaxIterations; it++)
@@ -113,9 +114,9 @@ namespace ORB_SLAM2
             {
                 // 隨機取得索引值
                 randi = DUtils::Random::RandomInt(0, vAvailableIndices.size() - 1);
-                idx = vAvailableIndices[randi];
+                available_idx = vAvailableIndices[randi];
 
-                mvSets[it][j] = idx;
+                mvSets[it][j] = available_idx;
 
                 // 將取出的第 randi 個的數值，以最後一個數值取代
                 vAvailableIndices[randi] = vAvailableIndices.back();
