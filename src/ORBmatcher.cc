@@ -1776,18 +1776,6 @@ namespace ORB_SLAM2
                         }
 
                         updateFuseTarget(&CurrentFrame, i2, dMP, bestDist, bestIdx2);
-
-                        // // 取得當前幀的第 i2 個特徵點的描述子
-                        // const cv::Mat &d = CurrentFrame.mDescriptors.row(i2);
-
-                        // // 計算描述子之間的距離（相似程度）
-                        // const int dist = DescriptorDistance(dMP, d);
-
-                        // if (dist < bestDist)
-                        // {
-                        //     bestDist = dist;
-                        //     bestIdx2 = i2;
-                        // }
                     }
 
                     if (bestDist <= ORBdist)
