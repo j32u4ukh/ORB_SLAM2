@@ -431,6 +431,7 @@ namespace ORB_SLAM2
         updateEssentialMapPoints(vpMPs, pCurKF, vScw, vCorrectedSwc);
     }
 
+    /// TODO: 優化位姿估計，減少被認定為 outlier 的地圖點
     // 優化『pFrame 觀察到的地圖點』的位置，以及 pFrame 的位姿估計，並返回優化後的內點個數
     int Optimizer::PoseOptimization(Frame *pFrame)
     {
@@ -460,14 +461,51 @@ namespace ORB_SLAM2
         vpEdgesStereo.reserve(N);
         vnIndexEdgeStereo.reserve(N);
 
-        int nInitialCorrespondences = 0;
+        int nInitialCorrespondences = 0, i, n_mp, n_outlier;
 
         // 取出 pFrame 觀察到的地圖點的位置，作為『邊』加入 optimizer
         {
             unique_lock<mutex> lock(MapPoint::mGlobalMutex);
 
+            n_mp = 0, n_outlier = 0;        
+
+            for(i = 0; i < pFrame->N; i++)
+            {
+                if(pFrame->mvpMapPoints[i])
+                {
+                    n_mp++;
+
+                    if(pFrame->mvbOutlier[i])
+                    {
+                        n_outlier++;
+                    }
+                }
+            }
+
+            std::cout << "[PoseOptimization] Before optimizer, n_mp: " << n_mp 
+                      << "n_outlier: " << n_outlier << std::endl;
+
+            /// TODO: 優化位姿估計，減少被認定為 outlier 的地圖點
             addPoseOptimization(pFrame, nInitialCorrespondences, optimizer, vnIndexEdgeMono, 
                                 vpEdgesMono, vpEdgesStereo, vnIndexEdgeStereo);
+
+            n_mp = 0, n_outlier = 0;        
+
+            for(i = 0; i < pFrame->N; i++)
+            {
+                if(pFrame->mvpMapPoints[i])
+                {
+                    n_mp++;
+
+                    if(pFrame->mvbOutlier[i])
+                    {
+                        n_outlier++;
+                    }
+                }
+            }
+
+            std::cout << "[PoseOptimization] After addPoseOptimization, n_mp: " << n_mp 
+                      << "n_outlier: " << n_outlier << std::endl;
         }
 
         // 若地圖點的數量太少（少於 3）
@@ -475,8 +513,27 @@ namespace ORB_SLAM2
             return 0;
         }
 
+        /// TODO: 優化位姿估計，減少被認定為 outlier 的地圖點
         int nBad = addPoseOptimizationEdges(vSE3, pFrame, optimizer, vpEdgesMono, vnIndexEdgeMono,
                                             vpEdgesStereo, vnIndexEdgeStereo);
+
+        n_mp = 0, n_outlier = 0;        
+
+        for(i = 0; i < pFrame->N; i++)
+        {
+            if(pFrame->mvpMapPoints[i])
+            {
+                n_mp++;
+
+                if(pFrame->mvbOutlier[i])
+                {
+                    n_outlier++;
+                }
+            }
+        }
+
+        std::cout << "[PoseOptimization] After addPoseOptimizationEdges, n_mp: " << n_mp 
+                    << ", n_outlier: " << n_outlier << std::endl;
 
         
         // Recover optimized pose and return number of inliers
@@ -1722,6 +1779,7 @@ namespace ORB_SLAM2
 
     // ***** Optimizer::PoseOptimization *****
 
+    /// TODO: 優化位姿估計，減少被認定為 outlier 的地圖點
     /// NOTE: 20210907
     void Optimizer::addPoseOptimization(Frame *pFrame, int &nInitialCorrespondences,
                                         g2o::SparseOptimizer &op, vector<size_t> &vnIndexEdgeMono,
@@ -1746,7 +1804,8 @@ namespace ORB_SLAM2
             {
                 // 單目的這個值，會是負的
                 kp_ur = pFrame->mvuRight[i];
-                    
+                
+                /// TODO: 優化位姿估計，減少被認定為 outlier 的地圖點
                 // 地圖點可被觀察到，因此不是 Outlier
                 pFrame->mvbOutlier[i] = false;
 
@@ -1797,6 +1856,7 @@ namespace ORB_SLAM2
         }
     }
 
+    /// TODO: 優化位姿估計，減少被認定為 outlier 的地圖點
     /// NOTE: 20210907
     int Optimizer::addPoseOptimizationEdges(g2o::VertexSE3Expmap *vSE3, Frame *pFrame,
                                             g2o::SparseOptimizer &op,
@@ -1833,12 +1893,14 @@ namespace ORB_SLAM2
                         << ", #edges: " << op.edges().size() << std::endl;
             }
 
-            // 優化 its[it] 次         
+            // 優化 its[it] 次
+            /// NOTE: 主要是這裡發生了 0 vertices to optimize
             op.optimize(its[it]);
 
             //
             nBad = 0;
 
+            /// TODO: 優化位姿估計，減少被認定為 outlier 的地圖點
             addPoseOptimizationMonoEdges(vpEdgesMono, vnIndexEdgeMono, pFrame, chi2Mono, it, nBad);
 
             addPoseOptimizationStereoEdges(pFrame, vpEdgesStereo, vnIndexEdgeStereo,
@@ -1854,6 +1916,7 @@ namespace ORB_SLAM2
         return nBad;
     }
 
+    /// TODO: 優化位姿估計，減少被認定為 outlier 的地圖點
     void Optimizer::addPoseOptimizationMonoEdges(vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono, 
                                                  vector<size_t> &vnIndexEdgeMono, Frame *pFrame, 
                                                  const float chi2Mono[], const size_t it, int &nBad)
@@ -1869,6 +1932,7 @@ namespace ORB_SLAM2
 
             idx = vnIndexEdgeMono[i];
 
+            /// TODO: 優化位姿估計，減少被認定為 outlier 的地圖點
             // 若為第 idx 個特徵點為 Outlier
             if (pFrame->mvbOutlier[idx])
             {
@@ -1882,6 +1946,7 @@ namespace ORB_SLAM2
             // 若 chi2 值比預設門檻高
             if (chi2 > chi2Mono[it])
             {
+                /// TODO: 優化位姿估計，減少被認定為 outlier 的地圖點
                 // 將第 idx 個特徵點認定為 Outlier
                 pFrame->mvbOutlier[idx] = true;
 
@@ -1894,6 +1959,7 @@ namespace ORB_SLAM2
             // 若 chi2 值比預設門檻低
             else
             {
+                /// TODO: 優化位姿估計，減少被認定為 outlier 的地圖點
                 // 將第 idx 個特徵點認定為內點
                 pFrame->mvbOutlier[idx] = false;
 

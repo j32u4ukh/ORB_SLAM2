@@ -320,7 +320,14 @@ namespace ORB_SLAM2
                         bOK = TrackReferenceKeyFrame();
 
                         /// NOTE: 第 1 次發生 LOST 的發生源
-                        std::cout << "TrackReferenceKeyFrame success? " << bOK << std::endl;
+                        if(bOK)
+                        {
+                            std::cout << "TrackReferenceKeyFrame success." << std::endl;
+                        }
+                        else
+                        {
+                            std::cout << "第 2-1 類丟失，TrackReferenceKeyFrame" << std::endl;
+                        }                        
                     }
                     else
                     {
@@ -345,9 +352,14 @@ namespace ORB_SLAM2
                             // 更新『當前幀』匹配的地圖點，並返回數量是否足夠多
                             bOK = TrackReferenceKeyFrame();
 
-                            /// NOTE: TrackWithMotionModel failed. TrackReferenceKeyFrame success? 0
-
-                            std::cout << "TrackReferenceKeyFrame success? " << bOK << std::endl;
+                            if(bOK)
+                            {
+                                std::cout << "TrackReferenceKeyFrame success." << std::endl;
+                            }
+                            else
+                            {
+                                std::cout << "第 2-2 類丟失，TrackReferenceKeyFrame" << std::endl;
+                            }
                         }
                     }
                 }
@@ -403,7 +415,7 @@ namespace ORB_SLAM2
                     if(!bOK && mState != LOST)
                     {
                         /// NOTE: 第 2, 3 次發生 LOST 的發生源
-                        std::cout << "TrackLocalMap failed." << std::endl;
+                        std::cout << "第 1 類丟失，TrackLocalMap failed." << std::endl;
                     }
                 }
                 else
@@ -411,7 +423,7 @@ namespace ORB_SLAM2
                     if(mState != LOST)
                     {
                         /// NOTE: 第 1 次發生 LOST 的發生源
-                        std::cout << "Failed before update." << std::endl;
+                        std::cout << "第 2 類丟失，Failed before update." << std::endl;
                     }
                 }
             }
@@ -834,9 +846,10 @@ namespace ORB_SLAM2
         int nmatches = matcher.SearchByBoW(mpReferenceKF, mCurrentFrame, vpMapPointMatches);
 
         // 如果匹配的點太少就認為跟丟了。
-        /// TODO: 調整認定跟丟的標準 或 放寬標準再匹配一次
         if (nmatches < 15)
         {
+            /// NOTE: 目前觀察後，尚未因 nmatches 太低而造成丟失，暫緩"調整認定跟丟的標準 或 放寬標準再匹配一次"
+            std::cout << "[TrackReferenceKeyFrame] nmatches: " << nmatches << std::endl;
             return false;
         }
 
@@ -850,7 +863,7 @@ namespace ORB_SLAM2
         Optimizer::PoseOptimization(&mCurrentFrame);
 
         // Discard outliers
-        int nmatchesMap = 0;
+        int nmatchesMap = 0, n_mp = 0, n_outlier = 0, n_zero_observed = 0;
         MapPoint *pMP;
 
         // 對野點(Outlier)進行篩選
@@ -858,9 +871,13 @@ namespace ORB_SLAM2
         {
             if (mCurrentFrame.mvpMapPoints[i])
             {
+                n_mp++;
+
                 // 若地圖點為 Outlier
                 if (mCurrentFrame.mvbOutlier[i])
                 {
+                    n_outlier++;
+
                     pMP = mCurrentFrame.mvpMapPoints[i];
 
                     mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint *>(NULL);
@@ -875,11 +892,29 @@ namespace ORB_SLAM2
                 {
                     nmatchesMap++;
                 }
+
+                else
+                {
+                    n_zero_observed++;
+                }
             }
         }
 
         // 實際匹配到的地圖點數量是否足夠多
-        return nmatchesMap >= 10;
+        if(nmatchesMap >= 10)
+        {
+            return true;
+        }
+        else
+        {
+            /// NOTE: 目前觀察後，發現被認定為丟失幾乎都是因為 outlier 的點過多
+            std::cout << "[TrackReferenceKeyFrame] nmatchesMap: " << nmatchesMap 
+                      << ", n_mp: " << n_mp << ", mCurrentFrame.N: " << mCurrentFrame.N 
+                      << ", n_outlier: " << n_outlier 
+                      << ", n_zero_observed: " << n_zero_observed 
+                      << std::endl;
+            return false;
+        }
     }
 
     // 實現了基於勻速運動模型的跟蹤定位方法，假設當前幀的特徵點和前一幀位於差不多的位置，進行兩幀之間特徵點的匹配，
