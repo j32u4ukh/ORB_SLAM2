@@ -1518,7 +1518,7 @@ namespace ORB_SLAM2
             {
                 if (pMP->isBad())
                 {
-                    // 智慧指標才有辦法作到，foreach 下的 MapPoint *pMP 無法使實際數據變為空，
+                    // iterator 才能對遍歷對象進行操作，foreach 下的 MapPoint *pMP 無法使實際數據變為空，
                     // 除非 mCurrentFrame.mvpMapPoints[i] = NULL
                     *vit = static_cast<MapPoint *>(NULL);
                 }
@@ -1989,8 +1989,10 @@ namespace ORB_SLAM2
                 }
             }
 
+            // ==================================================
             // Delete temporal MapPoints
             // mlpTemporalPoints 和『單目模式』與『建圖模式』無關，暫時跳過
+            // ==================================================
             list<MapPoint *>::iterator lit, lend = mlpTemporalPoints.end();
 
             for (lit = mlpTemporalPoints.begin(); lit != lend; lit++)
@@ -2001,6 +2003,7 @@ namespace ORB_SLAM2
             }
 
             mlpTemporalPoints.clear();
+            // ==================================================        
 
             // Check if we need to insert a new keyframe
             // 判定是否生成關鍵幀

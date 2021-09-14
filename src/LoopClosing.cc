@@ -362,7 +362,6 @@ namespace ORB_SLAM2
             if (mpThreadGBA)
             {
                 // detach 不等待 thread 執行結束
-                std::cout << "[CorrectLoop] mpThreadGBA->detach();" << std::endl;
                 mpThreadGBA->detach();
                 delete mpThreadGBA;
             }
@@ -370,7 +369,6 @@ namespace ORB_SLAM2
 
         // Wait until Local Mapping has effectively stopped
         // 『執行續 LocalMapping』中止前持續等待
-        std::cout << "[CorrectLoop] while (!mpLocalMapper->isStopped())" << std::endl;
         while (!mpLocalMapper->isStopped())
         {
             usleep(1000);
@@ -378,7 +376,6 @@ namespace ORB_SLAM2
 
         // Ensure current keyframe is updated
         // 其他關鍵幀和『關鍵幀 mpCurrentKF』觀察到相同的地圖點，且各自都觀察到足夠多的地圖點，則會和當前幀產生鏈結
-        std::cout << "[CorrectLoop] mpCurrentKF->UpdateConnections();" << std::endl;
         mpCurrentKF->UpdateConnections();
 
         // Retrive keyframes connected to the current keyframe and compute corrected 
@@ -386,11 +383,9 @@ namespace ORB_SLAM2
         // 檢索連接到當前關鍵幀的關鍵幀並通過傳播計算校正後的 Sim3 位姿
 
         // 取得『共視關鍵幀』（根據觀察到的地圖點數量排序）
-        std::cout << "[CorrectLoop] mvpCurrentConnectedKFs = mpCurrentKF->GetVectorCovisibleKeyFrames();" << std::endl;
         mvpCurrentConnectedKFs = mpCurrentKF->GetVectorCovisibleKeyFrames();
 
         // 『關鍵幀 mpCurrentKF』和其『共視關鍵幀』
-        std::cout << "[CorrectLoop] mvpCurrentConnectedKFs.push_back(mpCurrentKF);" << std::endl;
         mvpCurrentConnectedKFs.push_back(mpCurrentKF);
 
         /*
@@ -410,14 +405,11 @@ namespace ORB_SLAM2
         {
             // Get Map Mutex
             unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
-            
-            std::cout << "[CorrectLoop] whetherCorrectedSim3" << std::endl;
+
             whetherCorrectedSim3(Twc, CorrectedSim3, NonCorrectedSim3);
             
-            std::cout << "[CorrectLoop] scaledCorrectedSim3" << std::endl;
             scaledCorrectedSim3(CorrectedSim3, NonCorrectedSim3);
 
-            std::cout << "[CorrectLoop] updateMatchedMapPoints" << std::endl;
             updateMatchedMapPoints();
         }
 

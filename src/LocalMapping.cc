@@ -1127,7 +1127,12 @@ namespace ORB_SLAM2
         
         list<KeyFrame *>::iterator lit, lend = mlNewKeyFrames.end();
 
-        for (lit = mlNewKeyFrames.begin(); lit != lend; lit++){
+        /// NOTE: 前面一幀一幀取出來繪製地圖點，因此在這個時間點，mlNewKeyFrames 基本上已經是空的了
+        for (lit = mlNewKeyFrames.begin(); lit != lend; lit++)
+        {
+            /// NOTE: 這裡應該是將 *lit 指向的記憶體位置清空了
+            /// 參考：https://stackoverflow.com/questions/991335/how-to-erase-delete-pointers-
+            /// to-objects-stored-in-a-vector
             delete *lit;
         }
             
