@@ -453,7 +453,11 @@ namespace ORB_SLAM2
             cv::Mat mat = pFrame->mTcw.colRange(0, 3).rowRange(0, 3);
             Eigen::Matrix<double, 3, 3> matrix = Converter::toMatrix3d(mat);
             Eigen::Vector3d euler = matrix.eulerAngles(2, 1, 0);
-            std::cout << "Optimizer::PoseOptimization, euler: " << euler.transpose() << std::endl;
+
+            cv::Mat translate = pFrame->mTcw.col(3).rowRange(0, 3);
+
+            std::cout << "Optimizer::PoseOptimization, euler: " << euler.transpose() 
+                      << ", translate:" << translate.t() << std::endl;
         }
         
         // Set MapPoint vertices
@@ -1842,23 +1846,6 @@ namespace ORB_SLAM2
                     e->Xw[0] = Xw.at<float>(0);
                     e->Xw[1] = Xw.at<float>(1);
                     e->Xw[2] = Xw.at<float>(2);
-
-                    if(start_idx <= idx && idx <= end_idx && i % 100 == 0)
-                    {
-                        // const cv::KeyPoint &kpUn = pFrame->mvKeysUn[i];
-                        // Vector2d cam_project(const Vector3d & trans_xyz) const;
-                        Eigen::Vector2d project = e->cam_project(e->Xw);
-                        Eigen::Vector2d obs;
-                        obs << kpUn.pt.x, kpUn.pt.y;
-                        Eigen::Vector2d gap = obs - project;
-                        double error = sqrt(pow(gap[0], 2.0) + pow(gap[1], 2.0));
-
-                        std::cout << "Optimizer::addPoseOptimization, idx: " << idx 
-                                  << ", obs: " << obs.transpose() 
-                                  << ", project: " << project.transpose() 
-                                  << ", error: " << error
-                                  << std::endl;
-                    }
                     
                     op.addEdge(e);
                     vpEdgesMono.push_back(e);
@@ -1956,25 +1943,6 @@ namespace ORB_SLAM2
             // 優化 its[it] 次
             /// NOTE: 推測是這裡發生了 0 vertices to optimize
             op.optimize(its[it]);
-
-            if(start_idx <= idx && idx <= end_idx)
-            {
-                g2o::EdgeSE3ProjectXYZOnlyPose *e = op.vertex(0);
-                cv::KeyPoint kpUn = pFrame->mvKeysUn[i];
-                // const cv::KeyPoint &kpUn = pFrame->mvKeysUn[i];
-                // Vector2d cam_project(const Vector3d & trans_xyz) const;
-                Eigen::Vector2d project = e->cam_project(e->Xw);
-                Eigen::Vector2d obs;
-                obs << kpUn.pt.x, kpUn.pt.y;
-                Eigen::Vector2d gap = obs - project;
-                double error = sqrt(pow(gap[0], 2.0) + pow(gap[1], 2.0));
-
-                std::cout << "Optimizer::addPoseOptimization, idx: " << idx 
-                            << ", obs: " << obs.transpose() 
-                            << ", project: " << project.transpose() 
-                            << ", error: " << error
-                            << std::endl;
-            }
 
             //
             nBad = 0;
