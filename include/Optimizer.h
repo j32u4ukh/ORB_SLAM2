@@ -198,7 +198,7 @@ public:
                                            g2o::SparseOptimizer &op, vector<size_t> &vnIndexEdgeMono,
                                            vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono,
                                            vector<g2o::EdgeStereoSE3ProjectXYZOnlyPose *> vpEdgesStereo,
-                                           vector<size_t> vnIndexEdgeStereo);
+                                           vector<size_t> vnIndexEdgeStereo, const int idx=0);
 
     static inline void addPoseOptimizationMonoEdges(vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono,
                                                     vector<size_t> &vnIndexEdgeMono, Frame *pFrame,
@@ -235,6 +235,10 @@ public:
     static inline g2o::EdgeSE3ProjectXYZOnlyPose *newEdgeSE3ProjectXYZOnlyPose(g2o::SparseOptimizer &op,
                                                                                Frame *frame,
                                                                                const cv::KeyPoint kpUn);
+
+    static inline double computeError(){
+        
+    }                                                                           
 
     // ==================================================
     // 以下為非單目相關函式

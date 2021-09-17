@@ -955,6 +955,11 @@ namespace ORB_SLAM2
     // 將匹配到的地圖點設置給當前幀，並返回是否匹配到足夠的點數
     bool Tracking::TrackWithMotionModel(const int idx)
     {
+        if(start_idx <= idx && idx <= end_idx)
+        {
+            std::cout << "Tracking::TrackWithMotionModel, idx: " << idx << std::endl;
+        }
+
         bool is_mono = mSensor == System::MONOCULAR;
 
         // Project points seen in previous frame
@@ -1169,6 +1174,11 @@ namespace ORB_SLAM2
     // 找出當前幀的『共視關鍵幀』以及其『已配對地圖點』，確保這些地圖點至少被 1 個關鍵幀觀察到，且重投影後的內點足夠多
     bool Tracking::TrackLocalMap(const int idx)
     {
+        if(start_idx <= idx && idx <= end_idx)
+        {
+            std::cout << "Tracking::TrackLocalMap, idx: " << idx << std::endl;
+        }
+
         // We have an estimation of the camera pose and some map points tracked in the frame.
         // We retrieve the local map and try to find matches to points in the local map.
         /* 可以分為三個階段：
@@ -1584,8 +1594,13 @@ namespace ORB_SLAM2
     }
 
     // 判定是否生成關鍵幀
-    bool Tracking::NeedNewKeyFrame()
+    bool Tracking::NeedNewKeyFrame(const int idx)
     {
+        if(start_idx <= idx && idx <= end_idx)
+        {
+            std::cout << "Tracking::NeedNewKeyFrame, idx: " << idx << std::endl;
+        }
+
         /* ORB-SLAM 論文中說要插入新的關鍵幀需要滿足如下的幾個條件：
         1. 如果發生了重定位，那麽需要在 20 幀之後才能添加新的關鍵幀。保證了重定位的效果。
         2. LOCAL MAPPING 線程處於空閑(idle)的狀態，或者距離上次插入關鍵幀已經過去了 20 幀。
@@ -1729,8 +1744,13 @@ namespace ORB_SLAM2
     }
 
     // 生成關鍵幀
-    void Tracking::CreateNewKeyFrame()
+    void Tracking::CreateNewKeyFrame(const int idx)
     {
+        if(start_idx <= idx && idx <= end_idx)
+        {
+            std::cout << "Tracking::CreateNewKeyFrame, idx: " << idx << std::endl;
+        }
+
         // 首先檢查 LOCAL MAPPING 是否可以插入新關鍵幀
         if (!mpLocalMapper->SetNotStop(true))
         {
@@ -2007,10 +2027,10 @@ namespace ORB_SLAM2
 
             // Check if we need to insert a new keyframe
             // 判定是否生成關鍵幀
-            if (NeedNewKeyFrame())
+            if (NeedNewKeyFrame(idx))
             {
                 // 生成關鍵幀
-                CreateNewKeyFrame();
+                CreateNewKeyFrame(idx);
             }
 
             // We allow points with high innovation (considererd outliers by the Huber Function)

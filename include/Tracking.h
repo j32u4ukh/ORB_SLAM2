@@ -172,8 +172,8 @@ protected:
     bool TrackLocalMap(const int idx=0);
     void SearchLocalPoints();
 
-    bool NeedNewKeyFrame();
-    void CreateNewKeyFrame();
+    bool NeedNewKeyFrame(const int idx=0);
+    void CreateNewKeyFrame(const int idx=0);
 
     // *****
 

@@ -448,6 +448,14 @@ namespace ORB_SLAM2
         // 將當前幀轉換成『轉換矩陣 SE3』，並作為頂點加入 optimizer
         g2o::VertexSE3Expmap *vSE3 = addVertexSE3Expmap(optimizer, pFrame->mTcw, 0, false);
 
+        if(start_idx <= idx && idx <= end_idx)
+        {
+            cv::Mat mat = pFrame->mTcw.colRange(0, 3).rowRange(0, 3);
+            Eigen::Matrix<double, 3, 3> matrix = Converter::toMatrix3d(mat);
+            Eigen::Vector3d euler = matrix.eulerAngles(2, 1, 0);
+            std::cout << "Optimizer::PoseOptimization, euler: " << euler.transpose() << std::endl;
+        }
+        
         // Set MapPoint vertices
         // 取得 pFrame 觀察到的地圖點個數
         const int N = pFrame->N;
@@ -490,7 +498,7 @@ namespace ORB_SLAM2
             // }
             
             addPoseOptimization(pFrame, nInitialCorrespondences, optimizer, vnIndexEdgeMono, 
-                                vpEdgesMono, vpEdgesStereo, vnIndexEdgeStereo);
+                                vpEdgesMono, vpEdgesStereo, vnIndexEdgeStereo, idx);
 
             // if(start_idx <= idx && idx <= end_idx)
             // {
@@ -1791,7 +1799,7 @@ namespace ORB_SLAM2
                                         g2o::SparseOptimizer &op, vector<size_t> &vnIndexEdgeMono,
                                         vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono,
                                         vector<g2o::EdgeStereoSE3ProjectXYZOnlyPose *> vpEdgesStereo,
-                                        vector<size_t> vnIndexEdgeStereo)
+                                        vector<size_t> vnIndexEdgeStereo, const int idx)
     {
         g2o::EdgeSE3ProjectXYZOnlyPose *e;
         g2o::EdgeStereoSE3ProjectXYZOnlyPose *e_stereo;
@@ -1835,6 +1843,23 @@ namespace ORB_SLAM2
                     e->Xw[1] = Xw.at<float>(1);
                     e->Xw[2] = Xw.at<float>(2);
 
+                    if(start_idx <= idx && idx <= end_idx && i % 100 == 0)
+                    {
+                        // const cv::KeyPoint &kpUn = pFrame->mvKeysUn[i];
+                        // Vector2d cam_project(const Vector3d & trans_xyz) const;
+                        Eigen::Vector2d project = e->cam_project(e->Xw);
+                        Eigen::Vector2d obs;
+                        obs << kpUn.pt.x, kpUn.pt.y;
+                        Eigen::Vector2d gap = obs - project;
+                        double error = sqrt(pow(gap[0], 2.0) + pow(gap[1], 2.0));
+
+                        std::cout << "Optimizer::addPoseOptimization, idx: " << idx 
+                                  << ", obs: " << obs.transpose() 
+                                  << ", project: " << project.transpose() 
+                                  << ", error: " << error
+                                  << std::endl;
+                    }
+                    
                     op.addEdge(e);
                     vpEdgesMono.push_back(e);
                     vnIndexEdgeMono.push_back(i);
@@ -1902,14 +1927,14 @@ namespace ORB_SLAM2
         //                 n_outlier++;
         //             }
         //         }
-        //     }
+        //     }            
 
         //     std::cout << "[addPoseOptimizationEdges] Before optimize idx: " << idx
         //               << ", #vertices: " << op.vertices().size() 
         //               << ", #edges: " << op.edges().size() 
         //               << ", n_mp: " << n_mp 
         //               << ", n_outlier: " << n_outlier
-        //               << ", vSE3->estimate: " << vSE3->estimate().toVector().transpose() 
+        //               << "\nvSE3->estimate: " << vSE3->estimate().toVector().transpose() 
         //               << std::endl;
         // }
         
@@ -1932,6 +1957,25 @@ namespace ORB_SLAM2
             /// NOTE: 推測是這裡發生了 0 vertices to optimize
             op.optimize(its[it]);
 
+            if(start_idx <= idx && idx <= end_idx)
+            {
+                g2o::EdgeSE3ProjectXYZOnlyPose *e = op.vertex(0);
+                cv::KeyPoint kpUn = pFrame->mvKeysUn[i];
+                // const cv::KeyPoint &kpUn = pFrame->mvKeysUn[i];
+                // Vector2d cam_project(const Vector3d & trans_xyz) const;
+                Eigen::Vector2d project = e->cam_project(e->Xw);
+                Eigen::Vector2d obs;
+                obs << kpUn.pt.x, kpUn.pt.y;
+                Eigen::Vector2d gap = obs - project;
+                double error = sqrt(pow(gap[0], 2.0) + pow(gap[1], 2.0));
+
+                std::cout << "Optimizer::addPoseOptimization, idx: " << idx 
+                            << ", obs: " << obs.transpose() 
+                            << ", project: " << project.transpose() 
+                            << ", error: " << error
+                            << std::endl;
+            }
+
             //
             nBad = 0;
 
@@ -1948,7 +1992,7 @@ namespace ORB_SLAM2
                 break;
             }
         }
-
+        
         // if(start_idx <= idx && idx <= end_idx)
         // {
         //     n_mp = 0, n_outlier = 0;        
@@ -1993,6 +2037,7 @@ namespace ORB_SLAM2
             // 取出 optimizer 的第 i 個『邊』
             e = vpEdgesMono[i];
 
+            // optimizer 的第 i 個『邊』(地圖點)
             edge_idx = vnIndexEdgeMono[i];
 
             // 若為第 edge_idx 個特徵點為 Outlier
