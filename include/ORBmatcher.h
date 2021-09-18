@@ -36,6 +36,9 @@ namespace ORB_SLAM2
     class ORBmatcher
     {
     public:
+        static const int start_idx;
+        static const int end_idx;
+
         // 第一個參數是一個接受最佳匹配的系數，只有當最佳匹配點的漢明距離小於次加匹配點距離的 nnratio 倍時才接收匹配點，
         // 第二個參數表示匹配特征點時是否考慮方向。
         ORBmatcher(float nnratio = 0.6, bool checkOri = true);
@@ -49,7 +52,8 @@ namespace ORB_SLAM2
 
         // Project MapPoints tracked in last frame into the current frame and search matches.
         // Used to track from previous frame (Tracking)
-        int SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, const float th, const bool bMono);
+        int SearchByProjection(Frame &CurrentFrame, const Frame &LastFrame, const float th, 
+                               const bool bMono, const int idx=0);
 
         // Project MapPoints seen in KeyFrame into the Frame and search matches.
         // Used in relocalisation (Tracking)
@@ -66,7 +70,8 @@ namespace ORB_SLAM2
         int SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, std::vector<MapPoint *> &vpMatches12);
 
         // Matching for the Map Initialization (only used in the monocular case)
-        int SearchForInitialization(Frame &F1, Frame &F2, std::vector<cv::Point2f> &vbPrevMatched, std::vector<int> &vnMatches12, int windowSize = 10);
+        int SearchForInitialization(Frame &F1, Frame &F2, std::vector<cv::Point2f> &vbPrevMatched, 
+                                    std::vector<int> &vnMatches12, int windowSize = 10, const int idx=0);
 
         // Matching to triangulate new MapPoints. Check Epipolar Constraint.
         int SearchForTriangulation(KeyFrame *pKF1, KeyFrame *pKF2, cv::Mat F12,

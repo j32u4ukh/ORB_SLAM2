@@ -46,6 +46,8 @@ public:
     static const float deltaMono;
     static const float deltaStereo;
     static const Eigen::Matrix<double, 7, 7> matLambda;
+    static const int start_idx;
+    static const int end_idx;
 
     void static BundleAdjustment(const std::vector<KeyFrame*> &vpKF, const std::vector<MapPoint*> &vpMP,
                                  int nIterations = 5, bool *pbStopFlag=NULL, const unsigned long nLoopKF=0,
@@ -53,7 +55,7 @@ public:
     void static GlobalBundleAdjustemnt(Map* pMap, int nIterations=5, bool *pbStopFlag=NULL,
                                        const unsigned long nLoopKF=0, const bool bRobust = true);
     void static LocalBundleAdjustment(KeyFrame* pKF, bool *pbStopFlag, Map *pMap);
-    int static PoseOptimization(Frame* pFrame);
+    int static PoseOptimization(Frame* pFrame, const int idx=0);
 
     // if bFixScale is true, 6DoF optimization (stereo,rgbd), 7DoF otherwise (mono)
     void static OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* pCurKF,
@@ -72,10 +74,10 @@ public:
 
     // **********
     static inline void addKeyFramePoses(const vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op,
-                                        long unsigned int &maxKFid);
+                                        unsigned long &maxKFid);
 
     static inline void addMapPoints(const vector<MapPoint *> &vpMP, g2o::SparseOptimizer &op,
-                                    const long unsigned int maxKFid,
+                                    const unsigned long maxKFid,
                                     const bool bRobust, vector<bool> &vbNotIncludedMP);
 
     static inline void updateKeyFramePoses(const vector<KeyFrame *> &vpKFs, g2o::SparseOptimizer &op,
@@ -177,7 +179,7 @@ public:
                                     const LoopClosing::KeyFrameAndPose &NonCorrectedSim3, const int nIDi,
                                     vector<g2o::Sim3, Eigen::aligned_allocator<g2o::Sim3>> vScw);
 
-    static inline bool addCovisibilityEdges(KeyFrame *pKF, KeyFrame *pParentKF, const int minFeat,
+    static inline void addCovisibilityEdges(KeyFrame *pKF, KeyFrame *pParentKF, const int minFeat,
                                             set<pair<long unsigned int, long unsigned int>> sInsertedEdges,
                                             const LoopClosing::KeyFrameAndPose &NonCorrectedSim3,
                                             const g2o::Sim3 Swi, g2o::SparseOptimizer &op, const int nIDi,
@@ -196,11 +198,12 @@ public:
                                            g2o::SparseOptimizer &op, vector<size_t> &vnIndexEdgeMono,
                                            vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono,
                                            vector<g2o::EdgeStereoSE3ProjectXYZOnlyPose *> vpEdgesStereo,
-                                           vector<size_t> vnIndexEdgeStereo);
+                                           vector<size_t> vnIndexEdgeStereo, const int idx=0);
 
     static inline void addPoseOptimizationMonoEdges(vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono,
                                                     vector<size_t> &vnIndexEdgeMono, Frame *pFrame,
-                                                    const float chi2Mono[], const size_t it, int &nBad);
+                                                    const float chi2Mono[], const size_t it, int &nBad, 
+                                                    const int idx=0);
 
     static inline void addPoseOptimizationStereoEdges(Frame *pFrame,
                                                       vector<g2o::EdgeStereoSE3ProjectXYZOnlyPose *> &vpEdgesStereo,
@@ -212,7 +215,8 @@ public:
                                                vector<g2o::EdgeSE3ProjectXYZOnlyPose *> &vpEdgesMono,
                                                vector<size_t> &vnIndexEdgeMono,
                                                vector<g2o::EdgeStereoSE3ProjectXYZOnlyPose *> &vpEdgesStereo,
-                                               vector<size_t> &vnIndexEdgeStereo);
+                                               vector<size_t> &vnIndexEdgeStereo,
+                                               const int idx=0);
 
     // ********************************************************************************
     static inline g2o::EdgeSE3ProjectXYZ *addEdgeSE3ProjectXYZ(g2o::SparseOptimizer &op,
@@ -231,6 +235,10 @@ public:
     static inline g2o::EdgeSE3ProjectXYZOnlyPose *newEdgeSE3ProjectXYZOnlyPose(g2o::SparseOptimizer &op,
                                                                                Frame *frame,
                                                                                const cv::KeyPoint kpUn);
+
+    static inline double computeError(){
+        
+    }                                                                           
 
     // ==================================================
     // 以下為非單目相關函式

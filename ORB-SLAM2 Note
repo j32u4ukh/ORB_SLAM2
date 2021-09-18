@@ -30,6 +30,7 @@ median tracking time: 0.0712685
 mean tracking time: 0.0836848
 建圖 10:16.31
 
+
 [函式封裝](有 1 ～ 2 處的丟失追蹤)
 New Map created with 508 points
 Vocabulary loaded! Cost 9.44923 s.
@@ -49,6 +50,63 @@ Depth ～ N(13.7239, 9.01453)
 saving octomap ... 
 Writing 35169937 nodes to output stream... done.
 Octomap 數據寫出花費：7.72189 秒
+
+
+「在未發生丟失的情況下的最佳表現」(當時印出了許多資訊，或許是因此拖慢了執行續的進展，剛好執行到等待的部份，而沒有發生丟失？？？？？)
+#KeyFrame: 794
+#MapPoint: 72721
+Total time: 8:47.1532
+Median tracking time: 0.0660525
+Mean tracking time: 0.0705246
+
+
+>>> 階段 1 (   0, 1650) 
+Loop detected! index: 1587
+
+TrackWithMotionModel failed.
+[addPoseOptimizationEdges] Before optimize #vertices: 1, #edges: 202, n_mp: 202, n_outlier: 0
+<<<
+[addPoseOptimizationMonoEdges] idx: 1590, n_outlier: 0, n_outlier_increment: 202, n_edge0: 0, n_edge1: 202
+virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()
+[addPoseOptimizationMonoEdges] idx: 1590, n_outlier: 202, n_outlier_increment: 202, n_edge0: 0, n_edge1: 202
+virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()
+[addPoseOptimizationMonoEdges] idx: 1590, n_outlier: 202, n_outlier_increment: 202, n_edge0: 0, n_edge1: 202
+virtual int g2o::SparseOptimizer::optimize(int, bool): 0 vertices to optimize, maybe forgot to call initializeOptimization()
+[addPoseOptimizationMonoEdges] idx: 1590, n_outlier: 202, n_outlier_increment: 202, n_edge0: 0, n_edge1: 202
+[addPoseOptimizationEdges] After optimize #vertices: 1, #edges: 202, n_mp: 202, n_outlier: 202
+[TrackReferenceKeyFrame] nmatchesMap: 0, n_mp: 202, mCurrentFrame.N: 3105, n_outlier: 202, n_zero_observed: 0
+第 2-2 類丟失，TrackReferenceKeyFrame
+第 2 類丟失，Failed before update.
+!!!!!!!!!! Tracking lost !!!!!!!!!!
+
+
+
+#KeyFrame: 322
+#MapPoint: 34071
+Total time: 3:18.8563
+Median tracking time: 0.064987
+Mean tracking time: 0.0692198
+
+
+>>> 階段 2 (1650, 2300)
+
+
+>>> 階段 3 (2300, 3400)
+#KeyFrame: 244
+#MapPoint: 28643
+Total time: 2:39.8066
+Median tracking time: 0.0633098
+Mean tracking time: 0.0653234
+
+
+
+
+>>> 階段 4 (3400, 3600)
+
+
+>>> 階段 5 (3600, 5000)
+
+>>>>>>> sparse_optimizer
 
 
 

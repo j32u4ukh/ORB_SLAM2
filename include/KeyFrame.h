@@ -42,6 +42,7 @@ namespace ORB_SLAM2
     class KeyFrame
     {
     public:
+        int index;
         KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB);
 
         // Pose functions

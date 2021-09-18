@@ -56,13 +56,16 @@ class Tracking
 {  
 
 public:
+    static const int start_idx;
+    static const int end_idx;
+
     Tracking(System* pSys, ORBVocabulary* pVoc, FrameDrawer* pFrameDrawer, MapDrawer* pMapDrawer, Map* pMap,
              KeyFrameDatabase* pKFDB, const string &strSettingPath, const int sensor);
 
     // Preprocess the input and call Track(). Extract features and performs stereo matching.
     cv::Mat GrabImageStereo(const cv::Mat &imRectLeft,const cv::Mat &imRectRight, const double &timestamp);
     cv::Mat GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp);
-    cv::Mat GrabImageMonocular(const cv::Mat &im, const double &timestamp);
+    cv::Mat GrabImageMonocular(const cv::Mat &im, const double &timestamp, const int idx=0);
 
     void SetLocalMapper(LocalMapping* pLocalMapper);
     void SetLoopClosing(LoopClosing* pLoopClosing);
@@ -146,36 +149,36 @@ public:
 protected:
 
     // Main tracking function. It is independent of the input sensor.
-    void Track();
+    void Track(const int idx=0);
 
     // Map initialization for stereo and RGB-D
     void StereoInitialization();
 
     // Map initialization for monocular
-    void MonocularInitialization();
-    void CreateInitialMapMonocular();
+    void MonocularInitialization(const int idx=0);
+    void CreateInitialMapMonocular(const int idx=0);
 
-    void CheckReplacedInLastFrame();
-    bool TrackReferenceKeyFrame();
+    void CheckReplacedInLastFrame(const int idx=0);
+    bool TrackReferenceKeyFrame(const int idx=0);
     void UpdateLastFrame();
-    bool TrackWithMotionModel();
+    bool TrackWithMotionModel(const int idx=0);
 
-    bool Relocalization();
+    bool Relocalization(const int idx=0);
 
     void UpdateLocalMap();
     void UpdateLocalPoints();
     void UpdateLocalKeyFrames();
 
-    bool TrackLocalMap();
+    bool TrackLocalMap(const int idx=0);
     void SearchLocalPoints();
 
-    bool NeedNewKeyFrame();
-    void CreateNewKeyFrame();
+    bool NeedNewKeyFrame(const int idx=0);
+    void CreateNewKeyFrame(const int idx=0);
 
     // *****
 
     inline void recordTrackingResult();
-    inline bool update(bool bOK);
+    inline bool update(bool bOK, const int idx=0);
     inline void createRelocatePnPsolver(vector<KeyFrame *> &vpCandidateKFs, int &nCandidates,
                                            vector<bool> &vbDiscarded, ORBmatcher &matcher, 
                                            vector<vector<MapPoint *>> &vvpMapPointMatches, 
