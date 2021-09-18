@@ -1414,7 +1414,7 @@ namespace ORB_SLAM2
         {
             // Limit the number of keyframes
             // 為了節約計算資源，ORB-SLAM2 將集合 K1、K2 中的關鍵幀數量限制在了 80 幀。
-            if (mvpLocalKeyFrames.size() == 80)
+            if (mvpLocalKeyFrames.size() > 80)
             {
                 break;
             }
