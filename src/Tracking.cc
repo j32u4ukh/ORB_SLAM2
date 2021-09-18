@@ -694,6 +694,7 @@ namespace ORB_SLAM2
             // Create MapPoint.
             cv::Mat worldPos(mvIniP3D[i]);
 
+            // 形成 MapPoint 的當下，log_odd 即為 0.85，隨著後續的再次觀察或沒被觀察到，再進一步修改數值
             pMP = new MapPoint(worldPos, pKFcur, mpMap);
 
             // 關鍵幀紀錄觀察到的地圖點
@@ -960,6 +961,41 @@ namespace ORB_SLAM2
         //     std::cout << "Tracking::TrackWithMotionModel, idx: " << idx << std::endl;
         // }
 
+        // Update pose according to reference keyframe
+        // 取出前一幀的參考關鍵幀
+        KeyFrame *pRef = mLastFrame.mpReferenceKF;
+
+        // 取出『前一幀和其參考關鍵幀之間的位姿轉換』，即轉換矩陣
+        cv::Mat Tlr = mlRelativeFramePoses.back();
+
+        // 參考關鍵幀位姿 乘上 『參考關鍵幀到前一幀的轉換矩陣』，得到前一幀的位姿
+        mLastFrame.SetPose(Tlr * pRef->GetPose());
+
+        /* 如果上一幀圖像成功的跟上了相機的運動，並成功的估計了速度，就以勻速運動模型來估計相機的位姿。
+        所謂的勻速運動模型，就是假設從上一幀到當前幀的這段時間里機器人的線速度和角速度都沒有變化，
+        直接通過速度和時間間隔估計前後兩幀的相對位姿變換，再將之直接左乘到上一幀的位姿上，從而得到當前幀的位姿估計。*/
+        mCurrentFrame.SetPose(mVelocity * mLastFrame.mTcw);
+        
+        // 將當前幀的地圖點設置為 NULL
+        // fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(),
+        //      static_cast<MapPoint *>(NULL));
+        mCurrentFrame.resetMappoints();
+        
+        // if(start_idx <= idx && idx <= end_idx)
+        // {
+        //     std::cout << "[TrackWithMotionModel] mCurrentFrame.SetPose idx: " << idx
+        //               << "\nmVelocity:\n" << mVelocity 
+        //               << "\nmLastFrame.mTcw:\n" << mLastFrame.mTcw 
+        //               << "\nCurrentFrame:\n" << mCurrentFrame.mTcw 
+        //               << std::endl;
+        // }
+
+        // 「和『單目模式』與『建圖模式』無關，暫時跳過」
+        // 在純定位模式下構建一個視覺里程計，對於建圖模式作用不大
+        // Update last frame pose according to its reference keyframe
+        // Create "visual odometry" points if in Localization Mode        
+        UpdateLastFrame();
+
         bool is_mono = mSensor == System::MONOCULAR;
 
         // Project points seen in previous frame
@@ -975,32 +1011,7 @@ namespace ORB_SLAM2
         else
         {
             th = 7;
-
-            // 「和『單目模式』與『建圖模式』無關，暫時跳過」
-            // 在純定位模式下構建一個視覺里程計，對於建圖模式作用不大
-            // Update last frame pose according to its reference keyframe
-            // Create "visual odometry" points if in Localization Mode
-            UpdateLastFrame();
         }
-
-        /* 如果上一幀圖像成功的跟上了相機的運動，並成功的估計了速度，就以勻速運動模型來估計相機的位姿。
-        所謂的勻速運動模型，就是假設從上一幀到當前幀的這段時間里機器人的線速度和角速度都沒有變化，
-        直接通過速度和時間間隔估計前後兩幀的相對位姿變換，再將之直接左乘到上一幀的位姿上，從而得到當前幀的位姿估計。*/
-        mCurrentFrame.SetPose(mVelocity * mLastFrame.mTcw);
-
-        // if(start_idx <= idx && idx <= end_idx)
-        // {
-        //     std::cout << "[TrackWithMotionModel] mCurrentFrame.SetPose idx: " << idx
-        //               << "\nmVelocity:\n" << mVelocity 
-        //               << "\nmLastFrame.mTcw:\n" << mLastFrame.mTcw 
-        //               << "\nCurrentFrame:\n" << mCurrentFrame.mTcw 
-        //               << std::endl;
-        // }
-
-        // 將當前幀的地圖點設置為 NULL
-        // fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(),
-        //      static_cast<MapPoint *>(NULL));
-        mCurrentFrame.resetMappoints();
 
         // 第一個參數是一個接受最佳匹配的系數，只有當最佳匹配點的漢明距離小於次加匹配點距離的 0.9 倍時才接收匹配點，
         // 第二個參數表示匹配特征點時是否考慮方向。
@@ -2457,16 +2468,6 @@ namespace ORB_SLAM2
     // 和『單目模式』與『建圖模式』無關，暫時跳過
     void Tracking::UpdateLastFrame()
     {
-        // Update pose according to reference keyframe
-        // 取出前一幀的參考關鍵幀
-        KeyFrame *pRef = mLastFrame.mpReferenceKF;
-
-        // 取出『前一幀和其參考關鍵幀之間的位姿轉換』，即轉換矩陣
-        cv::Mat Tlr = mlRelativeFramePoses.back();
-
-        // 參考關鍵幀位姿 乘上 『參考關鍵幀到前一幀的轉換矩陣』，得到前一幀的位姿
-        mLastFrame.SetPose(Tlr * pRef->GetPose());
-
         // 若為單目模式，直接返回
         if (mnLastKeyFrameId == mLastFrame.mnId || mSensor == System::MONOCULAR || !mbOnlyTracking){
             return;

@@ -82,6 +82,27 @@ public:
     int PredictScale(const float &currentDist, KeyFrame*pKF);
     int PredictScale(const float &currentDist, Frame* pF);
 
+    /* 模仿 octomap 對空間點的佔用機率進行更新      
+
+     * 佔據三維體元被擊中（Hit）的概率值為 0.7 對應的 log-odd 為 0.85
+     * 空閒體元被穿越（traverse）的概率值為 0.4 對應的 log-odd 為 -0.4
+     * 可以呼叫 getProHit/getProHitLog、getProMiss/getProMissLog 檢視預設的引數設定。
+     * 更新時，佔用機率低於 0.4 則將地圖點移除，大於 0.7
+     
+     * setClampingThresMax/setClampingThresMin 這兩個函式決定了一個體元執行 log-odd 更新的閾值範圍。
+     * 也就是說某一個佔據體元的概率值爬升到 0.97（對應的 log-odd 為 3.5）
+     * 或者空閒體元的概率值下降到 0.12（對應的 log-odd 為 -2）便不再進行 log-odd 更新計算。
+     p: 空間點的佔用機率
+
+     log_odd = log( p / (1 - p) )
+
+     p = 1 / ( 1 + exp(-log_odd) )
+     */
+    inline void hit(double delta = 0.0);
+    inline void miss(double delta = 0.0);
+    inline double getHitProb();
+    inline double getHitLog();
+
 public:
     long unsigned int mnId;
     static long unsigned int nNextId;
@@ -156,6 +177,28 @@ protected:
 
      std::mutex mMutexPos;
      std::mutex mMutexFeatures;
+
+     /* 模仿 octomap 對空間點的佔用機率進行更新      
+
+     * 佔據三維體元被擊中（Hit）的概率值為 0.7 對應的 log-odd 為 0.85
+     * 空閒體元被穿越（traverse）的概率值為 0.4 對應的 log-odd 為 -0.4
+     * 可以呼叫 getProHit/getProHitLog、getProMiss/getProMissLog 檢視預設的引數設定。
+     
+     * setClampingThresMax/setClampingThresMin 這兩個函式決定了一個體元執行 log-odd 更新的閾值範圍。
+     * 也就是說某一個佔據體元的概率值爬升到 0.97（對應的 log-odd 為 3.5）
+     * 或者空閒體元的概率值下降到 0.12（對應的 log-odd 為 -2）便不再進行 log-odd 更新計算。
+     p: 空間點的佔用機率
+
+     log_odd = log( p / (1 - p) )
+
+     p = 1 / ( 1 + exp(-log_odd) )
+     */
+     double max_odd = 3.5;
+     double min_odd = -2.0;
+     static const double delta_odd;
+
+     // 佔據三維體元被擊中（Hit）的概率值為 0.7 對應的 log-odd 為 0.85
+     double log_odd = 0.85;
 };
 
 } //namespace ORB_SLAM

@@ -27,6 +27,7 @@ namespace ORB_SLAM2
 {
 
     long unsigned int MapPoint::nNextId = 0;
+    const double MapPoint::delta_odd = 0.05;
     mutex MapPoint::mGlobalMutex;
 
     // ==================================================
@@ -555,6 +556,39 @@ namespace ORB_SLAM2
         unique_lock<mutex> lock2(mMutexPos);
 
         return mpReplaced;
+    }
+
+    // ==================================================
+    // 模仿 octomap 對空間點的佔用機率進行更新  
+    // ==================================================
+    void MapPoint::hit(double delta)
+    {
+        if(delta == 0.0)
+        {
+            delta = delta_odd;
+        }
+        
+        log_odd = min(log_odd + delta, max_odd);
+    }
+
+    void MapPoint::miss(double delta)
+    {
+        if(delta == 0.0)
+        {
+            delta = delta_odd;
+        }
+
+        log_odd = max(log_odd - delta, min_odd);
+    }
+
+    double MapPoint::getHitProb()
+    {
+        return 1.0/(1.0 + exp(-log_odd));
+    }
+
+    double MapPoint::getHitLog()
+    {
+        return log_odd;
     }
 
     // ==================================================

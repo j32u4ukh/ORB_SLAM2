@@ -315,7 +315,7 @@ namespace ORB_SLAM2
                                                           camera.at<float>(1), 
                                                           camera.at<float>(2)));
 
-            /// TODO: 定期呼叫 updateInnerOccupancy 以更新佔據狀態
+            /// TODO: 定期呼叫 updateInnerOccupancy 以更新佔據狀態？
         }
 
         // 更新中間節點的占據訊息
