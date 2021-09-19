@@ -1264,6 +1264,7 @@ namespace ORB_SLAM2
       q[3] = R[0][1] - R[1][0];
       n4 = q[2];
     }
+    
     double scale = 0.5f / double(sqrt(n4));
 
     q[0] *= scale;

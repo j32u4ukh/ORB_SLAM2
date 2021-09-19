@@ -910,14 +910,13 @@ namespace ORB_SLAM2
     void Optimizer::addFixedCameras(list<KeyFrame *> &lFixedCameras, g2o::SparseOptimizer &op,
                                     long unsigned int &maxKFid)
     {
-        int id, n_vertex = 0;
+        int id;
 
         for (KeyFrame *kf : lFixedCameras)
         {
             id = kf->mnId;
 
             addVertexSE3Expmap(op, kf->GetPose(), id, true);
-            n_vertex++;
 
             if (id > maxKFid)
             {
@@ -1941,7 +1940,7 @@ namespace ORB_SLAM2
             // }
 
             // 優化 its[it] 次
-            /// NOTE: 推測是這裡發生了 0 vertices to optimize
+            /// NOTE: 這裡發生了 0 vertices to optimize
             op.optimize(its[it]);
 
             //

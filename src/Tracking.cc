@@ -1296,9 +1296,6 @@ namespace ORB_SLAM2
 
             return false;
         }
-
-        // 內點至少 30 點，才算重定位成功
-        // return mnMatchesInliers >= 30;
     }
 
     // 設置參考用地圖點，更新當前幀的『共視關鍵幀』以及『共視關鍵幀的共視關鍵幀』，以及其『已配對地圖點』
@@ -1414,7 +1411,7 @@ namespace ORB_SLAM2
         {
             // Limit the number of keyframes
             // 為了節約計算資源，ORB-SLAM2 將集合 K1、K2 中的關鍵幀數量限制在了 80 幀。
-            if (mvpLocalKeyFrames.size() > 80)
+            if (mvpLocalKeyFrames.size() >= 80)
             {
                 break;
             }

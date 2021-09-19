@@ -722,7 +722,8 @@ namespace ORB_SLAM2
     }
 
     void ORBextractor::computeKeyPoints(vector<vector<KeyPoint>> &all_keypoints, const float W, 
-                                        const int level){
+                                        const int level)
+    {
         const int min_x = EDGE_THRESHOLD - 3;
         const int min_y = min_x;
         const int max_x = mvImagePyramid[level].cols - EDGE_THRESHOLD + 3;
@@ -850,6 +851,7 @@ namespace ORB_SLAM2
         // Compute how many initial nodes
         const int nIni = round(static_cast<float>(maxX - minX) / (maxY - minY));
 
+        // hX = (maxY - minY)
         const float hX = static_cast<float>(maxX - minX) / nIni;
 
         /// NOTE: lNodes 和 vpIniNodes 當中儲存的內容是相同的，推測是利用兩者在『增減方便』以及『搜索快速』各自的優點
@@ -891,7 +893,7 @@ namespace ORB_SLAM2
             {
                 if (lit->vKeys.size() == 1)
                 {
-                    // 標注這個 ExtractorNode 只有 1 個特徵
+                    // 這個 ExtractorNode 只有 1 個特徵，無法再繼續拆分成更小的 ExtractorNode
                     lit->bNoMore = true;
                 }
 
@@ -924,6 +926,7 @@ namespace ORB_SLAM2
                 if (lit->bNoMore)
                 {
                     // If node only contains one point do not subdivide and continue
+                    // 這個 ExtractorNode 只有一個特徵點，無法再繼續拆分了
                     lit++;
                     // continue;
                 }

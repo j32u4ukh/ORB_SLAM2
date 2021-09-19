@@ -144,6 +144,7 @@ int main(int argc, char **argv)
             T = tframe - vTimestamps[ni - 1];
         }
 
+        /// NOTE: 有時會發生等待很長一段時間，或許跟這裡也有關系？
         if (ttrack < T)
         {
             usleep((T - ttrack) * 1e6);

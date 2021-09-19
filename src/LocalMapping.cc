@@ -87,6 +87,7 @@ namespace ORB_SLAM2
     {
         unique_lock<mutex> lock(mMutexFinish);
         mbFinished = true;
+
         unique_lock<mutex> lock2(mMutexStop);
         mbStopped = true;
     }
@@ -1382,8 +1383,8 @@ namespace ORB_SLAM2
         const vector<KeyFrame *> vpNeighKFs = mpCurrentKeyFrame->GetBestCovisibilityKeyFrames(nn);
 
         // 遍歷『關鍵幀 mpCurrentKeyFrame』的共視關鍵幀
-        for(KeyFrame * pKFi : vpNeighKFs){
-
+        for(KeyFrame * pKFi : vpNeighKFs)
+        {
             /// NOTE: mnFuseTargetForKF 似乎是在避免重複當前環節用的變數
             if (pKFi->isBad() || pKFi->mnFuseTargetForKF == mpCurrentKeyFrame->mnId)
             {
@@ -1418,6 +1419,16 @@ namespace ORB_SLAM2
         // 『關鍵幀 mpCurrentKeyFrame』觀察到的地圖點
         vector<MapPoint *> vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
 
+        /// NOTE: 原本將兩個 for(KeyFrame *pKFi : vpTargetKFs) 合併，但本來的作法，
+        /// MapPoint 或許還沒取代完畢，導致後續所使用的地圖點被較少的關鍵幀所觀察到，因此再次還原成最原始的兩個迴圈的形式
+        for(KeyFrame *pKFi : vpTargetKFs)
+        {
+            // 『關鍵幀 pKFi』觀察到的地圖點和『現有地圖點』兩者的描述子距離很近，
+            // 保留被更多關鍵幀觀察到的一點取代另一點
+            /// TODO: 保留較新的一點，除非觀察到舊點的關鍵幀數量顯著多於新點
+            matcher.Fuse(pKFi, vpMapPointMatches);
+        }
+
         // Search matches by projection from target KFs in current KF
         // 共視關鍵幀所觀察到的地圖點
         vector<MapPoint *> vpFuseCandidates;   
@@ -1427,11 +1438,6 @@ namespace ORB_SLAM2
 
         for(KeyFrame *pKFi : vpTargetKFs)
         {
-            // 『關鍵幀 pKFi』觀察到的地圖點和『現有地圖點』兩者的描述子距離很近，
-            // 保留被更多關鍵幀觀察到的一點取代另一點
-            /// TODO: 保留較新的一點，除非觀察到舊點的關鍵幀數量顯著多於新點
-            matcher.Fuse(pKFi, vpMapPointMatches);
-
             // 遍歷『關鍵幀 mpCurrentKeyFrame』的共視關鍵幀和『共視關鍵幀的共視關鍵幀』
             // 取得『關鍵幀 pKFi』觀察到的地圖點
             vpMapPointsKFi = pKFi->GetMapPointMatches();

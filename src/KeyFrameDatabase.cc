@@ -264,8 +264,8 @@ namespace ORB_SLAM2
 
                 list<KeyFrame *> &lKFs = mvInvertedFile[id_value.first];
 
-                for(KeyFrame *pKFi : lKFs){
-
+                for(KeyFrame *pKFi : lKFs)
+                {
                     // mnRelocQuery：推測為『紀錄提出重定位請求的 Frame 的 Id』
                     if (pKFi->mnRelocQuery != F->mnId)
                     {
@@ -389,8 +389,8 @@ namespace ORB_SLAM2
         // 協助 vpRelocCandidates 不要重複添加
         set<KeyFrame *> spAlreadyAddedKF;
 
-        for(pair<float, KeyFrame *> score_match : lAccScoreAndMatch){
-
+        for(pair<float, KeyFrame *> score_match : lAccScoreAndMatch)
+        {
             const float &si = score_match.first;
 
             // 若 BoW 相似性得分大於最低要求

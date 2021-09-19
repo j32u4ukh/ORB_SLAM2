@@ -397,23 +397,6 @@ namespace ORB_SLAM2
                 continue;
             }
 
-            /* std::tuple<bool, int, int> 
-            ORBmatcher::selectFuseTarget(KeyFrame *pKF, MapPoint *pMP, float th, 
-                                         cv::Mat sim3, cv::Mat Rcw, cv::Mat t1w, cv::Mat t21, cv::Mat Ow, 
-                                         const float fx, const float fy, const float cx, const float cy, 
-                                         const float bf, bool consider_error, bool consider_included_angle)
-            */
-            // continue_dist_idx = selectFuseTarget(pKF, pMP, th, 
-            //                                      sim3, Rcw, tcw, t21, Ow, 
-            //                                      fx, fy, cx, cy, 
-            //                                      bf, true, true);
-            // if(std::get<0>(continue_dist_idx))
-            // {
-            //     continue;
-            // }
-            // bestDist = std::get<1>(continue_dist_idx);
-            // bestIdx = std::get<2>(continue_dist_idx);
-
             // 『地圖點 pMP』的世界座標
             cv::Mat p3Dw = pMP->GetWorldPos();
 
@@ -1351,8 +1334,8 @@ namespace ORB_SLAM2
             bestDist = INT_MAX;
             bestIdx = -1;
 
-            for(const size_t idx : vIndices){
-
+            for(const size_t idx : vIndices)
+            {
                 if (vpMatched[idx]){
                     continue;
                 }
@@ -1912,7 +1895,7 @@ namespace ORB_SLAM2
             // 取得當前關鍵點是在影像金字塔的哪個層級找到的
             level1 = kp1.octave;
 
-            // 只處理原圖？ level1 0 為原圖
+            // 只處理原圖？ level1 ＝ 0 為原圖
             if (level1 > 0){
                 continue;
             }
@@ -2070,7 +2053,8 @@ namespace ORB_SLAM2
     }
 
     void ORBmatcher::updateRotHist(const cv::KeyPoint &kp1, const cv::KeyPoint &kp2, 
-                                   const float factor, const int idx, std::vector<int> *rot_hist){
+                                   const float factor, const int idx, std::vector<int> *rot_hist)
+    {
         // 計算角度差
         float rot = kp1.angle - kp2.angle;
 

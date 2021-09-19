@@ -918,13 +918,13 @@ namespace ORB_SLAM2
         mvpLoopMapPoints.clear();
 
         // 遍歷『關鍵幀 mpMatchedKF』及其『共視關鍵幀』
-        for(KeyFrame *pKF : vpLoopConnectedKFs){
-
+        for(KeyFrame *pKF : vpLoopConnectedKFs)
+        {
             // 取得『關鍵幀 pKF』觀察到的地圖點
             vector<MapPoint *> vpMapPoints = pKF->GetMapPointMatches();
 
-            for(MapPoint *pMP : vpMapPoints){
-
+            for(MapPoint *pMP : vpMapPoints)
+            {
                 if (pMP)
                 {
                     if (!pMP->isBad() && pMP->mnLoopPointForKF != mpCurrentKF->mnId)
@@ -1232,8 +1232,8 @@ namespace ORB_SLAM2
         cv::Mat Rcw, tcw, Xc, Twc, Rwc, twc;
         KeyFrame *pRefKF;
         
-        for(MapPoint * pMP : vpMPs){
-
+        for(MapPoint * pMP : vpMPs)
+        {
             if (pMP->isBad()){
                 continue;
             }
