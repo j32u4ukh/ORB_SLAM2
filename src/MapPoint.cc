@@ -36,13 +36,13 @@ namespace ORB_SLAM2
     // 以上為管理執行續相關函式
     // ==================================================
 
-    MapPoint::MapPoint(const cv::Mat &Pos, KeyFrame *pRefKF, Map *pMap) : 
+    MapPoint::MapPoint(const cv::Mat &Pos, KeyFrame *pRefKF, Map *pMap, cv::Vec3b color) : 
                        mnFirstKFid(pRefKF->mnId), mnFirstFrame(pRefKF->mnFrameId), nObs(0), 
                        mnTrackReferenceForFrame(0), mnLastFrameSeen(0), mnBALocalForKF(0), 
                        mnFuseCandidateForKF(0), mnLoopPointForKF(0), mnCorrectedByKF(0), 
                        mnCorrectedReference(0), mnBAGlobalForKF(0), mpRefKF(pRefKF), mnVisible(1), 
                        mnFound(1), mbBad(false), mpReplaced(static_cast<MapPoint *>(NULL)), 
-                       mfMinDistance(0), mfMaxDistance(0), mpMap(pMap)
+                       mfMinDistance(0), mfMaxDistance(0), mpMap(pMap), mp_color(color)
     {
         Pos.copyTo(mWorldPos);
         mNormalVector = cv::Mat::zeros(3, 1, CV_32F);
@@ -595,6 +595,11 @@ namespace ORB_SLAM2
     {
         unique_lock<mutex> lock1(odd_mutex);
         return log_odd;
+    }
+
+    cv::Vec3b MapPoint::getColor()
+    {
+        return mp_color;
     }
 
     // ==================================================

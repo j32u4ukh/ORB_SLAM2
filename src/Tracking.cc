@@ -226,12 +226,12 @@ namespace ORB_SLAM2
         // 建構當前幀 Frame 物件
         if (mState == NOT_INITIALIZED || mState == NO_IMAGES_YET)
         {
-            mCurrentFrame = Frame(gray, timestamp,
+            mCurrentFrame = Frame(gray, timestamp, img,
                                   mpIniORBextractor, mpORBVocabulary, K, mDistCoef, mbf, mThDepth);
         }
         else
         {
-            mCurrentFrame = Frame(gray, timestamp,
+            mCurrentFrame = Frame(gray, timestamp, img,
                                   mpORBextractorLeft, mpORBVocabulary, K, mDistCoef, mbf, mThDepth);
         }
 
@@ -694,15 +694,20 @@ namespace ORB_SLAM2
             // Create MapPoint.
             cv::Mat worldPos(mvIniP3D[i]);
 
+            int index = mvIniMatches[i];
+            cv::Vec3b color = pKFcur->getColor(index);
+            
             // 形成 MapPoint 的當下，log_odd 即為 0.85，隨著後續的再次觀察或沒被觀察到，再進一步修改數值
-            pMP = new MapPoint(worldPos, pKFcur, mpMap);
+            pMP = new MapPoint(worldPos, pKFcur, mpMap, color);
 
             // Eigen::Vector3d camera = Converter::toVector3d((*pKFcur).GetCameraCenter());
             // Eigen::Vector3d map_point = Converter::toVector3d(worldPos);
             // mpMap->updateLogOdd(camera, map_point);
 
-            // 關鍵幀紀錄觀察到的地圖點
+            // 關鍵幀 pKFini 的第 i 個關鍵點觀察到了地圖點 pMP
             pKFini->AddMapPoint(pMP, i);
+
+            // 關鍵幀 pKFcur 的第 mvIniMatches[i] 個關鍵點觀察到了地圖點 pMP
             pKFcur->AddMapPoint(pMP, mvIniMatches[i]);
 
             // 地圖點紀錄被哪些關鍵幀觀察到
@@ -1284,8 +1289,8 @@ namespace ORB_SLAM2
             return false;
         }
 
-        // 內點至少 30 點，才算重定位成功
-        if(mnMatchesInliers >= 30)
+        /// NOTE: 內點至少 30 -> 20 點，才算重定位成功
+        if(mnMatchesInliers >= 20)
         {
             return true;
         }

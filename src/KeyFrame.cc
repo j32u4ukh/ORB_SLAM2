@@ -95,6 +95,8 @@ namespace ORB_SLAM2
         }
 
         SetPose(F.mTcw);
+
+        color_image = F.getColorImage();
     }
 
     void KeyFrame::SetPose(const cv::Mat &Tcw_)
@@ -446,6 +448,27 @@ namespace ORB_SLAM2
     {
         unique_lock<mutex> lock(mMutexFeatures);
         return mvpMapPoints[idx];
+    }
+
+    // 根據特徵點索引值取得位置，再返回該點的顏色
+    cv::Vec3b KeyFrame::getColor(const int index)
+    {
+        cv::KeyPoint kp = mvKeysUn[index];
+
+        return getColor(kp.pt.x, kp.pt.y);
+    }
+
+    // 根據特徵點位置，返回該點的顏色
+    cv::Vec3b KeyFrame::getColor(const float u, const float v)
+    {
+        int x = round(u), y = round(v);
+
+        if(x < 0 || color_image.rows <= x || y < 0 || color_image.cols <= y)
+        {
+            return cv::Vec3b(0.0, 0.0, 0.0);
+        }
+
+        return color_image.at<cv::Vec3b>(x, y);
     }
 
     // 關鍵幀的第 idx 個關鍵點觀察到了地圖點 pMP

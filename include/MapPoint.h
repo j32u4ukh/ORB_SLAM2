@@ -39,7 +39,7 @@ class Frame;
 class MapPoint
 {
 public:
-    MapPoint(const cv::Mat &Pos, KeyFrame* pRefKF, Map* pMap);
+    MapPoint(const cv::Mat &Pos, KeyFrame* pRefKF, Map* pMap, cv::Vec3b color=cv::Vec3b(0.0, 0.0, 0.0));
     MapPoint(const cv::Mat &Pos,  Map* pMap, Frame* pFrame, const int &idxF);
 
     void SetWorldPos(const cv::Mat &Pos);
@@ -102,6 +102,9 @@ public:
     void miss(double delta = 0.0);
     double getHitProb();
     double getHitLog();
+
+    /* 地圖點顏色資訊 */
+    cv::Vec3b getColor();
 
 public:
     long unsigned int mnId;
@@ -200,6 +203,9 @@ protected:
 
      // 佔據三維體元被擊中（Hit）的概率值為 0.7 對應的 log-odd 為 0.85
      double log_odd = 0.85;
+
+     /* 地圖點顏色資訊 */
+     cv::Vec3b mp_color;
 };
 
 } //namespace ORB_SLAM

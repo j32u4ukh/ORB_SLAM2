@@ -1070,9 +1070,22 @@ namespace ORB_SLAM2
             }
             // ==================================================
 
+            cv::Vec3b color = cv::Vec3b(0.0, 0.0, 0.0);
+
+            try{
+                color = mpCurrentKeyFrame->getColor(u1, v1);
+
+            }catch(exception){
+                std::cout << "LocalMapping::createMonoMapPointsByKeyPoints (u, v) = ("
+                          << u1 << ", " << u2 << ")" 
+                          << std::endl;
+                          
+                color = cv::Vec3b(0.0, 0.0, 0.0);
+            }
+
             // Triangulation is succesfull
             // 如果成功進行了三角化，就會新建一個地圖點，並相應的更新關鍵幀與該地圖點之間的可視關系。
-            pMP = new MapPoint(x3D, mpCurrentKeyFrame, mpMap);
+            pMP = new MapPoint(x3D, mpCurrentKeyFrame, mpMap, color);
 
             // if(System::start_idx <= (*index) && (*index) <= System::end_idx)
             // {

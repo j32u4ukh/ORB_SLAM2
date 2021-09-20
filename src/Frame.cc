@@ -38,11 +38,11 @@ namespace ORB_SLAM2
     // 以上為管理執行續相關函式
     // ==================================================
 
-    // 第一幀初始化用 Frame
-    Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor *extractor, 
-                 ORBVocabulary *voc, cv::Mat &_K, cv::Mat &distCoef, const float &bf, 
-                 const float &thDepth) : 
-                 mpORBvocabulary(voc), mpORBextractorLeft(extractor), 
+    // Constructor for Monocular cameras.
+    Frame::Frame(const cv::Mat &imGray, const double &timeStamp, const cv::Mat &img, 
+                 ORBextractor *extractor, ORBVocabulary *voc, cv::Mat &_K, cv::Mat &distCoef, 
+                 const float &bf, const float &thDepth) : 
+                 color_image(img), mpORBvocabulary(voc), mpORBextractorLeft(extractor), 
                  mpORBextractorRight(static_cast<ORBextractor *>(NULL)), mTimeStamp(timeStamp), 
                  K(_K.clone()), mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth)
     {
@@ -498,6 +498,11 @@ namespace ORB_SLAM2
         pMP->mTrackViewCos = viewCos;
 
         return true;
+    }
+
+    cv::Mat Frame::getColorImage()
+    {
+        return color_image.clone();
     }
 
     // ==================================================

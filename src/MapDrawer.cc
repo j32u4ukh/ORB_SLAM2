@@ -299,13 +299,18 @@ namespace ORB_SLAM2
         glBegin(GL_POINTS);
 
         // 設置為黑色 -> 過去觀察到的點
-        glColor3f(0.0, 0.0, 0.0);
+        // glColor3f(0.0, 0.0, 0.0);
 
         for(MapPoint * mp : vpMPs)
         {
             if (mp->isBad() || spRefMPs.count(mp)){
                 continue;
             }
+
+            cv::Vec3b color = mp->getColor();
+
+            // color (0, 255) -> (0.0, 1.0)
+            glColor3f(color[0] / 255.0, color[1] / 255.0, color[2] / 255.0);
 
             cv::Mat pos = mp->GetWorldPos();
             glVertex3f(pos.at<float>(0), pos.at<float>(1), pos.at<float>(2));

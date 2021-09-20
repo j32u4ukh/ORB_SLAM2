@@ -93,6 +93,12 @@ namespace ORB_SLAM2
         int getTrackedMapPointNumber(const int &minObs);
         MapPoint *GetMapPoint(const size_t &idx);
 
+        // 根據特徵點索引值取得位置，再返回該點的顏色
+        cv::Vec3b getColor(const int index);
+
+        // 根據特徵點位置，返回該點的顏色
+        cv::Vec3b getColor(const float u, const float v);
+
         // KeyPoint functions
         std::vector<size_t> GetFeaturesInArea(const float &x, const float &y, const float &r) const;
         cv::Mat UnprojectStereo(int i);
@@ -267,6 +273,10 @@ namespace ORB_SLAM2
         std::mutex mMutexPose;
         std::mutex mMutexConnections;
         std::mutex mMutexFeatures;
+
+    private:
+        // 影像顏色資訊
+        cv::Mat color_image;
     };
 
 } //namespace ORB_SLAM
