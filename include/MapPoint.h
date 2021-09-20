@@ -98,10 +98,10 @@ public:
 
      p = 1 / ( 1 + exp(-log_odd) )
      */
-    inline void hit(double delta = 0.0);
-    inline void miss(double delta = 0.0);
-    inline double getHitProb();
-    inline double getHitLog();
+    void hit(double delta = 0.0);
+    void miss(double delta = 0.0);
+    double getHitProb();
+    double getHitLog();
 
 public:
     long unsigned int mnId;
@@ -193,6 +193,7 @@ protected:
 
      p = 1 / ( 1 + exp(-log_odd) )
      */
+     std::mutex odd_mutex;
      double max_odd = 3.5;
      double min_odd = -2.0;
      static const double delta_odd;

@@ -563,6 +563,8 @@ namespace ORB_SLAM2
     // ==================================================
     void MapPoint::hit(double delta)
     {
+        unique_lock<mutex> lock1(odd_mutex);
+
         if(delta == 0.0)
         {
             delta = delta_odd;
@@ -573,6 +575,8 @@ namespace ORB_SLAM2
 
     void MapPoint::miss(double delta)
     {
+        unique_lock<mutex> lock1(odd_mutex);
+
         if(delta == 0.0)
         {
             delta = delta_odd;
@@ -583,11 +587,13 @@ namespace ORB_SLAM2
 
     double MapPoint::getHitProb()
     {
+        unique_lock<mutex> lock1(odd_mutex);
         return 1.0/(1.0 + exp(-log_odd));
     }
 
     double MapPoint::getHitLog()
     {
+        unique_lock<mutex> lock1(odd_mutex);
         return log_odd;
     }
 

@@ -22,12 +22,16 @@
 #include "LoopClosing.h"
 #include "ORBmatcher.h"
 #include "Optimizer.h"
+#include "Converter.h"
 
 #include <mutex>
 #include <unistd.h>
 
 namespace ORB_SLAM2
 {
+    const int LocalMapping::start_idx = 1570;
+    const int LocalMapping::end_idx = 1600;
+
     // ==================================================
 
     // LocalMapping::Run & Tracking::NeedNewKeyFrame & Optimizer::LocalBundleAdjustment 將被暫時停止
@@ -155,12 +159,13 @@ namespace ORB_SLAM2
     // 以上為管理執行續相關函式
     // ==================================================
 
-    LocalMapping::LocalMapping(Map *pMap, const float bMonocular) : 
+    LocalMapping::LocalMapping(Map *pMap, const float bMonocular, const int &idx) : 
                                mpMap(pMap), mbMonocular(bMonocular), mbResetRequested(false), 
                                mbFinishRequested(false), mbFinished(true), mbAbortBA(false), 
                                mbStopped(false), mbStopRequested(false), mbNotStop(false), 
                                mbAcceptKeyFrames(true)
     {
+        index = &idx;
     }
 
     void LocalMapping::Run()
@@ -1068,6 +1073,14 @@ namespace ORB_SLAM2
             // Triangulation is succesfull
             // 如果成功進行了三角化，就會新建一個地圖點，並相應的更新關鍵幀與該地圖點之間的可視關系。
             pMP = new MapPoint(x3D, mpCurrentKeyFrame, mpMap);
+
+            // if(System::start_idx <= (*index) && (*index) <= System::end_idx)
+            // {
+            //     Eigen::Vector3d camera = Converter::toVector3d((*mpCurrentKeyFrame).GetCameraCenter());
+            //     Eigen::Vector3d map_point = Converter::toVector3d(x3D);
+
+            //     mpMap->updateLogOdd(camera, map_point);
+            // }
 
             // 『地圖點 pMP』被『關鍵幀 mpCurrentKeyFrame』的第 idx1 個關鍵點所觀察到
             pMP->AddObservation(mpCurrentKeyFrame, idx1);

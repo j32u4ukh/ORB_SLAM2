@@ -697,6 +697,10 @@ namespace ORB_SLAM2
             // 形成 MapPoint 的當下，log_odd 即為 0.85，隨著後續的再次觀察或沒被觀察到，再進一步修改數值
             pMP = new MapPoint(worldPos, pKFcur, mpMap);
 
+            // Eigen::Vector3d camera = Converter::toVector3d((*pKFcur).GetCameraCenter());
+            // Eigen::Vector3d map_point = Converter::toVector3d(worldPos);
+            // mpMap->updateLogOdd(camera, map_point);
+
             // 關鍵幀紀錄觀察到的地圖點
             pKFini->AddMapPoint(pMP, i);
             pKFcur->AddMapPoint(pMP, mvIniMatches[i]);
@@ -1272,7 +1276,7 @@ namespace ORB_SLAM2
                 std::cout << "[TrackLocalMap] " 
                           << mCurrentFrame.mnId << " < "
                           << mnLastRelocFrameId << " + " << mMaxFrames
-                          << ", mnMatchesInliers: " << mnMatchesInliers 
+                          << ", mnMatchesInliers: " << mnMatchesInliers << " < 50"
                           << ", n_inlier: " << n_inlier 
                           << ", n_mp: " << n_mp << std::endl;
             }

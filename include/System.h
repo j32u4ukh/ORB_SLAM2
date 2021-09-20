@@ -218,6 +218,8 @@ public:
 
     // 幀數索引值
     int index;
+    static const int start_idx;
+    static const int end_idx;
 };
 
 }// namespace ORB_SLAM

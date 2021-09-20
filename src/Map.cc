@@ -159,8 +159,73 @@ namespace ORB_SLAM2
     }
 
     // ==================================================
-    // 以下為非單目相關函式
+    // 自定義函式
     // ==================================================
 
+    void Map::updateLogOdd(const Eigen::Vector3d origin, const Eigen::Vector3d endpoint)
+    {
+        // LOCK!!!!
+        unique_lock<mutex> lock(mMutexMap);
+        std::cout << "Start Map::updateLogOdd" << std::endl;
+
+        std::set<ORB_SLAM2::MapPoint*>::iterator mp_it, mp_end = mspMapPoints.end();
+        MapPoint* mp;
+        Eigen::Vector3d mp_vector, ray = endpoint - origin;
+
+        for(mp_it = mspMapPoints.begin(); mp_it != mp_end; mp_it++)
+        {
+            mp = *mp_it;
+
+            if(!mp)
+            {
+                continue;
+            }
+
+            mp_vector = Converter::toVector3d(mp->GetWorldPos()) - origin;
+
+            // 地圖點 mp 在此次觀察到的地圖點 endpoint 的射線上，表示地圖點 mp 應該已不在原本的位置
+            if(isOnRay(ray, mp_vector))
+            {
+                if(mp_vector.norm() == ray.norm())
+                {                    
+                    mp->hit();
+
+                    std::cout << "Map::updateLogOdd hit\n"
+                          << "origin: " << origin.transpose()
+                          << ", endpoint: " << endpoint.transpose()
+                          << "\nmp: " << Converter::toVector3d(mp->GetWorldPos()).transpose()
+                          << ", mp_vector: " << mp_vector.transpose()
+                          << ", getHitLog: " << mp->getHitLog()
+                          << ", getHitProb: " << mp->getHitProb()
+                          << std::endl;
+                }
+                else
+                {
+                    mp->miss();
+
+                    std::cout << "Map::updateLogOdd miss\n"
+                          << "origin: " << origin.transpose()
+                          << ", endpoint: " << endpoint.transpose()
+                          << "\nmp: " << Converter::toVector3d(mp->GetWorldPos()).transpose()
+                          << ", mp_vector: " << mp_vector.transpose()
+                          << ", getHitLog: " << mp->getHitLog()
+                          << ", getHitProb: " << mp->getHitProb()
+                          << std::endl;
+                }
+            }
+        }
+
+        std::cout << "End Map::updateLogOdd" << std::endl;
+    }
+
+    bool Map::isOnRay(const Eigen::Vector3d ray, const Eigen::Vector3d vector)
+    {
+        if(vector.norm() > ray.norm())
+        {
+            return false;
+        }
+
+        return ray.normalized() == vector.normalized();
+    }
     
 } //namespace ORB_SLAM

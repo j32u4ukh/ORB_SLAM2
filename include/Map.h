@@ -23,8 +23,10 @@
 
 #include "MapPoint.h"
 #include "KeyFrame.h"
-#include <set>
+#include "Converter.h"
 
+#include <Eigen/Core>
+#include <set>
 #include <mutex>
 
 
@@ -51,6 +53,9 @@ public:
     std::vector<KeyFrame*> GetAllKeyFrames();
     std::vector<MapPoint*> GetAllMapPoints();
     std::vector<MapPoint*> GetReferenceMapPoints();
+
+    void updateLogOdd(const Eigen::Vector3d origin, const Eigen::Vector3d endpoint);
+    bool isOnRay(const Eigen::Vector3d ray, const Eigen::Vector3d vector);
 
     long unsigned int getInMapMapPointNumber();
     long unsigned  getInMapKeyFrameNumber();

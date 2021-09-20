@@ -29,6 +29,9 @@
 
 namespace ORB_SLAM2
 {
+    const int System::start_idx = 1570;
+    const int System::end_idx = 1600;
+
     // ==================================================
 
     void System::Reset()
@@ -127,7 +130,7 @@ namespace ORB_SLAM2
                                  mpMap, mpKeyFrameDatabase, strSettingsFile, mSensor);
 
         //Initialize the Local Mapping thread and launch
-        mpLocalMapper = new LocalMapping(mpMap, mSensor == MONOCULAR);
+        mpLocalMapper = new LocalMapping(mpMap, mSensor == MONOCULAR, index);
         mptLocalMapping = new thread(&ORB_SLAM2::LocalMapping::Run, mpLocalMapper);
 
         //Initialize the Loop Closing thread and launch
