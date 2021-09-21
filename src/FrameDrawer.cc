@@ -34,9 +34,17 @@ namespace ORB_SLAM2
     // 以上為管理執行續相關函式
     // ==================================================
 
-    FrameDrawer::FrameDrawer(Map *pMap) : mpMap(pMap)
+    FrameDrawer::FrameDrawer(Map *pMap, bool bReuseMap) : mpMap(pMap)
     {
-        mState = Tracking::SYSTEM_NOT_READY;
+        if (bReuseMap)
+        {
+            mState = Tracking::LOST;
+        }
+        else
+        {
+            mState = Tracking::SYSTEM_NOT_READY;
+        }
+
         img_buffer = cv::Mat(480, 640, CV_8UC3, cv::Scalar(0, 0, 0));
     }
 

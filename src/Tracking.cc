@@ -52,7 +52,7 @@ namespace ORB_SLAM2
     // 相機標定 與 建構 ORBextractor 物件等
     Tracking::Tracking(System *pSys, ORBVocabulary *pVoc, FrameDrawer *pFrameDrawer,
                        MapDrawer *pMapDrawer, Map *pMap, KeyFrameDatabase *pKFDB,
-                       const string &strSettingPath, const int sensor) : 
+                       const string &strSettingPath, const int sensor, bool bReuseMap) : 
                        mpSystem(pSys), mpORBVocabulary(pVoc), mpFrameDrawer(pFrameDrawer),
                        mpMapDrawer(pMapDrawer), mpMap(pMap), mpKeyFrameDB(pKFDB), mSensor(sensor),
                        mState(NO_IMAGES_YET), mbOnlyTracking(false), mbVO(false), mpViewer(NULL),
@@ -190,6 +190,11 @@ namespace ORB_SLAM2
                     mDepthMapFactor = 1.0f / mDepthMapFactor;
                 }
             }
+        }
+
+        if (bReuseMap)
+        {
+            mState = LOST;
         }
     }
 

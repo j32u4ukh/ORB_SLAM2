@@ -45,15 +45,17 @@ void loadImages(const string &path, vector<string> &files, vector<double> &time_
 
 int main(int argc, char **argv)
 {
-    if (argc != 4)
+    if (argc != 5)
     {
         // 以 KITTI Dataset 為例
         // argc[0] ./Examples/Monocular/mono_kitti
         // argc[1] Vocabulary/ORBvoc.txt
         // argc[2] Examples/Monocular/KITTIX.yaml
         // argc[3] PATH_TO_DATASET_FOLDER/dataset/sequences/SEQUENCE_NUMBER
+        // argc[4] [1|0](save map?)
         cerr << endl
-             << "Usage: ./mono_kitti path_to_vocabulary path_to_settings path_to_sequence" << endl;
+             << "Usage: ./mono_kitti path_to_vocabulary path_to_settings path_to_sequence [1|0](save map?)" 
+             << endl;
         return 1;
     }
 
@@ -72,7 +74,7 @@ int main(int argc, char **argv)
     // argc[1] Vocabulary/ORBvoc.txt
     // argc[2] Examples/Monocular/KITTIX.yaml
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    ORB_SLAM2::System SLAM(argv[1], argv[2], ORB_SLAM2::System::MONOCULAR, true);
+    ORB_SLAM2::System SLAM(argv[1], argv[2], ORB_SLAM2::System::MONOCULAR, true, (bool)atoi(argv[4]));
     cv::Mat im;
 
     // Vector for tracking time statistics

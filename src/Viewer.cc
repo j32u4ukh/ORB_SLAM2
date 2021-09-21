@@ -100,10 +100,10 @@ namespace ORB_SLAM2
     // ==================================================
 
     Viewer::Viewer(System *pSystem, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, 
-                   Tracking *pTracking, const string &strSettingPath) : 
+                   Tracking *pTracking, const string &strSettingPath, bool mbReuseMap_) : 
                    mpSystem(pSystem), mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), 
                    mpTracker(pTracking), mbFinishRequested(false), mbFinished(true), mbStopped(true), 
-                   mbStopRequested(false)
+                   mbStopRequested(false), mbReuseMap(mbReuseMap_)
     {
         cv::FileStorage fSettings(strSettingPath, cv::FileStorage::READ);
 
@@ -150,7 +150,8 @@ namespace ORB_SLAM2
         pangolin::Var<bool> menuShowPoints("menu.Show Points", true, true);
         pangolin::Var<bool> menuShowKeyFrames("menu.Show KeyFrames", true, true);
         pangolin::Var<bool> menuShowGraph("menu.Show Graph", true, true);
-        pangolin::Var<bool> menuLocalizationMode("menu.Localization Mode", false, true);
+        // pangolin::Var<bool> menuLocalizationMode("menu.Localization Mode", false, true);
+        pangolin::Var<bool> menuLocalizationMode("menu.Localization Mode",mbReuseMap,true);
         pangolin::Var<bool> menuReset("menu.Reset", false, false);
 
         // Define Camera Render Object (for view / scene browsing)

@@ -36,7 +36,12 @@
 #include "ORBVocabulary.h"
 #include "Viewer.h"
 
+// octomap
 #include <octomap/octomap.h>
+
+// for map file io
+#include "BoostArchiver.h"
+#include <fstream>
 
 namespace ORB_SLAM2
 {
@@ -75,6 +80,10 @@ private:
     // Map structure that stores the pointers to all KeyFrames and MapPoints.
     // ORB-SLAM中的地圖對象，用於保存所有關鍵幀和地圖點。
     Map* mpMap;
+
+    // for save/load 
+    string mapfile;
+    bool is_save_map;
 
     // Tracker. It receives a frame and computes the associated camera pose.
     // It also decides when to insert a new keyframe, create some new MapPoints and
@@ -150,7 +159,7 @@ public:
 
     // Initialize the SLAM system. It launches the Local Mapping, Loop Closing and Viewer threads.
     System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor, 
-           const bool bUseViewer = true);
+           const bool bUseViewer = true, bool is_save_map_=false);
 
     // Proccess the given stereo frame. Images must be synchronized and rectified.
     // Input images: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.
@@ -220,6 +229,11 @@ public:
     int index;
     static const int start_idx;
     static const int end_idx;
+
+private:
+    // Save/Load functions
+    void SaveMap(const string &filename);
+    bool LoadMap(const string &filename);
 };
 
 }// namespace ORB_SLAM

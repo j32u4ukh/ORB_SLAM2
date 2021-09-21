@@ -45,8 +45,8 @@ namespace ORB_SLAM2
     // ==================================================
 
     System::System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor, 
-                   const bool bUseViewer) : 
-                   mSensor(sensor), mpViewer(static_cast<Viewer *>(NULL)), mbReset(false), 
+                   const bool bUseViewer, bool is_save_map_) : 
+                   mSensor(sensor), is_save_map(is_save_map_), mpViewer(static_cast<Viewer *>(NULL)), mbReset(false), 
                    mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false), index(0)
     {
         // Output welcome message
@@ -79,6 +79,15 @@ namespace ORB_SLAM2
         {
             cerr << "Failed to open settings file at: " << strSettingsFile << endl;
             exit(-1);
+        }
+
+        // for save/load map
+        cv::FileNode mapfilen = fsSettings["Map.mapfile"];
+        bool bReuseMap = false;
+
+        if (!mapfilen.empty())
+        {
+            mapfile = (string)mapfilen;
         }
 
         //Load ORB Vocabulary
@@ -115,19 +124,28 @@ namespace ORB_SLAM2
         cout << "Vocabulary loaded! Cost " << loading_time << " s." << endl << endl;
 
         // Create KeyFrame Database
-        mpKeyFrameDatabase = new KeyFrameDatabase(*orb_vocabulary);
-
         // Create the Map
-        mpMap = new Map();
+        if (!mapfile.empty() && LoadMap(mapfile))
+        {
+            bReuseMap = true;
+        }
+        else
+        {
+            // Create KeyFrame Database
+            mpKeyFrameDatabase = new KeyFrameDatabase(*orb_vocabulary);
+
+            // Create the Map
+            mpMap = new Map();
+        }
 
         // Create Drawers. These are used by the Viewer
-        mpFrameDrawer = new FrameDrawer(mpMap);
+        mpFrameDrawer = new FrameDrawer(mpMap, bReuseMap);
         mpMapDrawer = new MapDrawer(mpMap, strSettingsFile);
 
         // Initialize the Tracking thread
         // (it will live in the main thread of execution, the one that called this constructor)
         mpTracker = new Tracking(this, orb_vocabulary, mpFrameDrawer, mpMapDrawer,
-                                 mpMap, mpKeyFrameDatabase, strSettingsFile, mSensor);
+                                 mpMap, mpKeyFrameDatabase, strSettingsFile, mSensor, bReuseMap);
 
         //Initialize the Local Mapping thread and launch
         mpLocalMapper = new LocalMapping(mpMap, mSensor == MONOCULAR, index);
@@ -141,7 +159,7 @@ namespace ORB_SLAM2
         //Initialize the Viewer thread and launch
         if (bUseViewer)
         {
-            mpViewer = new Viewer(this, mpFrameDrawer, mpMapDrawer, mpTracker, strSettingsFile);
+            mpViewer = new Viewer(this, mpFrameDrawer, mpMapDrawer, mpTracker, strSettingsFile, bReuseMap);
             mptViewer = new thread(&Viewer::Run, mpViewer);
             mpTracker->SetViewer(mpViewer);
         }
@@ -203,6 +221,7 @@ namespace ORB_SLAM2
                 while (!mpLocalMapper->isStopped())
                 {
                     usleep(1000);
+                    // std::this_thread::sleep_for(std::chrono::microseconds(1000));
                 }
 
                 mpTracker->InformOnlyTracking(true);
@@ -390,6 +409,11 @@ namespace ORB_SLAM2
             pangolin::BindToContext("ORB-SLAM2: Map Viewer");
         }
 
+        if (is_save_map)
+        {
+            SaveMap(mapfile);
+        }
+
         int n_kf = mpMap->getInMapKeyFrameNumber();
         int n_mappoint = mpMap->getInMapMapPointNumber();
         cout << "#KeyFrame: " << n_kf << endl;
@@ -430,6 +454,74 @@ namespace ORB_SLAM2
 
         f.close();
         cout << endl << "trajectory saved!" << endl;
+    }
+
+    // ==================================================
+    // 以下為自定義函式
+    // ==================================================
+
+    void System::SaveMap(const string &filename)
+    {
+        unique_lock<mutex> MapPointGlobal(MapPoint::mGlobalMutex);
+        std::ofstream out(filename, std::ios_base::binary);
+
+        if (!out)
+        {
+            cerr << "Cannot Write to Mapfile: " << mapfile << std::endl;
+            exit(-1);
+        }
+
+        cout << "Saving Mapfile: " << mapfile << std::flush;
+
+        boost::archive::binary_oarchive oa(out, boost::archive::no_header);
+        oa << mpMap;
+        oa << mpKeyFrameDatabase;
+
+        cout << " ...done" << std::endl;
+        out.close();
+    }
+
+    bool System::LoadMap(const string &filename)
+    {
+        unique_lock<mutex>MapPointGlobal(MapPoint::mGlobalMutex);
+        std::ifstream in(filename, std::ios_base::binary);
+
+        if (!in)
+        {
+            cerr << "Cannot Open Mapfile: " << mapfile << " , You need create it first!" << std::endl;
+            return false;
+        }
+
+        cout << "Loading Mapfile: " << mapfile << std::flush;
+
+        boost::archive::binary_iarchive ia(in, boost::archive::no_header);
+        ia >> mpMap;
+
+        ia >> mpKeyFrameDatabase;
+        mpKeyFrameDatabase->SetORBvocabulary(orb_vocabulary);
+
+        cout << " ...done" << std::endl;
+        cout << "Map Reconstructing" << flush;
+
+        vector<ORB_SLAM2::KeyFrame*> vpKFS = mpMap->GetAllKeyFrames();
+        unsigned long mnFrameId = 0;
+
+        for (auto it : vpKFS) 
+        {
+            it->SetORBvocabulary(orb_vocabulary);
+            it->ComputeBoW();
+
+            if (it->mnFrameId > mnFrameId)
+            {
+                mnFrameId = it->mnFrameId;
+            }
+        }
+
+        Frame::nNextId = mnFrameId;
+        cout << " ...done" << endl;
+        in.close();
+
+        return true;
     }
 
     // ==================================================

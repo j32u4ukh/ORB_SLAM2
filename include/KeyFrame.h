@@ -30,6 +30,7 @@
 #include "KeyFrameDatabase.h"
 
 #include <mutex>
+#include "BoostArchiver.h"
 
 namespace ORB_SLAM2
 {
@@ -42,7 +43,7 @@ namespace ORB_SLAM2
     class KeyFrame
     {
     public:
-        int index;
+        int index = 0;
         KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB);
 
         // Pose functions
@@ -126,6 +127,18 @@ namespace ORB_SLAM2
         {
             return pKF1->mnId < pKF2->mnId;
         }
+
+    public:
+        // for serialization
+        // Default constructor for serialization, need to deal with const member
+        KeyFrame(); 
+        void SetORBvocabulary(ORBVocabulary *porbv) {mpORBvocabulary=porbv;}
+
+    private:
+        // serialize is recommended to be private
+        friend class boost::serialization::access;
+        template<class Archive>
+        void serialize(Archive &ar, const unsigned int version);
 
         // The following variables are accesed from only 1 thread or never change (no mutex needed).
     public:
