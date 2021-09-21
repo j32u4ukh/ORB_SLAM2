@@ -43,7 +43,6 @@ namespace ORB_SLAM2
     class KeyFrame
     {
     public:
-        int index = 0;
         KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB);
 
         // Pose functions
@@ -135,8 +134,16 @@ namespace ORB_SLAM2
         void SetORBvocabulary(ORBVocabulary *porbv) {mpORBvocabulary=porbv;}
 
     private:
+        /* 
+        如果是選擇在類別中定義成員函式 serialize() 的時候，考慮到這個函式的特殊性，
+        並不適合做為一個外部可以直接呼叫的 public 函式。
+
+        所以這邊比較好的做法，應該是將它改為 private、並透過設定 friend class、
+        來讓它可以被 Boost serialization 提供的 archive 呼叫，理論上會比較安全。
+        */
         // serialize is recommended to be private
         friend class boost::serialization::access;
+
         template<class Archive>
         void serialize(Archive &ar, const unsigned int version);
 

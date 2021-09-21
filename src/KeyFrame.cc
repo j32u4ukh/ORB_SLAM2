@@ -925,8 +925,8 @@ namespace ORB_SLAM2
 
     // Default serializing Constructor
     KeyFrame::KeyFrame():
-        mnFrameId(0), mTimeStamp(0.0), mnGridCols(FRAME_GRID_COLS), mnGridRows(FRAME_GRID_ROWS),
-        mfGridElementWidthInv(0.0), mfGridElementHeightInv(0.0),
+        mnFrameId(0), mTimeStamp(0.0), mnGridCols(FRAME_GRID_COLS), 
+        mnGridRows(FRAME_GRID_ROWS), mfGridElementWidthInv(0.0), mfGridElementHeightInv(0.0),
         mnTrackReferenceForFrame(0), mnFuseTargetForKF(0), mnBALocalForKF(0), mnBAFixedForKF(0),
         mnLoopQuery(0), mnLoopWords(0), mnRelocQuery(0), mnRelocWords(0), mnBAGlobalForKF(0),
         fx(0.0), fy(0.0), cx(0.0), cy(0.0), invfx(0.0), invfy(0.0),
@@ -1012,6 +1012,7 @@ namespace ORB_SLAM2
         {
             // Grid related
             unique_lock<mutex> lock_connection(mMutexConnections);
+
             ar & mGrid & mConnectedKeyFrameWeights & mvpOrderedConnectedKeyFrames & mvOrderedWeights;
             
             // Spanning Tree and Loop Edges

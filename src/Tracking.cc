@@ -2075,7 +2075,7 @@ namespace ORB_SLAM2
         {
             if(mState != LOST)
             {
-                cout << "!!!!!!!!!! Tracking lost !!!!!!!!!!" << endl;
+                cout << "!!!!!!!!!! Tracking lost, idx: " << idx << " !!!!!!!!!!" << endl;
             }
 
             mState = LOST;

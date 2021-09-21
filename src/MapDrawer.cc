@@ -309,8 +309,9 @@ namespace ORB_SLAM2
 
             cv::Vec3b color = mp->getColor();
 
-            // color (0, 255) -> (0.0, 1.0)
-            glColor3f(color[0] / 255.0, color[1] / 255.0, color[2] / 255.0);
+            // color (0, 255) -> (0.0, 1.0) 
+            /// TODO: (b, g, r) -> (r, g, b)
+            glColor3f(color[2] / 255.0, color[1] / 255.0, color[0] / 255.0);
 
             cv::Mat pos = mp->GetWorldPos();
             glVertex3f(pos.at<float>(0), pos.at<float>(1), pos.at<float>(2));

@@ -16,7 +16,13 @@ $ /home/j32u4ukh/Documents/ORB_SLAM2>
 
 $ /home/j32u4ukh/Documents/ORB_SLAM2/build> 
 
+[origin]
+
 ../Examples/Monocular/mono_kitti ../Vocabulary/ORBvoc.txt ../Examples/Monocular/KITTI00-02.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/00"
+
+[boost::serialization]
+
+../Examples/Monocular/mono_kitti ../Vocabulary/ORBvoc.txt ../Examples/Monocular/KITTI00-02.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/00" 1
 
 # 執行時間
 [develop - foreach 改版前]
@@ -58,6 +64,15 @@ Octomap 數據寫出花費：7.72189 秒
 Total time: 8:47.1532
 Median tracking time: 0.0660525
 Mean tracking time: 0.0705246
+
+[首次導入地圖序列化]
+Saving Mapfile: map.bin ...done
+#KeyFrame: 555
+#MapPoint: 52851
+Total time: 9:40.6591
+Median tracking time: 0.0698072
+Mean tracking time: 0.0731046
+
 
 
 >>> 階段 1 (   0, 1650) 

@@ -216,7 +216,7 @@ protected:
      // 佔據三維體元被擊中（Hit）的概率值為 0.7 對應的 log-odd 為 0.85
      double log_odd = 0.85;
 
-     /* 地圖點顏色資訊 */
+     /* 地圖點顏色資訊(0 ~ 255) */
      cv::Vec3b mp_color;
 };
 
