@@ -213,7 +213,6 @@ namespace ORB_SLAM2
 
         optimizer.initializeOptimization();
 
-        // 優化 5 次
         if(optimizer.vertices().size() == 0 || optimizer.edges().size() == 0)
         {
             std::cout << "[LocalBundleAdjustment - 1] #vertices: " 
@@ -221,6 +220,7 @@ namespace ORB_SLAM2
                     << ", #edges: " << optimizer.edges().size() << std::endl;
         }
 
+        // 優化 5 次
         optimizer.optimize(5);
 
         bool bDoMore = true;
@@ -243,7 +243,6 @@ namespace ORB_SLAM2
             // Optimize again without the outliers
             optimizer.initializeOptimization(0);
 
-            // 再優化 10 次
             if(optimizer.vertices().size() == 0 || optimizer.edges().size() == 0)
             {
                 std::cout << "[LocalBundleAdjustment - 2] #vertices: " 
@@ -251,6 +250,7 @@ namespace ORB_SLAM2
                         << ", #edges: " << optimizer.edges().size() << std::endl;
             }
 
+            // 再優化 10 次
             optimizer.optimize(10);
         }
 
@@ -688,13 +688,13 @@ namespace ORB_SLAM2
                 // 單目的 mvuRight 會是負的
                 if (pKF->mvuRight[kp_idx] < 0)
                 {
-                    addEdgeSE3ProjectXYZ(op, kpUn, pKF, id, pKF->mnId, bRobust);
+                    addEdgeSE3ProjectXYZ(op, kpUn, pKF, id, pKF->mnId, bRobust, thHuber2D);
                 }
 
                 // 非單目，暫時跳過
                 else
                 {
-                    addEdgeStereoSE3ProjectXYZ(op, kpUn, pKF, kp_idx, id, pKF->mnId, bRobust);
+                    addEdgeStereoSE3ProjectXYZ(op, kpUn, pKF, kp_idx, id, pKF->mnId, bRobust, thHuber3D);
                 }
             }
         }
@@ -811,13 +811,15 @@ namespace ORB_SLAM2
 
         for(KeyFrame *pKFi : vNeighKFs)
         {
-            if (!pKFi || pKFi->isBad())
+            // 標注『關鍵幀 pKFi』已參與『關鍵幀 pKF』的 LocalBundleAdjustment，避免重複添加到 lLocalKeyFrames
+            pKFi->mnBALocalForKF = pKF->mnId;
+            
+            // if (!pKFi || pKFi->isBad())
+            if (pKFi->isBad())
             {
                 continue;
             }
 
-            // 標注『關鍵幀 pKFi』已參與『關鍵幀 pKF』的 LocalBundleAdjustment，避免重複添加到 lLocalKeyFrames
-            pKFi->mnBALocalForKF = pKF->mnId;
             lLocalKeyFrames.push_back(pKFi);
         }
     }
@@ -869,18 +871,16 @@ namespace ORB_SLAM2
             {
                 pKFi = obs.first;
 
-                if (!pKFi || pKFi->isBad())
-                {
-                    continue;
-                }
-
                 // Local && Fixed
                 // 檢查『關鍵幀 pKFi』是否已參與『關鍵幀 pKF』的 LocalBundleAdjustment
                 if (pKFi->mnBALocalForKF != pKF->mnId && pKFi->mnBAFixedForKF != pKF->mnId)
                 {
                     pKFi->mnBAFixedForKF = pKF->mnId;
 
-                    lFixedCameras.push_back(pKFi);
+                    if (!pKFi->isBad())
+                    {
+                        lFixedCameras.push_back(pKFi);
+                    }
                 }
             }
         }
@@ -978,7 +978,7 @@ namespace ORB_SLAM2
                 // Monocular observation
                 if (kp_ur < 0)
                 {
-                    e = addEdgeSE3ProjectXYZ(op, kpUn, kf, id, kf->mnId, false);
+                    e = addEdgeSE3ProjectXYZ(op, kpUn, kf, id, kf->mnId, true, thHuberMono);
                     n_edge++;
 
                     vpEdgesMono.push_back(e);
@@ -990,7 +990,7 @@ namespace ORB_SLAM2
                 else 
                 {
                     e_stereo = addEdgeStereoSE3ProjectXYZ(op, kpUn, pKF, kp_idx, 
-                                                            id, pKF->mnId, false);
+                                                            id, pKF->mnId, true, thHuberStereo);
                                                             
                     vpEdgesStereo.push_back(e_stereo);
                     vpEdgeKFStereo.push_back(kf);
@@ -1100,7 +1100,7 @@ namespace ORB_SLAM2
         {
             vSE3 = static_cast<g2o::VertexSE3Expmap *>(op.vertex(kf->mnId));
             // SE3quat = vSE3->estimate();
-            mat = Converter::toCvMat(SE3quat = vSE3->estimate());
+            mat = Converter::toCvMat(vSE3->estimate());
             kf->SetPose(mat);
         }
     }
@@ -1678,7 +1678,7 @@ namespace ORB_SLAM2
                     if (sInsertedEdges.count(make_pair(min(pKF->mnId, pKFn->mnId), 
                                                        max(pKF->mnId, pKFn->mnId))))
                     {
-                        break;
+                        continue;
                     }
                     
                     itn = NonCorrectedSim3.find(pKFn);
@@ -2104,7 +2104,7 @@ namespace ORB_SLAM2
     g2o::EdgeSE3ProjectXYZ *Optimizer::addEdgeSE3ProjectXYZ(g2o::SparseOptimizer &op,
                                                             const cv::KeyPoint kpUn,
                                                             const KeyFrame *pKF,
-                                                            int v0, int v1, bool bRobust)
+                                                            int v0, int v1, bool bRobust, double delta)
     {
         Eigen::Matrix<double, 2, 1> obs;
         obs << kpUn.pt.x, kpUn.pt.y;
@@ -2123,7 +2123,7 @@ namespace ORB_SLAM2
         if (bRobust)
         {
             g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
-            rk->setDelta(thHuber2D);
+            rk->setDelta(delta);
             e->setRobustKernel(rk);
         }
 
@@ -2145,7 +2145,7 @@ namespace ORB_SLAM2
         // 『地圖點 pMP』的世界座標作為 vPoint 的初始值
         vPoint->setEstimate(Converter::toVector3d(pos));
         vPoint->setId(id);
-        vPoint->setMarginalized(true);
+        // vPoint->setMarginalized(true);
 
         return vPoint;
     }
@@ -2280,7 +2280,7 @@ namespace ORB_SLAM2
                                                                         const size_t kp_idx,
                                                                         const int v0,
                                                                         const int v1,
-                                                                        bool bRobust)
+                                                                        bool bRobust, double delta)
     {
         Eigen::Matrix<double, 3, 1> obs;
         obs << kpUn.pt.x, kpUn.pt.y, pKF->mvuRight[kp_idx];
@@ -2300,7 +2300,7 @@ namespace ORB_SLAM2
         {
             g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
             e->setRobustKernel(rk);
-            rk->setDelta(thHuber3D);
+            rk->setDelta(delta);
         }
 
         e->fx = pKF->fx;

@@ -1900,6 +1900,7 @@ namespace ORB_SLAM2
                 continue;
             }
 
+            // 由於假設兩幀相同點會在差不多的位置，因此會在第二幀的相同位置附近尋找匹配點
             // 從 F2 取出指定區域內，由『指定金字塔層級(level1: 0)』找到的關鍵點的索引值
             vIndices2 = F2.GetFeaturesInArea(vbPrevMatched[i1].x,
                                              vbPrevMatched[i1].y,

@@ -616,7 +616,7 @@ namespace ORB_SLAM2
             // 通過接口 SearchForInitialization 針對初始化進行特征匹配
             // 初始化時，將 Frame 中的已校正關鍵點加入 mvbPrevMatched
             // mInitialFrame：第一幀; mCurrentFrame：第二幀
-            // mvbPrevMatched：第一幀關鍵點位置
+            // mvbPrevMatched：第一幀關鍵點位置，由於假設兩幀相同點會在差不多的位置，因此會在第二幀的相同位置附近尋找匹配點
             // mvIniMatches[i] = j: mInitialFrame 第 i 個特徵點對應到 mCurrentFrame 第 j 個特徵點
             int nmatches = matcher.SearchForInitialization(mInitialFrame, mCurrentFrame,
                                                            mvbPrevMatched, mvIniMatches, 100, idx);

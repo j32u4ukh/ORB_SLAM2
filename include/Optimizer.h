@@ -222,7 +222,7 @@ public:
     static inline g2o::EdgeSE3ProjectXYZ *addEdgeSE3ProjectXYZ(g2o::SparseOptimizer &op,
                                                                const cv::KeyPoint kpUn,
                                                                const KeyFrame *pKF,
-                                                               int v0, int v1, bool bRobust);
+                                                               int v0, int v1, bool bRobust, double delta);
 
     static inline g2o::VertexSE3Expmap * addVertexSE3Expmap(g2o::SparseOptimizer &op, cv::Mat pose, 
                                                             const int id, const bool fixed);    
@@ -258,7 +258,7 @@ public:
                                                                            const size_t kp_idx,
                                                                            const int v0,
                                                                            const int v1,
-                                                                           bool bRobust);
+                                                                           bool bRobust, double delta);
 
     static inline g2o::EdgeStereoSE3ProjectXYZOnlyPose* 
     newEdgeStereoSE3ProjectXYZOnlyPose(g2o::SparseOptimizer &op, Frame *frame, 
