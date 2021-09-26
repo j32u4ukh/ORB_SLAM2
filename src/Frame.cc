@@ -62,6 +62,7 @@ namespace ORB_SLAM2
         // ORB extraction
         ExtractORB(0, imGray);
 
+        // ORB 特徵點個數
         N = mvKeys.size();
 
         if (mvKeys.empty()){
@@ -238,6 +239,15 @@ namespace ORB_SLAM2
             // Undistort corners
             mat = mat.reshape(2);
             cv::undistortPoints(mat, mat, K, mDistCoef, cv::Mat(), K);
+
+            /*cv::Mat cv::Mat::reshape(int cn, int rows = 0) const
+            
+            參數:
+            cn – 新的通道數，若為 0 則表示保持原始通道數。
+            rows – 新的行數，若為 0 則表示保持原始行數。
+
+            參考：https://www.cnblogs.com/denny402/p/5035535.html
+            */ 
             mat = mat.reshape(1);
 
             mnMinX = min(mat.at<float>(0, 0), mat.at<float>(2, 0));

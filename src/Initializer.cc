@@ -57,13 +57,15 @@ namespace ORB_SLAM2
                                  const int idx)
     {
         // Fill structures with current keypoints and matches with reference frame
-        // Reference Frame: 1, Current Frame: 2
+        // Reference Frame: 第 1 幀, Current Frame: 第 2 幀
         // 使用成員變量 mvKeys2 記錄下當前幀中的特征點
         mvKeys2 = CurrentFrame.mvKeysUn;
 
         // vMatches12 中記錄了匹配的特征點。
         mvMatches12.clear();
         mvMatches12.reserve(mvKeys2.size());
+
+        /// TODO: mvbMatched1 沒有被使用到
         mvbMatched1.resize(mvKeys1.size());
 
         // 成員容器 mvMatches12 中記錄下兩幀圖像匹配的特征點對， mvbMatched1 則標記了參考幀中的特征點是否有匹配對象。
@@ -72,7 +74,9 @@ namespace ORB_SLAM2
             // 索引值 >= 0 表示有匹配到
             if (vMatches12[i] >= 0)
             {
+                // vMatches12[i] = j: mInitialFrame 第 i 個特徵點對應到 mCurrentFrame 第 j 個特徵點
                 mvMatches12.push_back(make_pair(i, vMatches12[i]));
+
                 mvbMatched1[i] = true;
             }
             else
@@ -84,12 +88,12 @@ namespace ORB_SLAM2
         // 所有匹配點的數量
         const int N = mvMatches12.size();
 
+        // 記錄了用於 RANSAC 叠代采樣時的備選匹配點索引。
+        vector<size_t> vAvailableIndices;
+
         // 協助重置 vAvailableIndices
         vector<size_t> vAllIndices;
         vAllIndices.reserve(N);
-
-        // 記錄了用於 RANSAC 叠代采樣時的備選匹配點索引。
-        vector<size_t> vAvailableIndices;
 
         for (int i = 0; i < N; i++)
         {
@@ -106,10 +110,11 @@ namespace ORB_SLAM2
 
         for (int it = 0; it < mMaxIterations; it++)
         {
+            // 每次以 vAllIndices 重置 vAvailableIndices，因此抽取出來的索引值是有可能重複的
             vAvailableIndices = vAllIndices;
 
             // Select a minimum set
-            // 取出 8 個特徵點索引值
+            // 隨機抽取 mMaxIterations 次索引值，每一次抽取 8 個，儲存於 mvSets 當中              
             for (j = 0; j < 8; j++)
             {
                 // 隨機取得索引值
@@ -385,6 +390,7 @@ namespace ORB_SLAM2
 
         const float invSigmaSquare = 1.0 / (sigma * sigma);
 
+        /// NOTE: 透過依序取出 mvMatches12 的配對，確保了是有配對成功的點對，再來判斷形成的點是否為內點
         for (int i = 0; i < N; i++)
         {
             bool bIn = true;
@@ -444,7 +450,7 @@ namespace ORB_SLAM2
                 vbMatchesInliers[i] = true;
             }
 
-            // 誤差過大，認定為 outlier
+            // 誤差過大，認定為 outlier（chiSquare1 > th 或 chiSquare2 > th）
             else
             {
                 vbMatchesInliers[i] = false;
@@ -655,8 +661,8 @@ namespace ORB_SLAM2
         // 內點的數量
         int N = 0;
 
-        for(bool is_inlier : vbMatchesInliers){
-
+        for(bool is_inlier : vbMatchesInliers)
+        {
             if (is_inlier)
             {
                 N++;
@@ -789,7 +795,7 @@ namespace ORB_SLAM2
         // Instead of applying the visibility constraints proposed in the Faugeras' paper
         // (which could fail for points seen with low parallax)
         // We reconstruct all hypotheses and check in terms of triangulated points and parallax
-        // 挑選出 8 組種表現最好的那組
+        // 挑選出 8 組中，表現最好的那組
         for (size_t i = 0; i < 8; i++)
         {
             float parallaxi;
@@ -882,6 +888,7 @@ namespace ORB_SLAM2
                 continue;
             }
 
+            /// NOTE: vMatches12[i].first 不等價於 i，因為若沒有配對到，就不會被加入
             const cv::KeyPoint &kp1 = vKeys1[vMatches12[i].first];
             const cv::KeyPoint &kp2 = vKeys2[vMatches12[i].second];
             
@@ -953,7 +960,10 @@ namespace ORB_SLAM2
             }
 
             vCosParallax.push_back(cosParallax);
-            vP3D[vMatches12[i].first] = cv::Point3f(p3dC1.at<float>(0), p3dC1.at<float>(1),
+
+            /// NOTE: vMatches12[i].first 其實就是 i，特地形成 pair 有什麼意義嗎？
+            vP3D[vMatches12[i].first] = cv::Point3f(p3dC1.at<float>(0), 
+                                                    p3dC1.at<float>(1),
                                                     p3dC1.at<float>(2));
 
             // 兩相機間有足夠的夾角，且分別相機上的重投影誤差都足夠小

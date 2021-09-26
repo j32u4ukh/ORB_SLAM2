@@ -117,7 +117,8 @@ public:
     // Initialization Variables (Monocular)
     std::vector<int> mvIniLastMatches;
 
-    // vector<int> 用於單目初始化，記錄了初始幀中各個特征點與當前幀匹配的特征點索引。
+    /* vector<int> 用於單目初始化，記錄了初始幀中各個特征點與當前幀匹配的特征點索引。
+       關鍵點匹配中，和『影像 F1 第 i1 個關鍵點』配對成功的是『影像 F2 第 bestIdx2 個關鍵點』*/ 
     std::vector<int> mvIniMatches;
 
     // 紀錄前一幀匹配成功的關鍵點的位置，由於假設兩幀之間運動極小，因此關鍵點在第二幀的位置，應和前一幀差不多

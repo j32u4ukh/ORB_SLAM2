@@ -48,6 +48,7 @@ namespace ORB_SLAM2
 
         for(pair<DBoW2::WordId, DBoW2::WordValue> bow : bow_vector)
         {
+            // 相同 WordId 的關鍵幀，都會被存在 mvInvertedFile[bow.first] 當中
             mvInvertedFile[bow.first].push_back(pKF);
         }
     }
@@ -59,6 +60,7 @@ namespace ORB_SLAM2
         // Erase elements in the Inverse File for the entry
         DBoW2::BowVector bow_vector = pKF->mBowVec;
 
+        // 將 pKF 從各個 WordId 所紀錄的關鍵幀中移除
         for(pair<DBoW2::WordId, DBoW2::WordValue> bow : bow_vector)
         {
             // List of keyframes that share the word

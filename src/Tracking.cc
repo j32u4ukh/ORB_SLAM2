@@ -251,7 +251,10 @@ namespace ORB_SLAM2
         1. 勻速模型：如果一切正常就使用勻速運動模型來粗略的估計相機位姿，在通過優化提高定位精度。
         2. 詞袋重定位：如果跟丟了，就通過詞袋模型進行重定位，重新確認參考關鍵幀。
         3. 參考關鍵幀：當使用勻速運動模型不能有效估計相機位姿，或者因為重定位的發生導致沒有速度估計或者幀 ID 發生跳轉時，
-        ORB-SLAM 就會通過參考關鍵幀來估計位姿。*/
+        ORB-SLAM 就會通過參考關鍵幀來估計位姿。
+        
+        mState: 1. NO_IMAGES_YET -> 2. NOT_INITIALIZED -> 
+        */
 
         // 第一張影像時，mState 會是 NO_IMAGES_YET
         if (mState == NO_IMAGES_YET)
@@ -552,11 +555,13 @@ namespace ORB_SLAM2
         6. 以參考幀下深度的中位數為基準建立基礎尺度；
         */
 
+        // 第 1 幀
         // 檢查指針 mpInitializer，如果它是個空指針就以當前幀作為參考具例化 mpInitializer。
         if (!mpInitializer)
         {
             // Set Reference Frame
             // 為了保證初始化的品質，只有當圖像的特征點數量超過了 100 個，我們才進行初始化操作。
+            /// NOTE: mCurrentFrame.mvKeys.size() == mCurrentFrame.N，作者自己大概也忘了
             if (mCurrentFrame.mvKeys.size() > 100)
             {
                 // 在具例化 mpInitializer 之前， 先以當前幀作為整個系統的初始幀，記錄在 mInitialFrame，
@@ -573,13 +578,13 @@ namespace ORB_SLAM2
                     mvbPrevMatched[i] = mCurrentFrame.mvKeysUn[i].pt;
                 }
 
-                if (mpInitializer)
-                {
-                    std::cout << "delete mpInitializer in MonocularInitialization" << std::endl;
-                    delete mpInitializer;
-                }
+                // if (mpInitializer)
+                // {
+                //     std::cout << "delete mpInitializer in MonocularInitialization" << std::endl;
+                //     delete mpInitializer;
+                // }
 
-                // 根據當前幀具例化初始化器
+                // 根據當前幀初始化 Initializer，產生 200 組 RANSAC 樣本
                 mpInitializer = new Initializer(mCurrentFrame, 1.0, 200);
 
                 // 將 mvIniMatches 中所有的特征點匹配值都置為 -1，表示它們都還沒有匹配。
@@ -589,6 +594,7 @@ namespace ORB_SLAM2
             }
         }
 
+        // 第 2 幀
         // 如果 mpInitializer 已經被具例化了，說明我們已經有了一個參考幀。也就是已經第二幀了。
         else
         {
@@ -609,6 +615,9 @@ namespace ORB_SLAM2
 
             // 通過接口 SearchForInitialization 針對初始化進行特征匹配
             // 初始化時，將 Frame 中的已校正關鍵點加入 mvbPrevMatched
+            // mInitialFrame：第一幀; mCurrentFrame：第二幀
+            // mvbPrevMatched：第一幀關鍵點位置
+            // mvIniMatches[i] = j: mInitialFrame 第 i 個特徵點對應到 mCurrentFrame 第 j 個特徵點
             int nmatches = matcher.SearchForInitialization(mInitialFrame, mCurrentFrame,
                                                            mvbPrevMatched, mvIniMatches, 100, idx);
 
@@ -635,6 +644,7 @@ namespace ORB_SLAM2
             // 同時利用『單應性矩陣』和『基礎矩陣』估計空間點 vP3D（過程中包含估計旋轉和平移），挑選較佳的估計結果
             // 並確保『兩相機間有足夠的夾角，且分別相機上的重投影誤差都足夠小』，返回是否順利估計
             // 估計 旋轉 Rcw, 平移 tcw, 空間點位置 mvIniP3D
+            // mvIniMatches[i] = j: mInitialFrame 第 i 個特徵點對應到 mCurrentFrame 第 j 個特徵點
             if (mpInitializer->Initialize(mCurrentFrame, mvIniMatches, Rcw, tcw, 
                                           mvIniP3D, vbTriangulated, idx))
             {
@@ -907,7 +917,7 @@ namespace ORB_SLAM2
         }
 
         /// NOTE: 20210912 推測 0 vertices 發生源於此，PoseOptimization 當中會優化位姿估計多次，
-        /// 但仍不足阻止 LOST 的發生
+        /// 但仍不足以阻止 LOST 的發生
         /// TODO: 印出初始位姿、優化過程、最終位姿
         Optimizer::PoseOptimization(&mCurrentFrame, idx);
 
@@ -1130,7 +1140,7 @@ namespace ORB_SLAM2
         else
         {
             std::cout << "[TrackWithMotionModel] idx: " << idx 
-                      << ", nmatchesMap: " << nmatchesMap
+                      << ", nmatchesMap: " << nmatchesMap << " < 10"
                       << ", mCurrentFrame.N: " << mCurrentFrame.N
                       << ", n_mp: " << n_mp
                       << ", n_outlier: " << n_outlier  
@@ -1294,8 +1304,8 @@ namespace ORB_SLAM2
             return false;
         }
 
-        /// NOTE: 內點至少 30 -> 20 點，才算重定位成功
-        if(mnMatchesInliers >= 20)
+        /// NOTE: 內點至少 30 點，才算重定位成功
+        if(mnMatchesInliers >= 30)
         {
             return true;
         }
@@ -1303,7 +1313,7 @@ namespace ORB_SLAM2
         {
             if(mState != LOST)
             {
-                std::cout << "[TrackLocalMap] mnMatchesInliers: " << mnMatchesInliers 
+                std::cout << "[TrackLocalMap] mnMatchesInliers: " << mnMatchesInliers << " < 30"
                           << ", n_inlier: " << n_inlier 
                           << ", n_mp: " << n_mp << std::endl;
             }

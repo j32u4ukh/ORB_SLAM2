@@ -90,6 +90,7 @@ public:
         return mvInvLevelSigma2;
     }
 
+    // 儲存影像金字塔各層級的影像
     std::vector<cv::Mat> mvImagePyramid;
 
     // ExtractorNode &node

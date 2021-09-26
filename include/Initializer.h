@@ -89,7 +89,7 @@ private:
     // Standard Deviation and Variance
     float mSigma, mSigma2;
 
-    // Ransac max iterations
+    // 產生多少組 RANSAC 樣本（Ransac max iterations）
     int mMaxIterations;
 
     // Ransac sets

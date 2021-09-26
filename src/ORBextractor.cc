@@ -571,7 +571,7 @@ namespace ORB_SLAM2
         assert(image.type() == CV_8UC1);
 
         // Pre-compute the scale pyramid
-        // 縮放影像金字塔各層級的影像
+        // 縮放影像金字塔各層級的影像，產生 nlevels 組影像，儲存於 mvImagePyramid
         ComputePyramid(image);
 
         // 影像金字塔各層級的 ORB 特徵點 shape = (金字塔層數, 特徵點數)
@@ -579,8 +579,8 @@ namespace ORB_SLAM2
 
         // 計算影像金字塔各層級的 ORB 特徵點(包含位置與角度，角度資訊儲存於 KeyPoint 當中)
         ComputeKeyPointsOctTree(all_keypoints);
-        //ComputeKeyPointsOld(allKeypoints);
 
+        // 各個層級的描述子拼接而成共同描述這個影像的描述子，指向 _descriptors
         Mat descriptors;
 
         // 金字塔各層級的 ORB 特徵點總個數
@@ -604,9 +604,17 @@ namespace ORB_SLAM2
         _keypoints.clear();
         _keypoints.reserve(nkeypoints);
 
-        int offset = 0, nkeypointsLevel;
+        int offset = 0;
+
+        // 金字塔第 level 層的 ORB 特徵點個數
+        int nkeypointsLevel;
+
         vector<KeyPoint>::iterator kp_it, kp_end;
-        Mat workingMat, desc;
+        Mat workingMat;
+        
+        // 指向 descriptors 當中，屬於當前 level 影像的區段
+        Mat desc;
+
         float scale;
 
         for (int level = 0; level < nlevels; ++level)
@@ -635,6 +643,7 @@ namespace ORB_SLAM2
             // 計算 workingMat 的 ORB 描述子，儲存至 desc
             computeDescriptors(workingMat, keypoints, desc, pattern);
 
+            // 指向下一個 level 的影像的描述子的區段
             offset += nkeypointsLevel;
 
             // Scale keypoint coordinates
@@ -705,8 +714,6 @@ namespace ORB_SLAM2
 
         const float W = 30;
 
-        /// TODO: 兩個迴圈或許可以合併？
-
         // 遍歷影像金字塔各層
         for (int level = 0; level < nlevels; level++)
         {
@@ -716,6 +723,7 @@ namespace ORB_SLAM2
         // compute orientations
         for (int level = 0; level < nlevels; level++)
         {
+            /// TODO: computeKeyPoints 當中 allKeypoints[level] 計算完就可以呼叫 computeOrientation 了
             // 利用灰階質心法計算特徵點的角度（角度資訊儲存於 KeyPoint 當中）
             computeOrientation(mvImagePyramid[level], allKeypoints[level], umax);
         }
@@ -737,10 +745,11 @@ namespace ORB_SLAM2
         const int cell_w = ceil(width / n_col);
         const int cell_h = ceil(height / n_row);
 
+        // 儲存影像金字塔各層級的特徵點位置
         vector<cv::KeyPoint> distribute_keys;
         distribute_keys.reserve(nfeatures * 10);
 
-        // 將影像化分成多個區塊，在各區塊中尋找 FAST 特徵
+        // 將影像化分成 n_col * n_row 個區塊，分別在各區塊中尋找 FAST 特徵，再將結果儲存於 distribute_keys
         for (int i = 0; i < n_row; i++)
         {
             computeFastFeature(i, level, n_col, 
@@ -762,7 +771,7 @@ namespace ORB_SLAM2
 
         for (int i = 0; i < nkps; i++)
         {
-            // 特徵點的位置是以縮放後的影像為依據，而非原圖
+            // 尋找特徵點時是將影像拆成許多小塊分別尋找，因此這裡要將特徵點位置校正回拆分前的影像的位置
             keypoints[i].pt.x += min_x;
             keypoints[i].pt.y += min_y;
             keypoints[i].octave = level;
@@ -770,6 +779,7 @@ namespace ORB_SLAM2
         }
     }
 
+    /// NOTE: 重構為目前 j loop 當中的內容，外部則使用雙重迴圈來呼叫此函式
     void ORBextractor::computeFastFeature(const int i, const int level, const int n_col,
                                           const int min_x, const int max_x, 
                                           const int min_y, const int max_y, 
@@ -835,6 +845,7 @@ namespace ORB_SLAM2
                     keypoint.pt.x += j * cell_w;
                     keypoint.pt.y += i * cell_h;
 
+                    // 儲存影像金字塔各層級的特徵點位置
                     distribute_keys.push_back(keypoint);
                 }
             }
@@ -848,6 +859,8 @@ namespace ORB_SLAM2
                                                          const int &minY, const int &maxY, 
                                                          const int &N, const int &level)
     {
+        // vToDistributeKeys 儲存前一步驟找到的，影像金字塔各層級的特徵點位置
+
         // Compute how many initial nodes
         const int nIni = round(static_cast<float>(maxX - minX) / (maxY - minY));
 
@@ -921,12 +934,13 @@ namespace ORB_SLAM2
 
             vSizeAndPointerToNode.clear();
 
+            // 第一次 ExtractorNode 拆分
             while (lit != lNodes.end())
             {
+                // If node only contains one point do not subdivide and continue
+                // 這個 ExtractorNode 只有一個特徵點，無法再繼續拆分了
                 if (lit->bNoMore)
                 {
-                    // If node only contains one point do not subdivide and continue
-                    // 這個 ExtractorNode 只有一個特徵點，無法再繼續拆分了
                     lit++;
                     // continue;
                 }
@@ -934,9 +948,12 @@ namespace ORB_SLAM2
                 {
                     // If more than one point, subdivide
                     ExtractorNode n1, n2, n3, n4;
+
+                    // 將 ExtractorNode 化分成田字型的 4 塊 ExtractorNode
                     lit->DivideNode(n1, n2, n3, n4);
 
                     // Add childs if they contain points
+                    // nToExpand：協助判斷第二次 ExtractorNode 拆分是否有必要
                     nToExpand = addContainPoints(n1, lNodes, nToExpand, vSizeAndPointerToNode);
                     nToExpand = addContainPoints(n2, lNodes, nToExpand, vSizeAndPointerToNode);
                     nToExpand = addContainPoints(n3, lNodes, nToExpand, vSizeAndPointerToNode);
@@ -956,7 +973,7 @@ namespace ORB_SLAM2
             }
             else if (((int)lNodes.size() + nToExpand * 3) > N)
             {
-
+                // 第二次 ExtractorNode 拆分
                 while (!bFinish)
                 {
                     prevSize = lNodes.size();
@@ -970,6 +987,8 @@ namespace ORB_SLAM2
                     for (int j = vPrevSizeAndPointerToNode.size() - 1; j >= 0; j--)
                     {
                         ExtractorNode n1, n2, n3, n4;
+
+                        // 將 vPrevSizeAndPointerToNode[j].second 化分成田字型的 4 塊 ExtractorNode
                         vPrevSizeAndPointerToNode[j].second->DivideNode(n1, n2, n3, n4);
 
                         // Add childs if they contain points
@@ -995,12 +1014,17 @@ namespace ORB_SLAM2
         }
 
         // Retain the best point in each node
+        // 儲存各個 ExtractorNode 的 response 值最大的關鍵點，若有 50 個 ExtractorNode，則會篩選出 50 個關鍵點
         vector<cv::KeyPoint> vResultKeys;
         vResultKeys.reserve(nfeatures);
 
+        // lNodes：儲存所有 ExtractorNode
+        // 遍歷所有 ExtractorNode
         for (lit = lNodes.begin(); lit != lNodes.end(); lit++)
         {
+            // 取得 ExtractorNode lit 當中的所有關鍵點
             vector<cv::KeyPoint> &vNodeKeys = lit->vKeys;
+
             cv::KeyPoint *pKP = &vNodeKeys[0];
             float maxResponse = pKP->response;
 
@@ -1066,15 +1090,20 @@ namespace ORB_SLAM2
                     n3.vKeys.push_back(kp);
                 }
             }
-            else if (kp.pt.y < n1.BR.y)
-            {
-                n2.vKeys.push_back(kp);
-            }
             else
             {
-                n4.vKeys.push_back(kp);
+                if (kp.pt.y < n1.BR.y)
+                {
+                    n2.vKeys.push_back(kp);
+                }
+                else
+                {
+                    n4.vKeys.push_back(kp);
+                }
             }
         }
+
+        // 若 ExtractorNode 當中只包含一個特徵點，則標注無法再繼續細分
 
         if (n1.vKeys.size() == 1)
         {
@@ -1109,6 +1138,9 @@ namespace ORB_SLAM2
         if (node.vKeys.size() > 0)
         {
             list_node.push_front(node);
+
+            // 協助判斷第二次 ExtractorNode 拆分是否有必要
+            n_to_expand++;
 
             if (node.vKeys.size() > 1)
             {

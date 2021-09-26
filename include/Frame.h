@@ -143,7 +143,7 @@ public:
     // Far points are inserted as in the monocular case from 2 views.
     float mThDepth;
 
-    // Number of KeyPoints.
+    // ORB 特徵點個數（Number of KeyPoints.）
     int N;
 
     // Vector of keypoints (original for visualization) and undistorted (actually used by the system).
@@ -178,8 +178,11 @@ public:
     // ==================================================
 
     // ORB descriptor, each row associated to a keypoint.
+    // 每一 row 代表一個關鍵點的描述子，各個層級的描述子拼接而成共同描述這個影像的描述子
+    cv::Mat mDescriptors;
+
     // 每一 row 代表一個關鍵點的描述子
-    cv::Mat mDescriptors, mDescriptorsRight;
+    cv::Mat mDescriptorsRight;
 
     // MapPoints associated to keypoints, NULL pointer if no association.
     std::vector<MapPoint*> mvpMapPoints;
@@ -193,7 +196,7 @@ public:
  
     /* 每個格子分配的特征點數，將圖像分成格子，保證提取的特征點比較均勻
 
-    目前看起來 mGrid[i][j] 會是一個 std::vector，紀錄網格 (i, j) 所包含的關鍵點的索引值
+    目前看起來 mGrid[i][j] 會是一個 std::vector，紀錄網格 (i, j) 所包含的'關鍵點的索引值'
     由 Frame::GetFeaturesInArea 當中 const vector<size_t> vCell = mGrid[ix][iy]; 可知 */
     std::vector<std::size_t> mGrid[FRAME_GRID_COLS][FRAME_GRID_ROWS];
 
