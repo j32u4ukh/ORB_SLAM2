@@ -55,7 +55,9 @@ public:
     std::vector<MapPoint*> GetReferenceMapPoints();
 
     void updateLogOdd(const Eigen::Vector3d origin, const Eigen::Vector3d endpoint);
-    bool isOnRay(const Eigen::Vector3d ray, const Eigen::Vector3d vector);
+    bool isOnRay(const Eigen::Vector3d ray, const Eigen::Vector3d vector, const Eigen::Vector3d pos, 
+                 const double min_x, const double max_x, const double min_y, const double max_y, 
+                 const double min_z, const double max_z);
 
     long unsigned int getInMapMapPointNumber();
     long unsigned  getInMapKeyFrameNumber();

@@ -166,38 +166,70 @@ namespace ORB_SLAM2
     {
         // LOCK!!!!
         unique_lock<mutex> lock(mMutexMap);
-        std::cout << "Start Map::updateLogOdd" << std::endl;
+        // std::cout << "Start Map::updateLogOdd" << std::endl;
 
-        std::set<ORB_SLAM2::MapPoint*>::iterator mp_it, mp_end = mspMapPoints.end();
-        MapPoint* mp;
-        Eigen::Vector3d mp_vector, ray = endpoint - origin;
+        // std::set<ORB_SLAM2::MapPoint*>::iterator mp_it, mp_end = mspMapPoints.end();
+        // MapPoint* mp;
+        Eigen::Vector3d mp_vector, ray = endpoint - origin, pos;
+        double ray_length = ray.norm(), vector_length;
+        double min_x, max_x, min_y, max_y, min_z, max_z;
 
-        for(mp_it = mspMapPoints.begin(); mp_it != mp_end; mp_it++)
+        if(origin[0] < endpoint[0]){
+            min_x = origin[0];
+            max_x = endpoint[0];
+        }
+        else
         {
-            mp = *mp_it;
+            min_x = endpoint[0];
+            max_x = origin[0];
+        }
 
+        if(origin[1] < endpoint[1]){
+            min_y = origin[1];
+            max_y = endpoint[1];
+        }
+        else
+        {
+            min_y = endpoint[1];
+            max_y = origin[1];
+        }
+
+        if(origin[2] < endpoint[2]){
+            min_z = origin[2];
+            max_z = endpoint[2];
+        }
+        else
+        {
+            min_z = endpoint[2];
+            max_z = origin[2];
+        }
+        
+        /// TODO: 各個地圖點沒有先後關係，可利用執行續分別計算
+        for(MapPoint* mp : mspMapPoints)
+        {
             if(!mp)
             {
                 continue;
             }
 
-            mp_vector = Converter::toVector3d(mp->GetWorldPos()) - origin;
+            pos = Converter::toVector3d(mp->GetWorldPos());
+            mp_vector = pos - origin;
 
             // 地圖點 mp 在此次觀察到的地圖點 endpoint 的射線上，表示地圖點 mp 應該已不在原本的位置
-            if(isOnRay(ray, mp_vector))
+            if(isOnRay(ray, mp_vector, pos, min_x, max_x, min_y, max_y, min_z, max_z))
             {
                 if(mp_vector.norm() == ray.norm())
                 {                    
                     mp->hit();
 
-                    std::cout << "Map::updateLogOdd hit\n"
-                          << "origin: " << origin.transpose()
-                          << ", endpoint: " << endpoint.transpose()
-                          << "\nmp: " << Converter::toVector3d(mp->GetWorldPos()).transpose()
-                          << ", mp_vector: " << mp_vector.transpose()
-                          << ", getHitLog: " << mp->getHitLog()
-                          << ", getHitProb: " << mp->getHitProb()
-                          << std::endl;
+                    // std::cout << "Map::updateLogOdd hit\n"
+                    //       << "origin: " << origin.transpose()
+                    //       << ", endpoint: " << endpoint.transpose()
+                    //       << "\nmp: " << Converter::toVector3d(mp->GetWorldPos()).transpose()
+                    //       << ", mp_vector: " << mp_vector.transpose()
+                    //       << ", getHitLog: " << mp->getHitLog()
+                    //       << ", getHitProb: " << mp->getHitProb()
+                    //       << std::endl;
                 }
                 else
                 {
@@ -214,13 +246,14 @@ namespace ORB_SLAM2
                 }
             }
         }
-
-        std::cout << "End Map::updateLogOdd" << std::endl;
     }
 
-    bool Map::isOnRay(const Eigen::Vector3d ray, const Eigen::Vector3d vector)
+    bool Map::isOnRay(const Eigen::Vector3d ray, const Eigen::Vector3d vector, const Eigen::Vector3d pos, 
+                      const double min_x, const double max_x, const double min_y, const double max_y, 
+                      const double min_z, const double max_z)
     {
-        if(vector.norm() > ray.norm())
+        if(pos[0] < min_x || max_x < pos[0] || pos[1] < min_y || max_y < pos[1] || 
+           pos[2] < min_z || max_z < pos[2])
         {
             return false;
         }

@@ -1087,13 +1087,7 @@ namespace ORB_SLAM2
             // 如果成功進行了三角化，就會新建一個地圖點，並相應的更新關鍵幀與該地圖點之間的可視關系。
             pMP = new MapPoint(x3D, mpCurrentKeyFrame, mpMap, color);
 
-            // if(System::start_idx <= (*index) && (*index) <= System::end_idx)
-            // {
-            //     Eigen::Vector3d camera = Converter::toVector3d((*mpCurrentKeyFrame).GetCameraCenter());
-            //     Eigen::Vector3d map_point = Converter::toVector3d(x3D);
-
-            //     mpMap->updateLogOdd(camera, map_point);
-            // }
+            
 
             // 『地圖點 pMP』被『關鍵幀 mpCurrentKeyFrame』的第 idx1 個關鍵點所觀察到
             pMP->AddObservation(mpCurrentKeyFrame, idx1);
@@ -1122,7 +1116,21 @@ namespace ORB_SLAM2
 
             // 通過一個計數器 nnew 來累計新建的地圖點數量。
             nnew++;
-        }    
+        }   
+
+        // if(System::start_idx <= (*index) && (*index) <= System::end_idx)
+        // {
+        //     Eigen::Vector3d camera = Converter::toVector3d((*mpCurrentKeyFrame).GetCameraCenter());
+        //     set<MapPoint *> map_points = (*mpCurrentKeyFrame).GetMapPoints();
+        //     Eigen::Vector3d map_point;
+        //     // map_point = Converter::toVector3d(x3D);
+
+        //     for(MapPoint* mp : map_points)
+        //     {
+        //         map_point = Converter::toVector3d(mp->GetWorldPos());
+        //         mpMap->updateLogOdd(camera, map_point);
+        //     }
+        // } 
     }
     
     void LocalMapping::createStereoMapPointsByKeyPoints(vector<pair<size_t, size_t>> &vMatchedIndices,
