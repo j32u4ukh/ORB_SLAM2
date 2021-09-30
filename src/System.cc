@@ -57,20 +57,20 @@ namespace ORB_SLAM2
              << "under certain conditions. See LICENSE.txt." << endl
              << endl;
 
-        cout << "Input sensor was set to: ";
+        cout << "Input sensor was set to: Monocular";
 
-        if (mSensor == MONOCULAR)
-        {
-            cout << "Monocular" << endl;
-        }
-        else if (mSensor == STEREO)
-        {
-            cout << "Stereo" << endl;
-        }
-        else if (mSensor == RGBD)
-        {
-            cout << "RGB-D" << endl;
-        }
+        // if (mSensor == MONOCULAR)
+        // {
+        //     cout << "Monocular" << endl;
+        // }
+        // else if (mSensor == STEREO)
+        // {
+        //     cout << "Stereo" << endl;
+        // }
+        // else if (mSensor == RGBD)
+        // {
+        //     cout << "RGB-D" << endl;
+        // }
 
         //Check settings file
         cv::FileStorage fsSettings(strSettingsFile.c_str(), cv::FileStorage::READ);
@@ -152,8 +152,9 @@ namespace ORB_SLAM2
         mptLocalMapping = new thread(&ORB_SLAM2::LocalMapping::Run, mpLocalMapper);
 
         //Initialize the Loop Closing thread and launch
-        mpLoopCloser = new LoopClosing(mpMap, mpKeyFrameDatabase, orb_vocabulary, mSensor != MONOCULAR,
-                                       index);
+        // mpLoopCloser = new LoopClosing(mpMap, mpKeyFrameDatabase, orb_vocabulary, 
+        //                                mSensor != MONOCULAR, index);
+        mpLoopCloser = new LoopClosing(mpMap, mpKeyFrameDatabase, orb_vocabulary, false, index);
         mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
 
         //Initialize the Viewer thread and launch
@@ -198,13 +199,13 @@ namespace ORB_SLAM2
     {
         index = idx;
 
-        if (mSensor != MONOCULAR)
-        {
-            cerr << "ERROR: you called TrackMonocular but input sensor was not set to Monocular." 
-                 << endl;
+        // if (mSensor != MONOCULAR)
+        // {
+        //     cerr << "ERROR: you called TrackMonocular but input sensor was not set to Monocular." 
+        //          << endl;
                  
-            exit(-1);
-        }
+        //     exit(-1);
+        // }
 
         // Check mode change
         {
@@ -524,6 +525,24 @@ namespace ORB_SLAM2
         return true;
     }
 
+    int System::GetTrackingState()
+    {
+        unique_lock<mutex> lock(mMutexState);
+        return mTrackingState;
+    }
+
+    vector<MapPoint *> System::GetTrackedMapPoints()
+    {
+        unique_lock<mutex> lock(mMutexState);
+        return mTrackedMapPoints;
+    }
+
+    vector<cv::KeyPoint> System::GetTrackedKeyPointsUn()
+    {
+        unique_lock<mutex> lock(mMutexState);
+        return mTrackedKeyPointsUn;
+    }
+    
     // ==================================================
     // 以下為非單目相關函式
     // ==================================================
@@ -768,23 +787,5 @@ namespace ORB_SLAM2
         cout << endl
              << "trajectory saved!" << endl;
     }
-
-    int System::GetTrackingState()
-    {
-        unique_lock<mutex> lock(mMutexState);
-        return mTrackingState;
-    }
-
-    vector<MapPoint *> System::GetTrackedMapPoints()
-    {
-        unique_lock<mutex> lock(mMutexState);
-        return mTrackedMapPoints;
-    }
-
-    vector<cv::KeyPoint> System::GetTrackedKeyPointsUn()
-    {
-        unique_lock<mutex> lock(mMutexState);
-        return mTrackedKeyPointsUn;
-    }
-
+    
 } //namespace ORB_SLAM

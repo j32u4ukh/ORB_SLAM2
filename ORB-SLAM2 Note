@@ -22,6 +22,12 @@ $ /home/j32u4ukh/Documents/ORB_SLAM2/build>
 
 [boost::serialization]
 
+結束後，不儲存地圖
+
+../Examples/Monocular/mono_kitti ../Vocabulary/ORBvoc.txt ../Examples/Monocular/KITTI00-02.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/00" 0
+
+結束後，要儲存地圖
+
 ../Examples/Monocular/mono_kitti ../Vocabulary/ORBvoc.txt ../Examples/Monocular/KITTI00-02.yaml "/media/j32u4ukh/TOSHIBA EXT/SLAM/data_odometry_gray/dataset/sequences/00" 1
 
 # 執行時間
@@ -55,6 +61,10 @@ Depth ～ N(13.7239, 9.01453)
 Total time: 10:19.3038
 Median tracking time: 0.0538072
 Mean tracking time: 0.0606629
+
+總測試次數 5(100%)
+無丟失次數 3(60%)
+有丟失次數 2(40%)
 
 [首次導入地圖序列化]
 Saving Mapfile: map.bin ...done

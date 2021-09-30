@@ -145,23 +145,30 @@ namespace ORB_SLAM2
                                               fIniThFAST, 
                                               fMinThFAST);
 
-        if (sensor == System::STEREO)
-        {
-            mpORBextractorRight = new ORBextractor(nFeatures, 
-                                                   fScaleFactor, 
-                                                   nLevels,
-                                                   fIniThFAST, 
-                                                   fMinThFAST);
-        }
-        else if (sensor == System::MONOCULAR)
-        {
-            // 用於單目初始化，要求較多的特徵數量（2 * nFeatures）
-            mpIniORBextractor = new ORBextractor(2 * nFeatures, 
-                                                 fScaleFactor, 
-                                                 nLevels,
-                                                 fIniThFAST, 
-                                                 fMinThFAST);
-        }
+        // 用於單目初始化，要求較多的特徵數量（2 * nFeatures）
+        mpIniORBextractor = new ORBextractor(2 * nFeatures, 
+                                                fScaleFactor, 
+                                                nLevels,
+                                                fIniThFAST, 
+                                                fMinThFAST);
+
+        // if (sensor == System::STEREO)
+        // {
+        //     mpORBextractorRight = new ORBextractor(nFeatures, 
+        //                                            fScaleFactor, 
+        //                                            nLevels,
+        //                                            fIniThFAST, 
+        //                                            fMinThFAST);
+        // }
+        // else if (sensor == System::MONOCULAR)
+        // {
+        //     // 用於單目初始化，要求較多的特徵數量（2 * nFeatures）
+        //     mpIniORBextractor = new ORBextractor(2 * nFeatures, 
+        //                                          fScaleFactor, 
+        //                                          nLevels,
+        //                                          fIniThFAST, 
+        //                                          fMinThFAST);
+        // }
 
         cout << endl
              << "ORB Extractor Parameters: " << endl;
@@ -171,26 +178,26 @@ namespace ORB_SLAM2
         cout << "- Initial Fast Threshold: " << fIniThFAST << endl;
         cout << "- Minimum Fast Threshold: " << fMinThFAST << endl;
 
-        if (sensor == System::STEREO || sensor == System::RGBD)
-        {
-            mThDepth = mbf * (float)fSettings["ThDepth"] / fx;
-            cout << endl
-                 << "Depth Threshold (Close/Far Points): " << mThDepth << endl;
+        // if (sensor == System::STEREO || sensor == System::RGBD)
+        // {
+        //     mThDepth = mbf * (float)fSettings["ThDepth"] / fx;
+        //     cout << endl
+        //          << "Depth Threshold (Close/Far Points): " << mThDepth << endl;
 
-            if (sensor == System::RGBD)
-            {
-                mDepthMapFactor = fSettings["DepthMapFactor"];
+        //     if (sensor == System::RGBD)
+        //     {
+        //         mDepthMapFactor = fSettings["DepthMapFactor"];
 
-                if (fabs(mDepthMapFactor) < 1e-5)
-                {
-                    mDepthMapFactor = 1;
-                }
-                else
-                {
-                    mDepthMapFactor = 1.0f / mDepthMapFactor;
-                }
-            }
-        }
+        //         if (fabs(mDepthMapFactor) < 1e-5)
+        //         {
+        //             mDepthMapFactor = 1;
+        //         }
+        //         else
+        //         {
+        //             mDepthMapFactor = 1.0f / mDepthMapFactor;
+        //         }
+        //     }
+        // }
 
         if (bReuseMap)
         {
@@ -272,15 +279,18 @@ namespace ORB_SLAM2
         // Monocular 在前兩幀都會進入這個區塊進入初始化階段          
         if (mState == NOT_INITIALIZED)
         {
-            if (mSensor == System::STEREO || mSensor == System::RGBD)
-            {
-                StereoInitialization();
-            }
-            else
-            {
-                // 第二幀時會進入 CreateInitialMapMonocular 將 mState 改為 OK
-                MonocularInitialization(idx);
-            }
+            // if (mSensor == System::STEREO || mSensor == System::RGBD)
+            // {
+            //     StereoInitialization();
+            // }
+            // else
+            // {
+            //     // 第二幀時會進入 CreateInitialMapMonocular 將 mState 改為 OK
+            //     MonocularInitialization(idx);
+            // }
+
+            // 第二幀時會進入 CreateInitialMapMonocular 將 mState 改為 OK
+            MonocularInitialization(idx);
 
             mpFrameDrawer->Update(this);
 
@@ -1018,24 +1028,24 @@ namespace ORB_SLAM2
         // 在純定位模式下構建一個視覺里程計，對於建圖模式作用不大
         // Update last frame pose according to its reference keyframe
         // Create "visual odometry" points if in Localization Mode        
-        UpdateLastFrame();
+        // UpdateLastFrame();
 
-        bool is_mono = mSensor == System::MONOCULAR;
+        // bool is_mono = mSensor == System::MONOCULAR;
 
         // Project points seen in previous frame
-        int th;
+        int th = 15;
 
-        // 非 STEREO 模式
-        if (mSensor != System::STEREO)
-        {
-            th = 15;
-        }
+        // // 非 STEREO 模式
+        // if (mSensor != System::STEREO)
+        // {
+        //     th = 15;
+        // }
 
-        // STEREO 模式
-        else
-        {
-            th = 7;
-        }
+        // // STEREO 模式
+        // else
+        // {
+        //     th = 7;
+        // }
 
         // 第一個參數是一個接受最佳匹配的系數，只有當最佳匹配點的漢明距離小於次加匹配點距離的 0.9 倍時才接收匹配點，
         // 第二個參數表示匹配特征點時是否考慮方向。
@@ -1045,8 +1055,9 @@ namespace ORB_SLAM2
         // 這個接口有四個參數，前兩個分別是當前幀和上一幀。
         // 第三個參數 th 是一個控制搜索半徑的參數，最後一個參數用於判定是否為單目相機。
         // 尋找 CurrentFrame 當中和 LastFrame 特徵點對應的位置，形成 CurrentFrame 的地圖點，並返回匹配成功的個數
-        int nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, th, is_mono, idx);
-
+        // int nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, th, is_mono, idx);
+        int nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, th, true, idx);
+        
         // If few matches, uses a wider window search
         // 如果找不到足夠多的匹配特征點，就適當的放大搜索半徑(th -> 2 * th)。
         if (nmatches < 20)
@@ -1054,8 +1065,9 @@ namespace ORB_SLAM2
             // fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(),
             //      static_cast<MapPoint *>(NULL));
             mCurrentFrame.resetMappoints();
-            nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2 * th, is_mono, idx);
-
+            // nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2 * th, is_mono, idx);
+            nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2 * th, true, idx);
+            
             // 若擴大搜索半徑後，仍找不到足夠多的匹配特征點，則返回 false，
             // 表示『基於勻速運動模型的跟蹤定位方法』失敗了
             if (nmatches < 20)
@@ -1277,10 +1289,10 @@ namespace ORB_SLAM2
                         
                     }
                 }
-                else if (mSensor == System::STEREO)
-                {
-                    mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint *>(NULL);
-                }
+                // else if (mSensor == System::STEREO)
+                // {
+                //     mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint *>(NULL);
+                // }
             }
         }
 
@@ -1687,41 +1699,42 @@ namespace ORB_SLAM2
         int nTrackedClose = 0;
 
         // 與單目無關，暫時跳過
-        if (mSensor != System::MONOCULAR)
-        {
-            for (int i = 0; i < mCurrentFrame.N; i++)
-            {
-                if (mCurrentFrame.mvDepth[i] > 0 && mCurrentFrame.mvDepth[i] < mThDepth)
-                {
-                    if (mCurrentFrame.mvpMapPoints[i] && !mCurrentFrame.mvbOutlier[i])
-                    {
-                        nTrackedClose++;
-                    }
-                    else
-                    {
-                        nNonTrackedClose++;
-                    }
-                }
-            }
-        }
+        // if (mSensor != System::MONOCULAR)
+        // {
+        //     for (int i = 0; i < mCurrentFrame.N; i++)
+        //     {
+        //         if (mCurrentFrame.mvDepth[i] > 0 && mCurrentFrame.mvDepth[i] < mThDepth)
+        //         {
+        //             if (mCurrentFrame.mvpMapPoints[i] && !mCurrentFrame.mvbOutlier[i])
+        //             {
+        //                 nTrackedClose++;
+        //             }
+        //             else
+        //             {
+        //                 nNonTrackedClose++;
+        //             }
+        //         }
+        //     }
+        // }
 
         // 單目的 bNeedToInsertClose 應該會是 false，因為直接跳過上面那個區塊
         bool bNeedToInsertClose = (nTrackedClose < 100) && (nNonTrackedClose > 70);
 
         // Thresholds
-        float thRefRatio = 0.75f;
-
-        if (nKFs < 2)
-        {
-            thRefRatio = 0.4f;
-        }
+        // float thRefRatio = 0.75f;        
+        // if (nKFs < 2)
+        // {
+        //     thRefRatio = 0.4f;
+        // }
+        // // 條件 4 要求『當前幀跟蹤的地圖點數量少於參考幀的 90%（thRefRatio）』
+        // if (mSensor == System::MONOCULAR)
+        // {
+        //     thRefRatio = 0.9f;
+        // }
 
         // 條件 4 要求『當前幀跟蹤的地圖點數量少於參考幀的 90%（thRefRatio）』
-        if (mSensor == System::MONOCULAR)
-        {
-            thRefRatio = 0.9f;
-        }
-
+        float thRefRatio = 0.9f;
+                
         // 條件2. LOCAL MAPPING 線程處於空閑(idle)的狀態（bLocalMappingIdle），
         //       或者距離上次插入關鍵幀已經過去了 20 幀。保證 LOCAL MAPPING 盡快的處理。
         // c1a 和 c1b 其實是對 條件 2 的實現
@@ -1733,8 +1746,9 @@ namespace ORB_SLAM2
 
         // Condition 1c: tracking is weak
         // c1c 對於單目沒有意義
-        const bool c1c = mSensor != System::MONOCULAR &&
-                         (mnMatchesInliers < nRefMatches * 0.25 || bNeedToInsertClose);
+        // const bool c1c = mSensor != System::MONOCULAR &&
+        //                  (mnMatchesInliers < nRefMatches * 0.25 || bNeedToInsertClose);
+        const bool c1c = false;
 
         // 條件4. 當前幀跟蹤的地圖點數量少於參考幀的 90% 。是一個比較嚴苛的約束可以適當的降低關鍵幀數量。
         // c2 是對 條件 4 的實現
@@ -1762,14 +1776,14 @@ namespace ORB_SLAM2
                 // 所以只是發送了一個信號要求 LOCAL MAPPING 暫停 BA 優化。
                 mpLocalMapper->InterruptBA();
 
-                // 和單目無關，暫時跳過
-                if (mSensor != System::MONOCULAR)
-                {
-                    if (mpLocalMapper->KeyframesInQueue() < 3)
-                    {
-                        return true;
-                    }
-                }
+                // // 和單目無關，暫時跳過
+                // if (mSensor != System::MONOCULAR)
+                // {
+                //     if (mpLocalMapper->KeyframesInQueue() < 3)
+                //     {
+                //         return true;
+                //     }
+                // }
             }
         }
         
@@ -1796,70 +1810,60 @@ namespace ORB_SLAM2
         mpReferenceKF = pKF;
         mCurrentFrame.mpReferenceKF = pKF;
 
-        // 處理非單目，故暫時跳過
-        if (mSensor != System::MONOCULAR)
-        {
-            mCurrentFrame.UpdatePoseMatrices();
-
-            // We sort points by the measured depth by the stereo/RGBD sensor.
-            // We create all those MapPoints whose depth < mThDepth.
-            // If there are less than 100 close points we create the 100 closest.
-            vector<pair<float, int>> vDepthIdx;
-            vDepthIdx.reserve(mCurrentFrame.N);
-
-            for (int i = 0; i < mCurrentFrame.N; i++)
-            {
-                float z = mCurrentFrame.mvDepth[i];
-
-                if (z > 0)
-                {
-                    vDepthIdx.push_back(make_pair(z, i));
-                }
-            }
-
-            if (!vDepthIdx.empty())
-            {
-                sort(vDepthIdx.begin(), vDepthIdx.end());
-                int nPoints = 0;
-
-                for (size_t j = 0; j < vDepthIdx.size(); j++)
-                {
-                    int i = vDepthIdx[j].second;
-
-                    bool bCreateNew = false;
-
-                    MapPoint *pMP = mCurrentFrame.mvpMapPoints[i];
-                    if (!pMP)
-                        bCreateNew = true;
-                    else if (pMP->beObservedNumber() < 1)
-                    {
-                        bCreateNew = true;
-                        mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint *>(NULL);
-                    }
-
-                    if (bCreateNew)
-                    {
-                        cv::Mat x3D = mCurrentFrame.UnprojectStereo(i);
-                        MapPoint *pNewMP = new MapPoint(x3D, pKF, mpMap);
-                        pNewMP->AddObservation(pKF, i);
-                        pKF->AddMapPoint(pNewMP, i);
-                        pNewMP->ComputeDistinctiveDescriptors();
-                        pNewMP->UpdateNormalAndDepth();
-                        mpMap->AddMapPoint(pNewMP);
-
-                        mCurrentFrame.mvpMapPoints[i] = pNewMP;
-                        nPoints++;
-                    }
-                    else
-                    {
-                        nPoints++;
-                    }
-
-                    if (vDepthIdx[j].first > mThDepth && nPoints > 100)
-                        break;
-                }
-            }
-        }
+        // // 處理非單目，故暫時跳過
+        // if (mSensor != System::MONOCULAR)
+        // {
+        //     mCurrentFrame.UpdatePoseMatrices();
+        //     // We sort points by the measured depth by the stereo/RGBD sensor.
+        //     // We create all those MapPoints whose depth < mThDepth.
+        //     // If there are less than 100 close points we create the 100 closest.
+        //     vector<pair<float, int>> vDepthIdx;
+        //     vDepthIdx.reserve(mCurrentFrame.N);
+        //     for (int i = 0; i < mCurrentFrame.N; i++)
+        //     {
+        //         float z = mCurrentFrame.mvDepth[i];
+        //         if (z > 0)
+        //         {
+        //             vDepthIdx.push_back(make_pair(z, i));
+        //         }
+        //     }
+        //     if (!vDepthIdx.empty())
+        //     {
+        //         sort(vDepthIdx.begin(), vDepthIdx.end());
+        //         int nPoints = 0;
+        //         for (size_t j = 0; j < vDepthIdx.size(); j++)
+        //         {
+        //             int i = vDepthIdx[j].second;
+        //             bool bCreateNew = false;
+        //             MapPoint *pMP = mCurrentFrame.mvpMapPoints[i];
+        //             if (!pMP)
+        //                 bCreateNew = true;
+        //             else if (pMP->beObservedNumber() < 1)
+        //             {
+        //                 bCreateNew = true;
+        //                 mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint *>(NULL);
+        //             }
+        //             if (bCreateNew)
+        //             {
+        //                 cv::Mat x3D = mCurrentFrame.UnprojectStereo(i);
+        //                 MapPoint *pNewMP = new MapPoint(x3D, pKF, mpMap);
+        //                 pNewMP->AddObservation(pKF, i);
+        //                 pKF->AddMapPoint(pNewMP, i);
+        //                 pNewMP->ComputeDistinctiveDescriptors();
+        //                 pNewMP->UpdateNormalAndDepth();
+        //                 mpMap->AddMapPoint(pNewMP);
+        //                 mCurrentFrame.mvpMapPoints[i] = pNewMP;
+        //                 nPoints++;
+        //             }
+        //             else
+        //             {
+        //                 nPoints++;
+        //             }
+        //             if (vDepthIdx[j].first > mThDepth && nPoints > 100)
+        //                 break;
+        //         }
+        //     }
+        // }
 
         // 通知 mpLocalMapper 有新的關鍵幀插入，將新生成的關鍵幀提供給了 LocalMapping 對象
         mpLocalMapper->InsertKeyFrame(pKF);
