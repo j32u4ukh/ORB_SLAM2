@@ -140,16 +140,19 @@ namespace ORB_SLAM2
     // 利用 ORBextractor 抽取 ORB 特徵
     void Frame::ExtractORB(int flag, const cv::Mat &im)
     {
-        if (flag == 0)
-        {
-            // 抽取 ORB 特徵，特徵點存於 mvKeys ，描述子存於 mDescriptors
-            (*mpORBextractorLeft)(im, cv::Mat(), mvKeys, mDescriptors);
-        }
-        else
-        {
-            // 抽取 ORB 特徵，特徵點存於 mvKeysRight ，描述子存於 mDescriptorsRight
-            (*mpORBextractorRight)(im, cv::Mat(), mvKeysRight, mDescriptorsRight);
-        }
+        // 抽取 ORB 特徵，特徵點存於 mvKeys ，描述子存於 mDescriptors
+        (*mpORBextractorLeft)(im, cv::Mat(), mvKeys, mDescriptors);
+
+        // if (flag == 0)
+        // {
+        //     // 抽取 ORB 特徵，特徵點存於 mvKeys ，描述子存於 mDescriptors
+        //     (*mpORBextractorLeft)(im, cv::Mat(), mvKeys, mDescriptors);
+        // }
+        // else
+        // {
+        //     // 抽取 ORB 特徵，特徵點存於 mvKeysRight ，描述子存於 mDescriptorsRight
+        //     (*mpORBextractorRight)(im, cv::Mat(), mvKeysRight, mDescriptorsRight);
+        // }
     }
     
     // 關鍵點-扭曲校正

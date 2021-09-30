@@ -77,7 +77,8 @@ namespace ORB_SLAM2
             unique_lock<mutex> lock(mMutex);
             state = mState;
 
-            if (mState == Tracking::SYSTEM_NOT_READY){
+            if (mState == Tracking::SYSTEM_NOT_READY)
+            {
                 mState = Tracking::NO_IMAGES_YET;
             }
 

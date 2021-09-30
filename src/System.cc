@@ -148,7 +148,8 @@ namespace ORB_SLAM2
                                  mpMap, mpKeyFrameDatabase, strSettingsFile, mSensor, bReuseMap);
 
         //Initialize the Local Mapping thread and launch
-        mpLocalMapper = new LocalMapping(mpMap, mSensor == MONOCULAR, index);
+        // mpLocalMapper = new LocalMapping(mpMap, mSensor == MONOCULAR, index);
+        mpLocalMapper = new LocalMapping(mpMap, true, index);
         mptLocalMapping = new thread(&ORB_SLAM2::LocalMapping::Run, mpLocalMapper);
 
         //Initialize the Loop Closing thread and launch

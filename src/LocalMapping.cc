@@ -357,16 +357,16 @@ namespace ORB_SLAM2
         2. 創建了地圖點，並經過了兩幀關鍵幀之後，至少要有三個關鍵幀能夠觀測到該點。
         */
 
-        int nThObs;
+        int nThObs = 2;
 
-        // 根據單目相機還是深度相機設定一個閾值，用於篩選條件 2 的判定
-        if (mbMonocular)
-        {
-            nThObs = 2;
-        }
-        else{
-            nThObs = 3;
-        }
+        // // 根據單目相機還是深度相機設定一個閾值，用於篩選條件 2 的判定
+        // if (mbMonocular)
+        // {
+        //     nThObs = 2;
+        // }
+        // else{
+        //     nThObs = 3;
+        // }
 
         // Check Recent Added MapPoints
         // 獲取了最近新增的地圖點集合的叠代器
@@ -438,15 +438,16 @@ namespace ORB_SLAM2
 
         // Retrieve neighbor keyframes in covisibility graph
         // nn 是關聯幀數量，估計仍然是處於運行效率的考慮，通過它來設定了一個上限
-        if (mbMonocular)
-        {
-            createMonoMapPointsByKeyFrame(20);
-        }
-        else
-        {
-            createStereoMapPointsByKeyFrame(10);
-        }
-    
+        createMonoMapPointsByKeyFrame(20);
+
+        // if (mbMonocular)
+        // {
+        //     createMonoMapPointsByKeyFrame(20);
+        // }
+        // else
+        // {
+        //     createStereoMapPointsByKeyFrame(10);
+        // }    
     }
 
     // 計算『基礎矩陣(Fundamental Matrix)』
@@ -489,11 +490,12 @@ namespace ORB_SLAM2
     void LocalMapping::SearchInNeighbors()
     {
         // Retrieve neighbor keyframes
-        int nn = 10;
+        // int nn = 10;
+        int nn = 20;
 
-        if (mbMonocular){
-            nn = 20;
-        }
+        // if (mbMonocular){
+        //     nn = 20;
+        // }
 
         // 『關鍵幀 mpCurrentKeyFrame』的共視關鍵幀和『共視關鍵幀的共視關鍵幀』
         vector<KeyFrame *> vpTargetKFs;
@@ -558,12 +560,12 @@ namespace ORB_SLAM2
                     if (!pMP->isBad())
                     {
                         // 不是單目
-                        if (!mbMonocular)
-                        {
-                            if (pKF->mvDepth[i] > pKF->mThDepth || pKF->mvDepth[i] < 0){
-                                continue;
-                            }
-                        }
+                        // if (!mbMonocular)
+                        // {
+                        //     if (pKF->mvDepth[i] > pKF->mThDepth || pKF->mvDepth[i] < 0){
+                        //         continue;
+                        //     }
+                        // }
 
                         // 『關鍵幀 pKF』的關鍵點觀察到的『有效地圖點』個數
                         nMPs++;
@@ -841,29 +843,37 @@ namespace ORB_SLAM2
             // 計算基線長度
             const float baseline = cv::norm(vBaseline);
 
-            // 非單目
-            if (!mbMonocular)
-            {
-                // 如果基線太短，就不適合對特征點進行三角化了，誤差會比較大
-                if (baseline < pKF2->mb){
-                    continue;
-                }
+            // 取得當前關鍵幀的座標系之下，關鍵幀觀察到的所有地圖點的深度中位數（當 q = 2）
+            const float medianDepthKF2 = pKF2->ComputeSceneMedianDepth(2);
+
+            // 計算『基線：深度』比例值
+            const float ratioBaselineDepth = baseline / medianDepthKF2;
+
+            // 若視差相對於深度太短，則跳過
+            if (ratioBaselineDepth < 0.01){
+                continue;
             }
 
-            // 單目
-            else
-            {
-                // 取得當前關鍵幀的座標系之下，關鍵幀觀察到的所有地圖點的深度中位數（當 q = 2）
-                const float medianDepthKF2 = pKF2->ComputeSceneMedianDepth(2);
-
-                // 計算『基線：深度』比例值
-                const float ratioBaselineDepth = baseline / medianDepthKF2;
-
-                // 若視差相對於深度太短，則跳過
-                if (ratioBaselineDepth < 0.01){
-                    continue;
-                }
-            }
+            // // 非單目
+            // if (!mbMonocular)
+            // {
+            //     // 如果基線太短，就不適合對特征點進行三角化了，誤差會比較大
+            //     if (baseline < pKF2->mb){
+            //         continue;
+            //     }
+            // }
+            // // 單目
+            // else
+            // {
+            //     // 取得當前關鍵幀的座標系之下，關鍵幀觀察到的所有地圖點的深度中位數（當 q = 2）
+            //     const float medianDepthKF2 = pKF2->ComputeSceneMedianDepth(2);
+            //     // 計算『基線：深度』比例值
+            //     const float ratioBaselineDepth = baseline / medianDepthKF2;
+            //     // 若視差相對於深度太短，則跳過
+            //     if (ratioBaselineDepth < 0.01){
+            //         continue;
+            //     }
+            // }
 
             // Compute Fundamental Matrix
             // 計算『基礎矩陣(Fundamental Matrix)』

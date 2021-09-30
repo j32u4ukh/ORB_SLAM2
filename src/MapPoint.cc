@@ -84,14 +84,17 @@ namespace ORB_SLAM2
 
         // 『關鍵幀 pKF』的第 idx 個『關鍵點』觀察到這個地圖點的
         mObservations[pKF] = idx;
+        nObs++;
 
-        if (pKF->mvuRight[idx] >= 0)
-        {
-            nObs += 2;
-        }
-        else{
-            nObs++;
-        }
+        // // 非單目
+        // if (pKF->mvuRight[idx] >= 0)
+        // {
+        //     nObs += 2;
+        // }
+        // // 單目
+        // else{
+        //     nObs++;
+        // }
     }
 
     /// NOTE: 20210829
@@ -496,18 +499,19 @@ namespace ORB_SLAM2
 
             if (mObservations.count(pKF))
             {
-                // 取得觀察到『關鍵幀 pKF』的關鍵點的索引值
-                int idx = mObservations[pKF];
+                // 減少 1 個關鍵幀的計數
+                nObs--;
 
-                if (pKF->mvuRight[idx] >= 0){
-                    nObs -= 2;
-                }
-
-                // 單目的 mvuRight 會是負的
-                else{
-                    // 減少 1 個關鍵幀的計數
-                    nObs--;
-                }
+                // // 取得觀察到『關鍵幀 pKF』的關鍵點的索引值
+                // int idx = mObservations[pKF];
+                // if (pKF->mvuRight[idx] >= 0){
+                //     nObs -= 2;
+                // }
+                // // 單目的 mvuRight 會是負的
+                // else{
+                //     // 減少 1 個關鍵幀的計數
+                //     nObs--;
+                // }
 
                 // 從 mObservations 移除『關鍵幀 pKF』
                 mObservations.erase(pKF);
