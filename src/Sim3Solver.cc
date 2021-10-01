@@ -340,31 +340,47 @@ namespace ORB_SLAM2
         cv::Mat P3 = mR12i * Pr2;
 
         // Step 6: Scale
+        double nom = Pr1.dot(P3);
+        cv::Mat aux_P3(P3.size(), P3.type());
+        aux_P3 = P3;
+        cv::pow(P3, 2, aux_P3);
+        double den = 0;
+
+        int i, j;
+
+        for (i = 0; i < aux_P3.rows; i++)
+        {
+            for (j = 0; j < aux_P3.cols; j++)
+            {
+                den += aux_P3.at<float>(i, j);
+            }
+        }
 
         // ms12i: 規模尺度
-        if (!mbFixScale)
-        {
-            double nom = Pr1.dot(P3);
-            cv::Mat aux_P3(P3.size(), P3.type());
-            aux_P3 = P3;
-            cv::pow(P3, 2, aux_P3);
-            double den = 0;
+        ms12i = nom / den;
 
-            int i, j;
-
-            for (i = 0; i < aux_P3.rows; i++)
-            {
-                for (j = 0; j < aux_P3.cols; j++)
-                {
-                    den += aux_P3.at<float>(i, j);
-                }
-            }
-
-            ms12i = nom / den;
-        }
-        else{
-            ms12i = 1.0f;
-        }
+        /// NOTE: Mono 傳入的 mbFixScale 應為 false
+        // // ms12i: 規模尺度
+        // if (!mbFixScale)
+        // {
+        //     double nom = Pr1.dot(P3);
+        //     cv::Mat aux_P3(P3.size(), P3.type());
+        //     aux_P3 = P3;
+        //     cv::pow(P3, 2, aux_P3);
+        //     double den = 0;
+        //     int i, j;
+        //     for (i = 0; i < aux_P3.rows; i++)
+        //     {
+        //         for (j = 0; j < aux_P3.cols; j++)
+        //         {
+        //             den += aux_P3.at<float>(i, j);
+        //         }
+        //     }
+        //     ms12i = nom / den;
+        // }
+        // else{
+        //     ms12i = 1.0f;
+        // }
 
         // Step 7: Translation
 
