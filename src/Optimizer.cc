@@ -238,7 +238,7 @@ namespace ORB_SLAM2
             filterMonoLocalMapPoints(vpEdgesMono, vpMapPointEdgeMono);
 
             // 和單目無關，暫時跳過
-            filterStereoLocalMapPoints(vpEdgesStereo, vpMapPointEdgeStereo);
+            // filterStereoLocalMapPoints(vpEdgesStereo, vpMapPointEdgeStereo);
 
             // Optimize again without the outliers
             optimizer.initializeOptimization(0);
@@ -259,7 +259,7 @@ namespace ORB_SLAM2
         
         markEarseMono(vToErase, vpMapPointEdgeMono, vpEdgesMono, vpEdgeKFMono);
         
-        markEarseStereo(vToErase, vpMapPointEdgeStereo, vpEdgesStereo, vpEdgeKFStereo);
+        // markEarseStereo(vToErase, vpMapPointEdgeStereo, vpEdgesStereo, vpEdgeKFStereo);
         
         // Get Map Mutex
         unique_lock<mutex> lock(pMap->mMutexMapUpdate);
@@ -685,17 +685,18 @@ namespace ORB_SLAM2
                 // const cv::KeyPoint &kpUn = pKF->mvKeysUn[kp_idx];
                 kpUn = pKF->mvKeysUn[kp_idx];
 
-                // 單目的 mvuRight 會是負的
-                if (pKF->mvuRight[kp_idx] < 0)
-                {
-                    addEdgeSE3ProjectXYZ(op, kpUn, pKF, id, pKF->mnId, bRobust, thHuber2D);
-                }
+                addEdgeSE3ProjectXYZ(op, kpUn, pKF, id, pKF->mnId, bRobust, thHuber2D);
 
-                // 非單目，暫時跳過
-                else
-                {
-                    addEdgeStereoSE3ProjectXYZ(op, kpUn, pKF, kp_idx, id, pKF->mnId, bRobust, thHuber3D);
-                }
+                // // 單目的 mvuRight 會是負的
+                // if (pKF->mvuRight[kp_idx] < 0)
+                // {
+                //     addEdgeSE3ProjectXYZ(op, kpUn, pKF, id, pKF->mnId, bRobust, thHuber2D);
+                // }
+                // // 非單目，暫時跳過
+                // else
+                // {
+                //     addEdgeStereoSE3ProjectXYZ(op, kpUn, pKF, kp_idx, id, pKF->mnId, bRobust, thHuber3D);
+                // }
             }
         }
     }
@@ -971,31 +972,37 @@ namespace ORB_SLAM2
                 const cv::KeyPoint &kpUn = kf->mvKeysUn[kp_idx];
 
                 // 單目的這個數值會是負的
-                const float kp_ur = kf->mvuRight[kp_idx];
+                // const float kp_ur = kf->mvuRight[kp_idx];
 
                 const float &invSigma2 = kf->mvInvLevelSigma2[kpUn.octave];
 
                 // Monocular observation
-                if (kp_ur < 0)
-                {
-                    e = addEdgeSE3ProjectXYZ(op, kpUn, kf, id, kf->mnId, true, thHuberMono);
-                    n_edge++;
+                e = addEdgeSE3ProjectXYZ(op, kpUn, kf, id, kf->mnId, true, thHuberMono);
+                n_edge++;
 
-                    vpEdgesMono.push_back(e);
-                    vpEdgeKFMono.push_back(kf);
-                    vpMapPointEdgeMono.push_back(mp);
-                }
+                vpEdgesMono.push_back(e);
+                vpEdgeKFMono.push_back(kf);
+                vpMapPointEdgeMono.push_back(mp);
 
-                // Stereo observation（非單目，暫時跳過）
-                else 
-                {
-                    e_stereo = addEdgeStereoSE3ProjectXYZ(op, kpUn, pKF, kp_idx, 
-                                                            id, pKF->mnId, true, thHuberStereo);
+                // // Monocular observation
+                // if (kp_ur < 0)
+                // {
+                //     e = addEdgeSE3ProjectXYZ(op, kpUn, kf, id, kf->mnId, true, thHuberMono);
+                //     n_edge++;
+                //     vpEdgesMono.push_back(e);
+                //     vpEdgeKFMono.push_back(kf);
+                //     vpMapPointEdgeMono.push_back(mp);
+                // }
+                // // Stereo observation（非單目，暫時跳過）
+                // else 
+                // {
+                //     e_stereo = addEdgeStereoSE3ProjectXYZ(op, kpUn, pKF, kp_idx, 
+                //                                             id, pKF->mnId, true, thHuberStereo);
                                                             
-                    vpEdgesStereo.push_back(e_stereo);
-                    vpEdgeKFStereo.push_back(kf);
-                    vpMapPointEdgeStereo.push_back(mp);
-                }         
+                //     vpEdgesStereo.push_back(e_stereo);
+                //     vpEdgeKFStereo.push_back(kf);
+                //     vpMapPointEdgeStereo.push_back(mp);
+                // }         
             }
         }
     }
@@ -1810,7 +1817,7 @@ namespace ORB_SLAM2
         MapPoint *pMP;
 
         const int N = pFrame->N;
-        float kp_ur;
+        // float kp_ur;
 
         for (int i = 0; i < N; i++)
         {
@@ -1820,7 +1827,7 @@ namespace ORB_SLAM2
             if (pMP)
             {
                 // 單目的這個值，會是負的
-                kp_ur = pFrame->mvuRight[i];
+                // kp_ur = pFrame->mvuRight[i];
                 
                 // 地圖點可被觀察到，因此不是 Outlier
                 pFrame->mvbOutlier[i] = false;
@@ -1831,42 +1838,54 @@ namespace ORB_SLAM2
                 const cv::KeyPoint &kpUn = pFrame->mvKeysUn[i];
 
                 // Monocular observation
-                if (kp_ur < 0)
-                {
-                    e = newEdgeSE3ProjectXYZOnlyPose(op, pFrame, kpUn);
+                e = newEdgeSE3ProjectXYZOnlyPose(op, pFrame, kpUn);
 
-                    // 圖點的世界座標
-                    /*void computeError()  {
-                        const VertexSE3Expmap* v1 = static_cast<const VertexSE3Expmap*>(_vertices[0]);
-                        Vector2d obs(_measurement);
-                        _error = obs-cam_project(v1->estimate().map(Xw));
-                    }*/
-                    Xw = pMP->GetWorldPos();                    
-                    e->Xw[0] = Xw.at<float>(0);
-                    e->Xw[1] = Xw.at<float>(1);
-                    e->Xw[2] = Xw.at<float>(2);
-                    
-                    op.addEdge(e);
-                    vpEdgesMono.push_back(e);
-                    vnIndexEdgeMono.push_back(i);
-                }
+                // 圖點的世界座標
+                /*void computeError()  {
+                    const VertexSE3Expmap* v1 = static_cast<const VertexSE3Expmap*>(_vertices[0]);
+                    Vector2d obs(_measurement);
+                    _error = obs-cam_project(v1->estimate().map(Xw));
+                }*/
+                Xw = pMP->GetWorldPos();                    
+                e->Xw[0] = Xw.at<float>(0);
+                e->Xw[1] = Xw.at<float>(1);
+                e->Xw[2] = Xw.at<float>(2);
+                
+                op.addEdge(e);
+                vpEdgesMono.push_back(e);
+                vnIndexEdgeMono.push_back(i);
 
-                // Stereo observation（暫時跳過）
-                else 
-                {
-                    //SET EDGE
-                    e_stereo = newEdgeStereoSE3ProjectXYZOnlyPose(op, pFrame, kpUn, kp_ur);
-
-                    Xw = pMP->GetWorldPos();
-
-                    e_stereo->Xw[0] = Xw.at<float>(0);
-                    e_stereo->Xw[1] = Xw.at<float>(1);
-                    e_stereo->Xw[2] = Xw.at<float>(2);
-
-                    op.addEdge(e_stereo);
-                    vpEdgesStereo.push_back(e_stereo);
-                    vnIndexEdgeStereo.push_back(i);
-                }
+                // // Monocular observation
+                // if (kp_ur < 0)
+                // {
+                //     e = newEdgeSE3ProjectXYZOnlyPose(op, pFrame, kpUn);
+                //     // 圖點的世界座標
+                //     /*void computeError()  {
+                //         const VertexSE3Expmap* v1 = static_cast<const VertexSE3Expmap*>(_vertices[0]);
+                //         Vector2d obs(_measurement);
+                //         _error = obs-cam_project(v1->estimate().map(Xw));
+                //     }*/
+                //     Xw = pMP->GetWorldPos();                    
+                //     e->Xw[0] = Xw.at<float>(0);
+                //     e->Xw[1] = Xw.at<float>(1);
+                //     e->Xw[2] = Xw.at<float>(2);                    
+                //     op.addEdge(e);
+                //     vpEdgesMono.push_back(e);
+                //     vnIndexEdgeMono.push_back(i);
+                // }
+                // // Stereo observation（暫時跳過）
+                // else 
+                // {
+                //     //SET EDGE
+                //     e_stereo = newEdgeStereoSE3ProjectXYZOnlyPose(op, pFrame, kpUn, kp_ur);
+                //     Xw = pMP->GetWorldPos();
+                //     e_stereo->Xw[0] = Xw.at<float>(0);
+                //     e_stereo->Xw[1] = Xw.at<float>(1);
+                //     e_stereo->Xw[2] = Xw.at<float>(2);
+                //     op.addEdge(e_stereo);
+                //     vpEdgesStereo.push_back(e_stereo);
+                //     vnIndexEdgeStereo.push_back(i);
+                // }
             }
         }
 
@@ -1950,8 +1969,8 @@ namespace ORB_SLAM2
             /// 會發生所有地圖點變成 outlier
             addPoseOptimizationMonoEdges(vpEdgesMono, vnIndexEdgeMono, pFrame, chi2Mono, it, nBad, idx);
 
-            addPoseOptimizationStereoEdges(pFrame, vpEdgesStereo, vnIndexEdgeStereo,
-                                           chi2Stereo, it, nBad);
+            // addPoseOptimizationStereoEdges(pFrame, vpEdgesStereo, vnIndexEdgeStereo,
+            //                                chi2Stereo, it, nBad);
 
             // 若 optimizer 還需要優化的『邊』足夠少（少於 10 個），則結束優化
             if (op.edges().size() < 10)
