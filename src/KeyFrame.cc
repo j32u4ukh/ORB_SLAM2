@@ -166,7 +166,6 @@ namespace ORB_SLAM2
     // 其他關鍵幀和當前關鍵幀觀察到相同的地圖點，且各自都觀察到足夠多的地圖點，則會和當前幀產生鏈結
     void KeyFrame::UpdateConnections()
     {
-        // 
         vector<MapPoint *> vpMP;
 
         {
@@ -232,12 +231,6 @@ namespace ORB_SLAM2
             kf = kf_count.first;
             count = kf_count.second;
 
-            if (count > nmax)
-            {
-                nmax = count;
-                pKFmax = kf;
-            }
-
             // 若關鍵幀觀察到的地圖點數量足夠多（大於所設門檻數量），應該表示『這個關鍵幀很重要』
             if (count >= th)
             {
@@ -245,6 +238,12 @@ namespace ORB_SLAM2
 
                 // 和當前關鍵幀添加連結
                 kf->AddConnection(this, count);
+            }
+
+            if (count > nmax)
+            {
+                nmax = count;
+                pKFmax = kf;
             }
         }
 
@@ -285,6 +284,24 @@ namespace ORB_SLAM2
 
                 // 當前關鍵幀為『父關鍵幀 mpParent』的子關鍵幀
                 mpParent->AddChild(this);
+
+                Eigen::Vector3d camera = Converter::toVector3d(GetCameraCenter());
+                set<MapPoint *> map_points;
+                Eigen::Vector3d map_point;
+                KeyFrame* connect_kf;
+                int i, n_kf = min(2, (int)mvpOrderedConnectedKeyFrames.size());
+                
+                for(i = 0; i < n_kf; i++)
+                {
+                    connect_kf = mvpOrderedConnectedKeyFrames[i];
+                    map_points = connect_kf->GetMapPoints();
+
+                    for(MapPoint* mp : map_points)
+                    {
+                        map_point = Converter::toVector3d(mp->GetWorldPos());
+                        updateLogOdd(camera, map_point);
+                    }
+                }
 
                 mbFirstConnection = false;
             }
@@ -1030,6 +1047,70 @@ namespace ORB_SLAM2
 
     template void KeyFrame::serialize(boost::archive::binary_iarchive&, const unsigned int);
     template void KeyFrame::serialize(boost::archive::binary_oarchive&, const unsigned int);
+
+    void KeyFrame::updateLogOdd(const Eigen::Vector3d origin, const Eigen::Vector3d endpoint)
+    {
+        // LOCK!!!!
+        vector<MapPoint *> vpMP;
+
+        {
+            unique_lock<mutex> lockMPs(mMutexFeatures);
+            vpMP = mvpMapPoints;
+        }
+
+        Eigen::Vector3d mp_vector, ray = endpoint - origin;
+
+        for(MapPoint *pMP : vpMP)
+        {
+            if(!pMP)
+            {
+                continue;
+            }
+
+            mp_vector = Converter::toVector3d(pMP->GetWorldPos()) - origin;
+
+            // 地圖點 mp 在此次觀察到的地圖點 endpoint 的射線上，表示地圖點 mp 應該已不在原本的位置
+            if(isOnRay(ray, mp_vector))
+            {
+                if(mp_vector.norm() == ray.norm())
+                {                    
+                    pMP->hit();
+
+                    // std::cout << "KeyFrame::updateLogOdd hit\n"
+                    //       << "origin: " << origin.transpose()
+                    //       << ", endpoint: " << endpoint.transpose()
+                    //       << "\npMP: " << Converter::toVector3d(pMP->GetWorldPos()).transpose()
+                    //       << ", mp_vector: " << mp_vector.transpose()
+                    //       << ", getHitLog: " << pMP->getHitLog()
+                    //       << ", getHitProb: " << pMP->getHitProb()
+                    //       << std::endl;
+                }
+                else
+                {
+                    pMP->miss();
+
+                    std::cout << "KeyFrame::updateLogOdd miss\n"
+                          << "origin: " << origin.transpose()
+                          << ", endpoint: " << endpoint.transpose()
+                          << "\npMP: " << Converter::toVector3d(pMP->GetWorldPos()).transpose()
+                          << ", mp_vector: " << mp_vector.transpose()
+                          << ", getHitLog: " << pMP->getHitLog()
+                          << ", getHitProb: " << pMP->getHitProb()
+                          << std::endl;
+                }
+            }
+        }
+    }
+
+    bool KeyFrame::isOnRay(const Eigen::Vector3d ray, const Eigen::Vector3d vector)
+    {
+        if(vector.norm() > ray.norm())
+        {
+            return false;
+        }
+
+        return ray.normalized() == vector.normalized();
+    }
 
     // ==================================================
     // 以下為非單目相關函式

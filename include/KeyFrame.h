@@ -28,6 +28,8 @@
 #include "ORBextractor.h"
 #include "Frame.h"
 #include "KeyFrameDatabase.h"
+#include <Eigen/Core>
+#include "Converter.h"
 
 #include <mutex>
 #include "BoostArchiver.h"
@@ -98,6 +100,9 @@ namespace ORB_SLAM2
 
         // 根據特徵點位置，返回該點的顏色
         cv::Vec3b getColor(const float u, const float v);
+
+        void updateLogOdd(const Eigen::Vector3d origin, const Eigen::Vector3d endpoint);
+        bool isOnRay(const Eigen::Vector3d ray, const Eigen::Vector3d vector);
 
         // KeyPoint functions
         std::vector<size_t> GetFeaturesInArea(const float &x, const float &y, const float &r) const;
